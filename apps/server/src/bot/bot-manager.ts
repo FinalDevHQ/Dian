@@ -1,0 +1,57 @@
+import type { LogService } from "@dian/logger";
+import type { ConfigService } from "@dian/config";
+import type { BotEvent } from "@dian/shared";
+import { BotInstance } from "./bot-instance.js";
+
+/**
+ * BotManager — 多机器人生命周期管理
+ *
+ * - 读取 bot.yaml 初始化所有 BotInstance
+ * - 提供统一的 start / stop / reloadConfig
+ */
+export class BotManager {
+  private readonly bots = new Map<string, BotInstance>();
+  private readonly log: ReturnType<LogService["child"]>;
+
+  constructor(
+    private readonly config: ConfigService,
+    private readonly logger: LogService,
+    private readonly onEvent: (event: BotEvent) => Promise<void>
+  ) {
+    this.log = logger.child({ component: "BotManager" });
+  }
+
+  async start(): Promise<void> {
+    const bots = this.config.bots;
+    this.log.info(`Starting ${bots.length} bot(s)...`);
+
+    for (const entry of bots) {
+      const instance = new BotInstance(entry, this.logger, this.onEvent);
+      this.bots.set(entry.botId, instance);
+      await instance.start();
+    }
+
+    this.log.info("All bots started");
+  }
+
+  async stop(): Promise<void> {
+    this.log.info("Stopping all bots...");
+    await Promise.all([...this.bots.values()].map((b) => b.stop()));
+    this.bots.clear();
+    this.log.info("All bots stopped");
+  }
+
+  async reloadConfig(): Promise<void> {
+    this.log.info("Reloading bot config...");
+    await this.stop();
+    await this.start();
+  }
+
+  getBot(botId: string): BotInstance | undefined {
+    return this.bots.get(botId);
+  }
+
+  getBots(): BotInstance[] {
+    return [...this.bots.values()];
+  }
+}
