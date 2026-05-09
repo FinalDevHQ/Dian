@@ -1,0 +1,18 @@
+{
+    "kiroAgent.configureMCP": "Disabled",
+
+    // Tailwind v4 使用了 @custom-variant / @theme / @apply 等自定义 at-rule，
+    // VS Code 内置 CSS 语言服务不认识它们，在此关闭未知 at-rule 的校验
+    "css.lint.unknownAtRules": "ignore",
+    "scss.lint.unknownAtRules": "ignore",
+    "less.lint.unknownAtRules": "ignore",
+
+    // 让 Tailwind CSS IntelliSense 也作用于 .ts/.tsx 里的 class 字符串
+    "files.associations": {
+        "*.css": "tailwindcss"
+    },
+    "tailwindCSS.experimental.classRegex": [
+        ["cva\\(([^)]*)\\)", "[\"'`]([^\"'`]*).*?[\"'`]"],
+        ["cn\\(([^)]*)\\)", "[\"'`]([^\"'`]*).*?[\"'`]"]
+    ]
+}

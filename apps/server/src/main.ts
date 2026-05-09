@@ -4,6 +4,7 @@ import { configService } from "@dian/config";
 import { logService } from "@dian/logger";
 import { pluginManager } from "@dian/plugin-runtime";
 import { BotManager } from "./bot/bot-manager.js";
+import { EventBus } from "./event/event-bus.js";
 import { EventDispatcher } from "./event/event-dispatcher.js";
 import { createServer } from "./server/fastify.js";
 
@@ -30,12 +31,17 @@ async function main(): Promise<void> {
   logger.info(`Loading plugins from ${PLUGINS_DIR}`);
   await pluginManager.loadAll(PLUGINS_DIR);
 
-  // ── 4. 事件分发器 & BotManager ────────────────────────────────────────────
+  // ── 4. 事件总线 + 分发器 & BotManager ────────────────────────────────────
+  const eventBus = new EventBus(200);
   const dispatcher = new EventDispatcher(logger);
   const botManager = new BotManager(
     configService,
     logger,
-    (event) => dispatcher.dispatch(event)
+    async (event) => {
+      // 先广播给 HTTP 订阅者（前端日志页等），再交给插件分发
+      eventBus.publish(event);
+      await dispatcher.dispatch(event);
+    }
   );
 
   // ── 5. 启动 HTTP 服务器 ───────────────────────────────────────────────────
@@ -44,6 +50,7 @@ async function main(): Promise<void> {
     logger,
     botManager,
     configDir: CONFIG_DIR,
+    eventBus,
   });
   await server.start();
 

@@ -33,6 +33,42 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T
 }
 
+// ─── Bot 事件 ───────────────────────────────────────────────────────────────
+
+export type BotEventType =
+  | "message"
+  | "message_sent"
+  | "notice"
+  | "request"
+  | "meta_event"
+
+export interface BotEventPayload {
+  text?: string
+  userId?: string
+  groupId?: string
+  channelId?: string
+  messageId?: string
+  senderName?: string
+  [key: string]: unknown
+}
+
+export interface BotEvent {
+  eventId: string
+  botId: string
+  platform: string
+  type: BotEventType
+  subtype: string
+  timestamp: number
+  payload: BotEventPayload
+  raw: unknown
+}
+
+export interface RecentEventsQuery {
+  limit?: number
+  botId?: string
+  type?: BotEventType
+}
+
 export interface ConfigFileMeta {
   name: string
   size: number
@@ -41,6 +77,20 @@ export interface ConfigFileMeta {
 
 export interface ConfigFileContent extends ConfigFileMeta {
   content: string
+}
+
+function buildQuery(params: Record<string, string | number | undefined>): string {
+  const usp = new URLSearchParams()
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== undefined && v !== "") usp.set(k, String(v))
+  }
+  const s = usp.toString()
+  return s ? `?${s}` : ""
+}
+
+/** 事件流 SSE 地址（含 query），主动用 EventSource 连接 */
+export function eventStreamUrl(filter: { botId?: string; type?: BotEventType }): string {
+  return `${BASE_URL}/events/stream${buildQuery(filter)}`
 }
 
 export const api = {
@@ -56,4 +106,9 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ content }),
     }),
+
+  recentEvents: (q: RecentEventsQuery = {}) =>
+    request<{ events: BotEvent[] }>(
+      `/events/recent${buildQuery({ limit: q.limit, botId: q.botId, type: q.type })}`
+    ),
 }

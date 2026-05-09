@@ -2,7 +2,7 @@
 # 支持配置多个 bot，每个 bot 独立运行
 
 bots:
-  - botId: "my-bot-001"
+  - botId: "点点"
     # 传输模式：ws | http | hybrid（推荐 hybrid）
     # - ws     : 仅 WebSocket（只收事件，无法发 action）
     # - http   : 仅 HTTP（只发 action，无法收事件）

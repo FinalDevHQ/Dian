@@ -3,6 +3,7 @@ import { AppLayout } from "@/components/layout/app-layout"
 import { navGroups } from "@/components/layout/nav-config"
 import { ConfigFilesPage } from "@/pages/config-files"
 import { DashboardPage } from "@/pages/dashboard"
+import { LogsPage } from "@/pages/logs"
 import { PlaceholderPage } from "@/pages/placeholder"
 
 function App() {
@@ -20,6 +21,8 @@ function App() {
     <AppLayout active={active} onNavigate={setActive} title={title}>
       {active === "dashboard" ? (
         <DashboardPage />
+      ) : active === "logs" ? (
+        <LogsPage />
       ) : active === "config" ? (
         <ConfigFilesPage />
       ) : (
