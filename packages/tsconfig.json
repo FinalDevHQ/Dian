@@ -1,0 +1,12 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./config" },
+    { "path": "./logger" },
+    { "path": "./module-runtime" },
+    { "path": "./plugin-runtime" },
+    { "path": "./sdk" },
+    { "path": "./shared" },
+    { "path": "./storage" }
+  ]
+}
