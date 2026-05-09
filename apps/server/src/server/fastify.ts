@@ -16,6 +16,7 @@ export interface ServerOptions {
   logger: LogService;
   botManager: BotManager;
   configDir: string;
+  pluginsDir: string;
   eventBus: EventBus;
   dbExplorer: DatabaseExplorer;
 }
@@ -33,20 +34,28 @@ export async function createServer(opts: ServerOptions): Promise<{
     logger,
     botManager,
     configDir,
+    pluginsDir,
     eventBus,
     dbExplorer,
   } = opts;
 
-  const app = Fastify({ logger: false });
+  const app = Fastify({ logger: false, bodyLimit: 50 * 1024 * 1024 }); // 50 MB
 
   await app.register(cors, { origin: true });
+
+  // ZIP / 二进制上传支持（插件安装用）
+  app.addContentTypeParser(
+    ["application/zip", "application/octet-stream", "application/x-zip-compressed"],
+    { parseAs: "buffer" },
+    (_req, body, done) => done(null, body)
+  );
 
   // 路由
   await app.register(healthRoutes, { logger, botManager });
   await app.register(configRoutes, { logger, configDir });
   await app.register(eventRoutes, { logger, bus: eventBus });
   await app.register(dbRoutes, { logger, explorer: dbExplorer });
-  await app.register(pluginRoutes, { logger });
+  await app.register(pluginRoutes, { logger, pluginsDir });
 
   return {
     async start() {

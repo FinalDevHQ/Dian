@@ -1,6 +1,8 @@
 import "reflect-metadata";
+import { existsSync } from "node:fs";
 import { readdir } from "node:fs/promises";
 import { resolve, extname } from "node:path";
+import { pathToFileURL } from "node:url";
 import chokidar, { type FSWatcher } from "chokidar";
 import type { BotEvent } from "@dian/shared";
 import {
@@ -49,15 +51,23 @@ export class PluginManager {
     for (const entry of entries) {
       const fullPath = resolve(this._pluginsDir, entry);
       const ext = extname(entry);
-      if (ext !== ".js" && ext !== "") continue;
-      await this._loadFile(fullPath);
+      if (ext === ".js") {
+        await this._loadFile(fullPath);
+      } else if (ext === "") {
+        // 目录插件：显式解析到 index.js（ESM 不支持裸目录 import）
+        const indexFile = resolve(fullPath, "index.js");
+        if (existsSync(indexFile)) {
+          await this._loadFile(indexFile);
+        }
+      }
     }
   }
 
   private async _loadFile(filePath: string): Promise<void> {
     let imported: Record<string, unknown>;
     try {
-      imported = (await import(filePath)) as Record<string, unknown>;
+      // Windows 路径需要转换为 file:// URL，否则 ESM loader 报错
+      imported = (await import(pathToFileURL(filePath).href)) as Record<string, unknown>;
     } catch (err) {
       console.error(`[plugin-runtime] 加载插件失败 "${filePath}":`, err);
       return;
@@ -169,6 +179,8 @@ export class PluginManager {
     });
 
     this._watcher.on("add", (filePath: string) => {
+      // 只加载 .js 文件，忽略 .html 、.css 等静态资源
+      if (extname(filePath) !== ".js") return;
       this._loadFile(filePath).catch(console.error);
     });
 

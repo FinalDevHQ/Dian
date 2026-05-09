@@ -1,5 +1,8 @@
 import { existsSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { mkdir, unlink, writeFile } from "node:fs/promises";
+import { dirname, join, resolve } from "node:path";
+import { tmpdir } from "node:os";
+import { execSync } from "node:child_process";
 import type { FastifyInstance } from "fastify";
 import fastifyStatic from "@fastify/static";
 import { pluginManager } from "@dian/plugin-runtime";
@@ -7,13 +10,14 @@ import type { LogService } from "@dian/logger";
 
 interface PluginRoutesOptions {
   logger: LogService;
+  pluginsDir: string;
 }
 
 export async function pluginRoutes(
   app: FastifyInstance,
   opts: PluginRoutesOptions
 ): Promise<void> {
-  const { logger } = opts;
+  const { logger, pluginsDir } = opts;
 
   // ── GET /plugins ──────────────────────────────────────────────────────────
   app.get("/plugins", async (_req, reply) => {
@@ -39,7 +43,46 @@ export async function pluginRoutes(
     return reply.send({ ok: true });
   });
 
-  // ── 插件自定义 API 路由（/plugins/:name/api/*） ────────────────────────────
+  // ── POST /plugins/upload ─────────────────────────────────────────────────
+  app.post<{
+    Querystring: { name?: string };
+    Body: Buffer;
+  }>("/plugins/upload", async (req, reply) => {
+    const rawName = req.query.name ?? "";
+    const name = rawName.trim().replace(/\.zip$/i, "");
+
+    if (!name || !/^[\w-]+$/.test(name)) {
+      return reply.code(400).send({ error: "missing or invalid ?name= (alphanumeric / dash / underscore only)" });
+    }
+
+    const body = req.body;
+    if (!Buffer.isBuffer(body) || body.length === 0) {
+      return reply.code(400).send({ error: "empty body" });
+    }
+
+    const tmpFile = join(tmpdir(), `dian-plugin-${Date.now()}.zip`);
+    const destDir = join(pluginsDir, name);
+
+    try {
+      await writeFile(tmpFile, body);
+      await mkdir(destDir, { recursive: true });
+
+      execSync(
+        `powershell -NoProfile -Command "Expand-Archive -Path '${tmpFile}' -DestinationPath '${destDir}' -Force"`,
+        { stdio: "pipe" }
+      );
+
+      logger.info(`Plugin installed: ${name} -> ${destDir}`);
+      return reply.send({ ok: true, name, destDir });
+    } catch (err) {
+      logger.error(`Plugin install failed: ${name}`, { err: (err as Error).message });
+      return reply.code(500).send({ error: (err as Error).message });
+    } finally {
+      unlink(tmpFile).catch(() => undefined);
+    }
+  });
+
+  // ── 插件自定义 API 路由（/plugins/:name/api/*） ──────────────────────────────
   for (const plugin of pluginManager.plugins) {
     const { name } = plugin.meta;
     const prefix = `/plugins/${encodeURIComponent(name)}/api`;

@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Plugin</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1.5rem;
+      padding: 2rem;
+    }
+    .card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 2rem;
+      width: 100%;
+      max-width: 480px;
+    }
+    h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: .5rem; }
+    p  { color: #94a3b8; font-size: .875rem; line-height: 1.6; }
+    .badge {
+      display: inline-block;
+      background: #0ea5e9;
+      color: #fff;
+      font-size: .7rem;
+      font-weight: 600;
+      padding: .2rem .6rem;
+      border-radius: 999px;
+      margin-bottom: .75rem;
+    }
+    .stat-row {
+      display: flex;
+      gap: 1rem;
+      margin-top: 1.25rem;
+    }
+    .stat {
+      flex: 1;
+      background: #0f172a;
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      padding: .75rem;
+      text-align: center;
+    }
+    .stat-value { font-size: 1.5rem; font-weight: 700; color: #38bdf8; }
+    .stat-label { font-size: .7rem; color: #64748b; margin-top: .2rem; }
+    button {
+      margin-top: 1.25rem;
+      width: 100%;
+      background: #0ea5e9;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: .6rem 1rem;
+      font-size: .875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    button:hover { background: #0284c7; }
+    #status { margin-top: .75rem; font-size: .8rem; color: #94a3b8; text-align: center; min-height: 1.2em; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="badge">🔌 Plugin UI</div>
+    <h1>My Plugin</h1>
+    <p>这是插件的管理界面，可以在这里展示统计信息、配置项或操作面板。</p>
+    <div class="stat-row">
+      <div class="stat">
+        <div class="stat-value" id="uptime">—</div>
+        <div class="stat-label">运行时间</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="requests">—</div>
+        <div class="stat-label">API 请求</div>
+      </div>
+    </div>
+    <button onclick="ping()">Ping 插件 API</button>
+    <div id="status"></div>
+  </div>
+
+  <script>
+    let reqCount = 0;
+    const start = Date.now();
+
+    setInterval(() => {
+      const sec = Math.floor((Date.now() - start) / 1000);
+      const h = String(Math.floor(sec / 3600)).padStart(2, '0');
+      const m = String(Math.floor((sec % 3600) / 60)).padStart(2, '0');
+      const s = String(sec % 60).padStart(2, '0');
+      document.getElementById('uptime').textContent = `${h}:${m}:${s}`;
+    }, 1000);
+
+    async function ping() {
+      const el = document.getElementById('status');
+      el.textContent = '请求中…';
+      try {
+        const res = await fetch('/plugins/my-plugin/api/status');
+        const data = await res.json();
+        reqCount++;
+        document.getElementById('requests').textContent = reqCount;
+        el.textContent = `✓ ${JSON.stringify(data)}`;
+      } catch (e) {
+        el.textContent = `✗ ${e.message}`;
+      }
+    }
+  </script>
+</body>
+</html>

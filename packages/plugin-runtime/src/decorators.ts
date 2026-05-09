@@ -67,9 +67,9 @@ export interface PluginSetupContext {
 // 装饰器元数据 key
 // ---------------------------------------------------------------------------
 
-export const PLUGIN_META_KEY = Symbol("dian:plugin");
-export const HANDLER_META_KEY = Symbol("dian:handlers");
-export const INTERCEPTOR_META_KEY = Symbol("dian:interceptors");
+export const PLUGIN_META_KEY = Symbol.for("dian:plugin");
+export const HANDLER_META_KEY = Symbol.for("dian:handlers");
+export const INTERCEPTOR_META_KEY = Symbol.for("dian:interceptors");
 
 // ---------------------------------------------------------------------------
 // 插件元信息

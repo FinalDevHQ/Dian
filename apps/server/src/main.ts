@@ -47,6 +47,7 @@ async function main(): Promise<void> {
   // ── 3. 加载插件 ───────────────────────────────────────────────────────────
   logger.info(`Loading plugins from ${PLUGINS_DIR}`);
   await pluginManager.loadAll(PLUGINS_DIR);
+  pluginManager.watch(); // 监听新安装的插件文件，自动热加载
 
   // ── 4a. 数据库浏览器（按 settings.storage 注册数据源） ────────────────────
   const dbExplorer = new DatabaseExplorer(logger);
@@ -77,6 +78,7 @@ async function main(): Promise<void> {
     logger,
     botManager,
     configDir: CONFIG_DIR,
+    pluginsDir: PLUGINS_DIR,
     eventBus,
     dbExplorer,
   });

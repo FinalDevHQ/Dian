@@ -4,7 +4,8 @@
   "private": true,
   "workspaces": [
     "packages/*",
-    "apps/*"
+    "apps/*",
+    "plugin-template"
   ],
   "scripts": {
     "build": "npm run build -w packages && npm run build -w apps/server",

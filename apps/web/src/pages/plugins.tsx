@@ -3,6 +3,7 @@ import {
   AlertCircle,
   BookOpen,
   Box,
+  CheckCircle2,
   ExternalLink,
   Globe,
   Loader2,
@@ -10,6 +11,8 @@ import {
   PlugZap,
   RefreshCw,
   TerminalSquare,
+  Upload,
+  X,
 } from "lucide-react"
 import { api, type PluginPublicMeta } from "@/lib/api"
 import { Badge } from "@/components/ui/badge"
@@ -23,6 +26,144 @@ import {
 } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
 import { cn } from "@/lib/utils"
+
+// ── 上传插件弹窗 ────────────────────────────────────────────────────────────
+
+function UploadDialog({
+  onClose,
+  onSuccess,
+}: {
+  onClose: () => void
+  onSuccess: () => void
+}) {
+  const [file, setFile] = useState<File | null>(null)
+  const [dragging, setDragging] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const accept = (f: File) => {
+    if (!f.name.endsWith(".zip")) {
+      setResult({ ok: false, msg: "只支持 .zip 格式" })
+      return
+    }
+    setFile(f)
+    setResult(null)
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setDragging(false)
+    const f = e.dataTransfer.files[0]
+    if (f) accept(f)
+  }
+
+  const handleInstall = async () => {
+    if (!file) return
+    setUploading(true)
+    setResult(null)
+    try {
+      await api.uploadPlugin(file.name, file)
+      setResult({ ok: true, msg: `插件 "${file.name.replace(/\.zip$/i, "")}" 安装成功，HTTP 路由重启后生效` })
+      onSuccess()
+    } catch (err) {
+      setResult({ ok: false, msg: err instanceof Error ? err.message : String(err) })
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-md rounded-xl border bg-background shadow-2xl">
+        {/* 头部 */}
+        <div className="flex items-center justify-between border-b px-5 py-4">
+          <div className="flex items-center gap-2">
+            <Upload className="size-4 text-muted-foreground" />
+            <span className="font-semibold">安装插件</span>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+
+        {/* 主体 */}
+        <div className="flex flex-col gap-4 p-5">
+          {/* 拖放区域 */}
+          <div
+            onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={handleDrop}
+            onClick={() => inputRef.current?.click()}
+            className={cn(
+              "flex cursor-pointer flex-col items-center gap-3 rounded-lg border-2 border-dashed px-6 py-10 transition-colors",
+              dragging ? "border-primary bg-primary/5" : "border-muted-foreground/25 hover:border-muted-foreground/50 hover:bg-muted/50"
+            )}
+          >
+            <Upload className={cn("size-8 transition-colors", dragging ? "text-primary" : "text-muted-foreground/50")} />
+            {file ? (
+              <div className="text-center">
+                <p className="font-medium">{file.name}</p>
+                <p className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(1)} KB</p>
+              </div>
+            ) : (
+              <div className="text-center">
+                <p className="text-sm">拖放 ZIP 文件到此处</p>
+                <p className="text-xs text-muted-foreground">或点击选择文件</p>
+              </div>
+            )}
+          </div>
+          <input
+            ref={inputRef}
+            type="file"
+            accept=".zip,application/zip,application/octet-stream"
+            className="hidden"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) accept(f) }}
+          />
+
+          {/* 结果提示 */}
+          {result && (
+            <div className={cn(
+              "flex items-start gap-2 rounded-md border px-3 py-2 text-xs",
+              result.ok
+                ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-700"
+                : "border-destructive/30 bg-destructive/5 text-destructive"
+            )}>
+              {result.ok
+                ? <CheckCircle2 className="mt-0.5 size-3.5 shrink-0" />
+                : <AlertCircle className="mt-0.5 size-3.5 shrink-0" />}
+              {result.msg}
+            </div>
+          )}
+
+          {/* 操作按钮 */}
+          <div className="flex gap-2">
+            <Button variant="outline" className="flex-1" onClick={onClose} disabled={uploading}>
+              关闭
+            </Button>
+            <Button
+              className="flex-1"
+              onClick={handleInstall}
+              disabled={!file || uploading || result?.ok === true}
+            >
+              {uploading ? <Loader2 className="mr-1.5 size-3.5 animate-spin" /> : <Upload className="mr-1.5 size-3.5" />}
+              {uploading ? "安装中…" : "安装"}
+            </Button>
+          </div>
+
+          <p className="text-[11px] text-muted-foreground">
+            ZIP 会解压到 <code className="font-mono">plugins/&lt;name&gt;/</code> 目录。
+            事件 handler / 指令热加载生效；HTTP API 路由需重启服务。
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 function PluginIcon({ icon, name }: { icon?: string; name: string }) {
   const isUrl = icon?.startsWith("http") || icon?.startsWith("/")
@@ -245,22 +386,42 @@ export function PluginsPage() {
 
   const selectedPlugin = plugins?.find((p) => p.name === selected) ?? null
 
+  const [uploadOpen, setUploadOpen] = useState(false)
+
   return (
     <div className="grid h-[calc(100vh-8rem)] grid-cols-[16rem_1fr] gap-4">
+      {uploadOpen && (
+        <UploadDialog
+          onClose={() => setUploadOpen(false)}
+          onSuccess={() => { setTimeout(() => { loadPlugins() }, 800) }}
+        />
+      )}
+
       {/* ── 左侧插件列表 ── */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium text-muted-foreground">
             已安装 {plugins?.length ?? 0} 个
           </span>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={loadPlugins}
-            disabled={loading}
-          >
-            <RefreshCw className={cn("size-3.5", loading && "animate-spin")} />
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setUploadOpen(true)}
+              title="安装插件"
+            >
+              <Upload className="size-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={loadPlugins}
+              disabled={loading}
+              title="刷新"
+            >
+              <RefreshCw className={cn("size-3.5", loading && "animate-spin")} />
+            </Button>
+          </div>
         </div>
 
         {error && (

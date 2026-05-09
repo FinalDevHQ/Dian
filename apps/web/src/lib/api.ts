@@ -173,6 +173,18 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ enabled }),
     }),
+  uploadPlugin: (name: string, file: File) => {
+    const safeName = name.replace(/\.zip$/i, "")
+    return fetch(`${BASE_URL}/plugins/upload?name=${encodeURIComponent(safeName)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/octet-stream" },
+      body: file,
+    }).then(async (res) => {
+      const data = await res.json() as { ok?: boolean; error?: string; name?: string }
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`)
+      return data
+    })
+  },
 
   listDbSources: () => request<{ sources: DataSourceMeta[] }>("/db/sources"),
   listDbTables: (source: string) =>
