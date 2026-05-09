@@ -16,5 +16,8 @@
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
     }
+  },
+  "devDependencies": {
+    "@types/node": "*"
   }
 }
