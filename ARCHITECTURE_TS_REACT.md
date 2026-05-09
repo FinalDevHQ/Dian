@@ -285,8 +285,8 @@ interface LogRepository {
 
 ### 本地开发
 
-- `pnpm install`
-- `pnpm -r dev`
+- `npm install`（在 `packages/` 目录下执行，使用 npm workspaces）
+- `npm run dev`（启动全包 `tsc -b --watch` 增量编译）
 
 ### 生产部署
 
