@@ -8,6 +8,7 @@ import { healthRoutes } from "../routes/health.js";
 import { configRoutes } from "../routes/config.js";
 import { eventRoutes } from "../routes/events.js";
 import { dbRoutes } from "../routes/db.js";
+import { pluginRoutes } from "../routes/plugins.js";
 
 export interface ServerOptions {
   host?: string;
@@ -45,6 +46,7 @@ export async function createServer(opts: ServerOptions): Promise<{
   await app.register(configRoutes, { logger, configDir });
   await app.register(eventRoutes, { logger, bus: eventBus });
   await app.register(dbRoutes, { logger, explorer: dbExplorer });
+  await app.register(pluginRoutes, { logger });
 
   return {
     async start() {

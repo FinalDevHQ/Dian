@@ -5,6 +5,7 @@ import { ConfigFilesPage } from "@/pages/config-files"
 import { DashboardPage } from "@/pages/dashboard"
 import { DatabasePage } from "@/pages/database"
 import { LogsPage } from "@/pages/logs"
+import { PluginsPage } from "@/pages/plugins"
 import { PlaceholderPage } from "@/pages/placeholder"
 
 function App() {
@@ -24,6 +25,8 @@ function App() {
         <DashboardPage />
       ) : active === "logs" ? (
         <LogsPage />
+      ) : active === "plugins" ? (
+        <PluginsPage />
       ) : active === "database" ? (
         <DatabasePage />
       ) : active === "config" ? (

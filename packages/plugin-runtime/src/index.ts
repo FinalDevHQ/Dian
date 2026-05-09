@@ -9,8 +9,13 @@ export {
 } from "./decorators.js";
 export type {
   PluginMeta,
+  PluginPublicMeta,
   HandlerMeta,
   InterceptorMeta,
+  CommandEntry,
+  RouteEntry,
+  UIDeclaration,
+  PluginSetupContext,
   PluginInstance,
   EventContext,
 } from "./decorators.js";

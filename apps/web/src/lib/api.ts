@@ -100,6 +100,22 @@ export function eventStreamUrl(filter: { botId?: string; type?: BotEventType }):
   return `${BASE_URL}/events/stream${buildQuery(filter)}`
 }
 
+// ─── 插件管理 ────────────────────────────────────────────────────────────────
+
+export interface PluginPublicMeta {
+  name: string
+  description?: string
+  version?: string
+  author?: string
+  icon?: string
+  enabled: boolean
+  handlerCount: number
+  commandCount: number
+  routes: { method: string; path: string }[]
+  hasUI: boolean
+  uiUrl: string | null
+}
+
 // ─── 数据库浏览器 ────────────────────────────────────────────────────────────
 
 export interface DataSourceMeta {
@@ -150,6 +166,13 @@ export const api = {
     request<{ events: BotEvent[] }>(
       `/events/recent${buildQuery({ limit: q.limit, botId: q.botId, type: q.type })}`
     ),
+
+  listPlugins: () => request<{ plugins: PluginPublicMeta[] }>("/plugins"),
+  setPluginEnabled: (name: string, enabled: boolean) =>
+    request<{ ok: boolean }>(`/plugins/${encodeURIComponent(name)}/enabled`, {
+      method: "PUT",
+      body: JSON.stringify({ enabled }),
+    }),
 
   listDbSources: () => request<{ sources: DataSourceMeta[] }>("/db/sources"),
   listDbTables: (source: string) =>

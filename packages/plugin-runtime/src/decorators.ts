@@ -1,6 +1,69 @@
 import type { BotEvent } from "@dian/shared";
 
 // ---------------------------------------------------------------------------
+// 路由 / 指令 / UI 声明（供 onSetup 使用）
+// ---------------------------------------------------------------------------
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type RouteHandler = (request: any, reply: any) => unknown | Promise<unknown>;
+
+export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+
+export interface RouteEntry {
+  method: HttpMethod;
+  /** 路径，相对于 /plugins/:name/api，如 '/status' */
+  path: string;
+  handler: RouteHandler;
+}
+
+export interface CommandEntry {
+  /** 指令名称，如 /help */
+  name: string;
+  /** 匹配规则，同 @Handler pattern */
+  pattern: RegExp | string;
+  description?: string;
+  handler: (ctx: EventContext) => void | Promise<void>;
+}
+
+export interface UIDeclaration {
+  /**
+   * 静态文件目录，相对于插件文件所在目录。
+   * 服务地址: /plugins/:name/ui/*
+   */
+  staticDir?: string;
+  /** 直接嵌入的外部 URL（iframe src），不与 staticDir 同时用 */
+  externalUrl?: string;
+  /** 首页入口，相对于 staticDir，默认 index.html */
+  entry?: string;
+}
+
+/** 暴露给前端 API 的插件公开信息（不包含 handler 实现） */
+export interface PluginPublicMeta {
+  name: string;
+  description?: string;
+  version?: string;
+  author?: string;
+  icon?: string;
+  enabled: boolean;
+  handlerCount: number;
+  commandCount: number;
+  routes: { method: HttpMethod; path: string }[];
+  hasUI: boolean;
+  /** UI 访问地址（iframe src） */
+  uiUrl: string | null;
+}
+
+/** 插件 onSetup 接收的上下文，用于注册路由/指令/UI */
+export interface PluginSetupContext {
+  /** 注册 HTTP API 路由，路径自动带 /plugins/:name/api 前缀 */
+  route(method: HttpMethod, path: string, handler: RouteHandler): void;
+  /** 注册指令（等同于命令式版本的 @Handler） */
+  command(entry: CommandEntry): void;
+  /** 声明插件 Web UI */
+  ui(decl: UIDeclaration): void;
+}
+
+// ---------------------------------------------------------------------------
 // 装饰器元数据 key
 // ---------------------------------------------------------------------------
 
@@ -16,6 +79,9 @@ export interface PluginMeta {
   name: string;
   description?: string;
   version?: string;
+  author?: string;
+  /** emoji 或图标 URL */
+  icon?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -48,6 +114,12 @@ export interface PluginInstance {
   meta: PluginMeta;
   handlers: HandlerMeta[];
   interceptors: InterceptorMeta[];
+  /** 通过 onSetup ctx.route() 注册的 HTTP 路由 */
+  routes: RouteEntry[];
+  /** 通过 onSetup ctx.command() 注册的指令 */
+  commands: CommandEntry[];
+  /** 通过 onSetup ctx.ui() 或 @Plugin meta.ui 声明的 UI */
+  ui: UIDeclaration | null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   instance: any;
   /** 插件源文件路径，用于热重载 */

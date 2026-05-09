@@ -7,11 +7,16 @@ import {
   PLUGIN_META_KEY,
   HANDLER_META_KEY,
   INTERCEPTOR_META_KEY,
+  type CommandEntry,
   type EventContext,
   type HandlerMeta,
   type InterceptorMeta,
   type PluginInstance,
   type PluginMeta,
+  type PluginPublicMeta,
+  type PluginSetupContext,
+  type RouteEntry,
+  type UIDeclaration,
 } from "./decorators.js";
 
 // ---------------------------------------------------------------------------
@@ -79,7 +84,47 @@ export class PluginManager {
     // 按 priority 升序排列
     interceptors.sort((a, b) => a.priority - b.priority);
 
-    this._plugins.set(meta.name, { meta, handlers, interceptors, instance, filePath });
+    // ── 收集 onSetup 注册的路由/指令/UI ───────────────────────────────────
+    const routes: RouteEntry[] = [];
+    const commands: CommandEntry[] = [];
+    let ui: UIDeclaration | null = null;
+
+    // 支持 @Plugin 元数据里内联声明 UI
+    if ((meta as PluginMeta & { ui?: UIDeclaration }).ui) {
+      ui = (meta as PluginMeta & { ui?: UIDeclaration }).ui!;
+    }
+
+    // 如果插件实现了 onSetup 方法，调用之
+    if (typeof (instance as Record<string, unknown>)["onSetup"] === "function") {
+      const ctx: PluginSetupContext = {
+        route(method, path, handler) {
+          routes.push({ method, path, handler });
+        },
+        command(entry) {
+          commands.push(entry);
+        },
+        ui(decl) {
+          ui = decl;
+        },
+      };
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (instance as any).onSetup(ctx);
+      } catch (err) {
+        console.error(`[plugin-runtime] 插件 "${meta.name}" onSetup 异常:`, err);
+      }
+    }
+
+    this._plugins.set(meta.name, {
+      meta,
+      handlers,
+      interceptors,
+      routes,
+      commands,
+      ui,
+      instance,
+      filePath,
+    });
     console.info(`[plugin-runtime] 插件 "${meta.name}" 已加载`);
   }
 
@@ -184,7 +229,7 @@ export class PluginManager {
 
     if (stopped) return;
 
-    // 2. 执行匹配 pattern 的 handlers
+    // 2. 执行匹配 pattern 的 handlers + commands
     const messageText = extractMessageText(event);
 
     for (const plugin of this._plugins.values()) {
@@ -200,6 +245,19 @@ export class PluginManager {
         } catch (err) {
           console.error(
             `[plugin-runtime] handler "${plugin.meta.name}.${hm.method}" 异常:`,
+            err,
+          );
+        }
+      }
+
+      for (const cmd of plugin.commands) {
+        if (stopped) break;
+        if (!matchPattern(cmd.pattern, messageText)) continue;
+        try {
+          await cmd.handler(ctx);
+        } catch (err) {
+          console.error(
+            `[plugin-runtime] command "${plugin.meta.name}/${cmd.name}" 异常:`,
             err,
           );
         }
@@ -221,7 +279,7 @@ export class PluginManager {
     this._maintenanceMode = enabled;
   }
 
-  // ── 只读信息 ──────────────────────────────────────────────────────────────
+  // ── 只读信息 ──────────────── 
 
   get plugins(): PluginInstance[] {
     return [...this._plugins.values()];
@@ -229,6 +287,30 @@ export class PluginManager {
 
   get maintenanceMode(): boolean {
     return this._maintenanceMode;
+  }
+
+  /**
+   * 返回所有插件的公开元信息（不包含 handler 实现）。
+   * 主要供前端 API 使用。
+   */
+  listPluginsMeta(): PluginPublicMeta[] {
+    return [...this._plugins.values()].map((p) => ({
+      name: p.meta.name,
+      description: p.meta.description,
+      version: p.meta.version,
+      author: p.meta.author,
+      icon: p.meta.icon,
+      enabled: !this._blacklist.has(p.meta.name),
+      handlerCount: p.handlers.length,
+      commandCount: p.commands.length,
+      routes: p.routes.map((r) => ({ method: r.method, path: r.path })),
+      hasUI: p.ui !== null,
+      uiUrl: p.ui?.externalUrl
+        ? p.ui.externalUrl
+        : p.ui
+          ? `/plugins/${encodeURIComponent(p.meta.name)}/ui/`
+          : null,
+    }));
   }
 }
 
