@@ -28,7 +28,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     },
   })
   if (!res.ok) {
-    throw new Error(`HTTP ${res.status} ${res.statusText}`)
+    let detail = ""
+    try {
+      const body = await res.json()
+      if (body && typeof body.error === "string") detail = `: ${body.error}`
+    } catch {
+      /* body 不是 json，忽略 */
+    }
+    throw new Error(`HTTP ${res.status} ${res.statusText}${detail}`)
   }
   return (await res.json()) as T
 }
@@ -93,6 +100,38 @@ export function eventStreamUrl(filter: { botId?: string; type?: BotEventType }):
   return `${BASE_URL}/events/stream${buildQuery(filter)}`
 }
 
+// ─── 数据库浏览器 ────────────────────────────────────────────────────────────
+
+export interface DataSourceMeta {
+  name: string
+  kind: "sqlite"
+  location: string
+  ready: boolean
+}
+
+export interface TableInfo {
+  name: string
+  rowCount: number
+}
+
+export interface ColumnInfo {
+  name: string
+  type: string
+  notNull: boolean
+  pk: boolean
+  defaultValue: unknown
+}
+
+export interface QueryResult {
+  columns: { name: string }[]
+  rows: unknown[][]
+  rowCount: number
+  truncated: boolean
+  rowsAffected?: number
+  lastInsertRowid?: number | string
+  durationMs: number
+}
+
 export const api = {
   health: () => request<HealthResponse>("/health"),
   status: () => request<StatusResponse>("/status"),
@@ -110,5 +149,31 @@ export const api = {
   recentEvents: (q: RecentEventsQuery = {}) =>
     request<{ events: BotEvent[] }>(
       `/events/recent${buildQuery({ limit: q.limit, botId: q.botId, type: q.type })}`
+    ),
+
+  listDbSources: () => request<{ sources: DataSourceMeta[] }>("/db/sources"),
+  listDbTables: (source: string) =>
+    request<{ tables: TableInfo[] }>(
+      `/db/sources/${encodeURIComponent(source)}/tables`
+    ),
+  getDbSchema: (source: string, table: string) =>
+    request<{ columns: ColumnInfo[] }>(
+      `/db/sources/${encodeURIComponent(source)}/tables/${encodeURIComponent(table)}/schema`
+    ),
+  runDbQuery: (
+    source: string,
+    sql: string,
+    opts: { readOnly?: boolean; params?: unknown[] } = {}
+  ) =>
+    request<QueryResult>(
+      `/db/sources/${encodeURIComponent(source)}/query`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          sql,
+          readOnly: opts.readOnly ?? true,
+          params: opts.params ?? [],
+        }),
+      }
     ),
 }

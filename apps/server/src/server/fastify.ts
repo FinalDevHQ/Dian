@@ -3,9 +3,11 @@ import cors from "@fastify/cors";
 import type { LogService } from "@dian/logger";
 import type { BotManager } from "../bot/bot-manager.js";
 import type { EventBus } from "../event/event-bus.js";
+import type { DatabaseExplorer } from "../db/explorer.js";
 import { healthRoutes } from "../routes/health.js";
 import { configRoutes } from "../routes/config.js";
 import { eventRoutes } from "../routes/events.js";
+import { dbRoutes } from "../routes/db.js";
 
 export interface ServerOptions {
   host?: string;
@@ -14,6 +16,7 @@ export interface ServerOptions {
   botManager: BotManager;
   configDir: string;
   eventBus: EventBus;
+  dbExplorer: DatabaseExplorer;
 }
 
 /**
@@ -30,6 +33,7 @@ export async function createServer(opts: ServerOptions): Promise<{
     botManager,
     configDir,
     eventBus,
+    dbExplorer,
   } = opts;
 
   const app = Fastify({ logger: false });
@@ -40,6 +44,7 @@ export async function createServer(opts: ServerOptions): Promise<{
   await app.register(healthRoutes, { logger, botManager });
   await app.register(configRoutes, { logger, configDir });
   await app.register(eventRoutes, { logger, bus: eventBus });
+  await app.register(dbRoutes, { logger, explorer: dbExplorer });
 
   return {
     async start() {
