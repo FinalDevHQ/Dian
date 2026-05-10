@@ -78,6 +78,8 @@ export interface PluginPublicMeta {
   handlers: HandlerPublicMeta[];
   /** 已注册的指令（ctx.command）详情 */
   commands: CommandPublicMeta[];
+  /** 当前生效的 bot 白名单（空数组表示任何 bot 都不响应） */
+  bots: string[];
   routes: { method: HttpMethod; path: string }[];
   hasUI: boolean;
   /** UI 访问地址（iframe src） */

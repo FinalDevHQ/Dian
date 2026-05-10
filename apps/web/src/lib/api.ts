@@ -144,6 +144,17 @@ export function eventStreamUrl(filter: { botId?: string; type?: BotEventType }):
 
 // ─── 插件管理 ────────────────────────────────────────────────────────────────
 
+export interface PluginCommandMeta {
+  name: string
+  pattern: string
+  description?: string
+}
+
+export interface PluginHandlerMeta {
+  method: string
+  pattern: string
+}
+
 export interface PluginPublicMeta {
   name: string
   description?: string
@@ -153,6 +164,10 @@ export interface PluginPublicMeta {
   enabled: boolean
   handlerCount: number
   commandCount: number
+  handlers: PluginHandlerMeta[]
+  commands: PluginCommandMeta[]
+  /** 当前生效的 bot 白名单（空数组表示任何 bot 都不响应） */
+  bots: string[]
   routes: { method: string; path: string }[]
   hasUI: boolean
   uiUrl: string | null
@@ -216,6 +231,11 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ enabled }),
     }),
+  setPluginBots: (name: string, bots: string[]) =>
+    request<{ ok: boolean; bots: string[]; rejected: string[] }>(
+      `/plugins/${encodeURIComponent(name)}/bots`,
+      { method: "PUT", body: JSON.stringify({ bots }) }
+    ),
   deletePlugin: (name: string) =>
     request<{ ok: boolean }>(`/plugins/${encodeURIComponent(name)}`, { method: "DELETE" }),
 

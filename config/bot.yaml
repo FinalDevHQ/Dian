@@ -20,6 +20,25 @@ bots:
       accessToken: "IBC39ocS1ceznq87"
       timeoutMs: 5000             # 默认 5s
 
+  - botId: "ikun"
+    # 传输模式：ws | http | hybrid（推荐 hybrid）
+    # - ws     : 仅 WebSocket（只收事件，无法发 action）
+    # - http   : 仅 HTTP（只发 action，无法收事件）
+    # - hybrid : WS 收事件 + HTTP 发 action（推荐）
+    mode: hybrid
+
+    ws:
+      url: ws://192.168.2.14:7301/
+      accessToken: "2fJUQRsGV8MRLpzWOGShEMe5CC5o9Gj9JiNRMtBDPys"
+      heartbeatIntervalMs: 30000  # 默认 30s
+      reconnectIntervalMs: 5000   # 默认 5s
+
+    http:
+      baseUrl: http://192.168.2.14:7300/
+      accessToken: "vfHQhLw6Spy8AAVZ-VPu9kPW42a7Kzu6hVjIR5WrDEI"
+      timeoutMs: 5000             # 默认 5s
+
+
   # 多 bot 示例（取消注释即可启用）
   # - botId: "my-bot-002"
   #   mode: ws

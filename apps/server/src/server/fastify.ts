@@ -20,6 +20,8 @@ export interface ServerOptions {
   pluginsDir: string;
   eventBus: EventBus;
   dbExplorer: DatabaseExplorer;
+  /** 插件 bot 白名单持久化（已在 main.ts 中创建） */
+  persistPluginScope: () => Promise<void>;
 }
 
 /**
@@ -38,6 +40,7 @@ export async function createServer(opts: ServerOptions): Promise<{
     pluginsDir,
     eventBus,
     dbExplorer,
+    persistPluginScope,
   } = opts;
 
   const app = Fastify({ logger: false, bodyLimit: 50 * 1024 * 1024 }); // 50 MB
@@ -57,7 +60,12 @@ export async function createServer(opts: ServerOptions): Promise<{
   await app.register(configRoutes, { logger, configDir });
   await app.register(eventRoutes, { logger, bus: eventBus });
   await app.register(dbRoutes, { logger, explorer: dbExplorer });
-  await app.register(pluginRoutes, { logger, pluginsDir });
+  await app.register(pluginRoutes, {
+    logger,
+    pluginsDir,
+    knownBotIds: () => botManager.getBots().map((b) => b.botId),
+    persistPluginScope,
+  });
 
   return {
     async start() {

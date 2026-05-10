@@ -9,6 +9,7 @@ import { EventBus } from "./event/event-bus.js";
 import { EventDispatcher } from "./event/event-dispatcher.js";
 import { DatabaseExplorer } from "./db/explorer.js";
 import { installLogPersistence } from "./log-bridge.js";
+import { createPluginScopeIO } from "./plugin-scope.js";
 import { createServer } from "./server/fastify.js";
 
 // ---------------------------------------------------------------------------
@@ -49,6 +50,10 @@ async function main(): Promise<void> {
   await pluginManager.loadAll(PLUGINS_DIR);
   pluginManager.watch(); // 监听新安装的插件文件，自动热加载
 
+  // ── 3b. 加载插件 bot 白名单（必须在插件 load 之后；scope 与插件按 name 关联） ──
+  const pluginScopeIO = createPluginScopeIO(CONFIG_DIR, logger);
+  await pluginScopeIO.load();
+
   // ── 4a. 数据库浏览器（按 settings.storage 注册数据源） ────────────────────
   const dbExplorer = new DatabaseExplorer(logger);
   if (configService.settings.storage?.sqlite) {
@@ -83,6 +88,7 @@ async function main(): Promise<void> {
     pluginsDir: PLUGINS_DIR,
     eventBus,
     dbExplorer,
+    persistPluginScope: () => pluginScopeIO.save(),
   });
   await server.start();
 

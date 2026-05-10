@@ -32,13 +32,17 @@ const MIME_TYPES: Record<string, string> = {
 interface PluginRoutesOptions {
   logger: LogService;
   pluginsDir: string;
+  /** 已知的 botId 列表，用于校验 PUT /plugins/:name/bots 提交的值 */
+  knownBotIds: () => string[];
+  /** 持久化插件 bot 白名单到磁盘 */
+  persistPluginScope: () => Promise<void>;
 }
 
 export async function pluginRoutes(
   app: FastifyInstance,
   opts: PluginRoutesOptions
 ): Promise<void> {
-  const { logger, pluginsDir } = opts;
+  const { logger, pluginsDir, knownBotIds, persistPluginScope } = opts;
 
   // ── GET /plugins ──────────────────────────────────────────────────────────
   app.get("/plugins", async (_req, reply) => {
@@ -62,6 +66,38 @@ export async function pluginRoutes(
     }
     logger.info(`Plugin ${name} ${enabled ? "enabled" : "disabled"}`);
     return reply.send({ ok: true });
+  });
+
+  // ── PUT /plugins/:name/bots ────────────────────────────────────────────────
+  // body: { bots: string[] }
+  // 设置插件的 bot 白名单（默认空 = 任何 bot 都不响应）
+  app.put<{
+    Params: { name: string };
+    Body: { bots: unknown };
+  }>("/plugins/:name/bots", async (req, reply) => {
+    const { name } = req.params;
+    const { bots } = req.body ?? {};
+
+    if (!Array.isArray(bots) || !bots.every((b) => typeof b === "string")) {
+      return reply.code(400).send({ error: "bots must be string[]" });
+    }
+
+    // 插件需已加载
+    const exists = pluginManager.plugins.some((p) => p.meta.name === name);
+    if (!exists) {
+      return reply.code(404).send({ error: `plugin "${name}" not found` });
+    }
+
+    // 过滤掉未知 botId，避免脏数据
+    const valid = new Set(knownBotIds());
+    const accepted = (bots as string[]).filter((b) => valid.has(b));
+    const rejected = (bots as string[]).filter((b) => !valid.has(b));
+
+    pluginManager.setPluginBots(name, accepted);
+    await persistPluginScope();
+
+    logger.info(`Plugin ${name} bots scope updated`, { accepted, rejected });
+    return reply.send({ ok: true, bots: accepted, rejected });
   });
 
   // ── DELETE /plugins/:name ──────────────────────────────────────────────────
