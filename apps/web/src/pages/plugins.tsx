@@ -455,7 +455,7 @@ function PluginDetail({
   )
 }
 
-export function PluginsPage() {
+export function PluginsPage({ onPluginsChange }: { onPluginsChange?: () => void }) {
   const [plugins, setPlugins] = useState<PluginPublicMeta[] | null>(null)
   const [availableBots, setAvailableBots] = useState<string[]>([])
   const [selected, setSelected] = useState<string | null>(null)
@@ -480,6 +480,8 @@ export function PluginsPage() {
         if (prev && r.plugins.some((p) => p.name === prev)) return prev
         return r.plugins[0]?.name ?? null
       })
+      // 通知父组件刷新插件导航
+      onPluginsChange?.()
     } catch (err) {
       if (id === loadRef.current)
         setError(err instanceof Error ? err.message : String(err))
@@ -499,11 +501,13 @@ export function PluginsPage() {
         setPlugins((prev) =>
           prev?.map((p) => (p.name === name ? { ...p, enabled } : p)) ?? prev
         )
+        // 启停会影响导航栏（启用→出现，禁用→消失）
+        onPluginsChange?.()
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err))
       }
     },
-    []
+    [onPluginsChange]
   )
 
   const handleDelete = useCallback(
@@ -512,11 +516,13 @@ export function PluginsPage() {
         await api.deletePlugin(name)
         setPlugins((prev) => prev?.filter((p) => p.name !== name) ?? prev)
         setSelected((prev) => (prev === name ? null : prev))
+        // 删除后从导航栏移除
+        onPluginsChange?.()
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err))
       }
     },
-    []
+    [onPluginsChange]
   )
 
   const handleBotsChange = useCallback(

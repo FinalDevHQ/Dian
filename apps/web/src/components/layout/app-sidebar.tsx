@@ -1,4 +1,4 @@
-import { Check, ChevronsUpDown, RefreshCw } from "lucide-react"
+import { Check, ChevronsUpDown, Puzzle, RefreshCw } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,
@@ -21,10 +21,13 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useBotScope } from "@/contexts/bot-scope-context"
 import { navGroups } from "./nav-config"
+import type { PluginNavItem } from "@/pages/plugin-ui"
 
 interface AppSidebarProps {
   active: string
   onNavigate: (key: string) => void
+  /** 已启用且有 UI 的插件，动态追加到"扩展页面"组 */
+  pluginNavItems?: PluginNavItem[]
 }
 
 function BotScopeSwitcher() {
@@ -32,11 +35,7 @@ function BotScopeSwitcher() {
     useBotScope()
 
   const label = scope === "all" ? "全部机器人" : scope
-  const dotColor = botsError
-    ? "bg-destructive"
-    : scope === "all"
-      ? "bg-emerald-500"
-      : "bg-emerald-500"
+  const dotColor = botsError ? "bg-destructive" : "bg-emerald-500"
 
   return (
     <DropdownMenu onOpenChange={(open) => open && refreshBots()}>
@@ -120,7 +119,24 @@ function BotScopeSwitcher() {
   )
 }
 
-export function AppSidebar({ active, onNavigate }: AppSidebarProps) {
+/** 插件图标：emoji / 图片 URL / 默认 Puzzle */
+function PluginNavIcon({ icon }: { icon?: string }) {
+  if (!icon) return <Puzzle className="size-4" />
+  const isImg = icon.startsWith("http") || icon.startsWith("/")
+  if (isImg) {
+    return (
+      <img
+        src={icon}
+        alt=""
+        className="size-4 rounded object-cover"
+      />
+    )
+  }
+  // emoji / 文字图标
+  return <span className="text-base leading-none">{icon}</span>
+}
+
+export function AppSidebar({ active, onNavigate, pluginNavItems = [] }: AppSidebarProps) {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="gap-3">
@@ -140,32 +156,53 @@ export function AppSidebar({ active, onNavigate }: AppSidebarProps) {
       </SidebarHeader>
 
       <SidebarContent>
-        {navGroups.map((group, gi) => (
-          <SidebarGroup key={group.label ?? `g-${gi}`}>
-            {group.label && (
-              <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
-            )}
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {group.items.map((item) => {
-                  const Icon = item.icon
-                  return (
-                    <SidebarMenuItem key={item.key}>
+        {navGroups.map((group, gi) => {
+          const isExtGroup = group.label === "扩展页面"
+          // 扩展页面组：无静态项且无插件时整组隐藏
+          if (isExtGroup && group.items.length === 0 && pluginNavItems.length === 0) return null
+          return (
+            <SidebarGroup key={group.label ?? `g-${gi}`}>
+              {group.label && (
+                <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+              )}
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {/* 静态导航项 */}
+                  {group.items.map((item) => {
+                    const Icon = item.icon
+                    return (
+                      <SidebarMenuItem key={item.key}>
+                        <SidebarMenuButton
+                          tooltip={item.label}
+                          isActive={active === item.key}
+                          onClick={() => onNavigate(item.key)}
+                        >
+                          <Icon />
+                          <span>{item.label}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    )
+                  })}
+
+                  {/* 动态插件项（只在"扩展页面"组追加） */}
+                  {isExtGroup && pluginNavItems.map((plugin) => (
+                    <SidebarMenuItem key={plugin.key}>
                       <SidebarMenuButton
-                        tooltip={item.label}
-                        isActive={active === item.key}
-                        onClick={() => onNavigate(item.key)}
+                        tooltip={plugin.label}
+                        isActive={active === plugin.key}
+                        onClick={() => onNavigate(plugin.key)}
+                        className="gap-2"
                       >
-                        <Icon />
-                        <span>{item.label}</span>
+                        <PluginNavIcon icon={plugin.icon} />
+                        <span className="truncate">{plugin.label}</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
-                  )
-                })}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        ))}
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          )
+        })}
       </SidebarContent>
       <SidebarRail />
     </Sidebar>

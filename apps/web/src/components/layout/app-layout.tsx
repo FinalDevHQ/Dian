@@ -10,6 +10,7 @@ import { TooltipProvider } from "@/components/ui/tooltip"
 import { useBotScope } from "@/contexts/bot-scope-context"
 import { BotScopeProvider } from "@/contexts/bot-scope"
 import { AppSidebar } from "./app-sidebar"
+import type { PluginNavItem } from "@/pages/plugin-ui"
 
 interface AppLayoutProps {
   active: string
@@ -17,6 +18,11 @@ interface AppLayoutProps {
   title: string
   actions?: ReactNode
   children: ReactNode
+  pluginNavItems?: PluginNavItem[]
+  /**
+   * bare=true 时内容区无内边距、overflow-hidden（给 iframe 全屏页用）
+   */
+  bare?: boolean
 }
 
 function ScopeBadge() {
@@ -37,21 +43,34 @@ export function AppLayout({
   title,
   actions,
   children,
+  pluginNavItems,
+  bare = false,
 }: AppLayoutProps) {
   return (
     <TooltipProvider delayDuration={0}>
       <BotScopeProvider>
         <SidebarProvider>
-          <AppSidebar active={active} onNavigate={onNavigate} />
+          <AppSidebar
+            active={active}
+            onNavigate={onNavigate}
+            pluginNavItems={pluginNavItems}
+          />
           <SidebarInset>
-            <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b bg-background/80 px-4 backdrop-blur">
+            <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-3 border-b bg-background/80 px-4 backdrop-blur">
               <SidebarTrigger />
               <Separator orientation="vertical" className="mr-1 h-5" />
               <h1 className="text-base font-semibold">{title}</h1>
               <ScopeBadge />
               <div className="ml-auto flex items-center gap-2">{actions}</div>
             </header>
-            <div className="flex-1 p-6">{children}</div>
+            {bare ? (
+              // 插件 iframe 全高，无内边距，overflow-hidden 防滚动条
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                {children}
+              </div>
+            ) : (
+              <div className="flex-1 p-6">{children}</div>
+            )}
           </SidebarInset>
         </SidebarProvider>
       </BotScopeProvider>
