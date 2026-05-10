@@ -365,6 +365,9 @@ export interface TrendPoint {
   count: number
 }
 
+/** groupId → 群名 映射 */
+export type GroupNameMap = Record<string, string>
+
 function buildStatsQuery(filter: StatsFilter & { limit?: number }): string {
   const p: Record<string, string | number | undefined> = {
     botId:   filter.botId,
@@ -385,4 +388,12 @@ export const statsApi = {
     request<{ users: UserStat[] }>(`/stats/messages/by-user${buildStatsQuery(f)}`),
   trend: (f: StatsFilter = {}) =>
     request<{ trend: TrendPoint[] }>(`/stats/messages/trend${buildStatsQuery(f)}`),
+  /** 获取已缓存的群名。传空数组/不传时返回全部 */
+  groupNames: (groupIds: string[] = []) => {
+    const qs = groupIds.length ? `?groupIds=${groupIds.join(",")}` : ""
+    return request<GroupNameMap>(`/stats/group-names${qs}`)
+  },
+  /** 触发向所有活跃 bot 同步群名 */
+  syncGroupNames: () =>
+    request<{ ok: boolean; synced: number }>("/stats/group-names/sync", { method: "POST" }),
 }

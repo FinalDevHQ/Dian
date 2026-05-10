@@ -73,7 +73,7 @@ export async function createServer(opts: ServerOptions): Promise<{
   });
   await app.register(botsRoutes, { logger, configDir });
   if (messageRepo) {
-    await app.register(statsRoutes, { messageRepo });
+    await app.register(statsRoutes, { messageRepo, botManager });
   }
 
   return {

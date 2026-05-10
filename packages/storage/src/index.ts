@@ -2,7 +2,7 @@
 export type {
   LogEntry, LogQueryParams, LogRepository, CacheRepository,
   MessageEntry, MessageRepository, StatsFilter, OverviewStats,
-  GroupStat, UserStat, TrendPoint,
+  GroupStat, UserStat, TrendPoint, GroupNameEntry,
 } from "./types.js";
 
 // 适配器

@@ -82,6 +82,14 @@ export interface TrendPoint {
   count: number;
 }
 
+/** 群名缓存条目 */
+export interface GroupNameEntry {
+  groupId: string;
+  name: string;
+  /** Unix 秒 */
+  updatedAt: number;
+}
+
 /** 消息统计仓库接口 */
 export interface MessageRepository {
   /** 写入一条消息（eventId 重复时忽略） */
@@ -94,6 +102,10 @@ export interface MessageRepository {
   userStats(filter: StatsFilter & { limit?: number; groupId?: string }): Promise<UserStat[]>;
   /** 按天趋势 */
   trendStats(filter: StatsFilter): Promise<TrendPoint[]>;
+  /** 查询已缓存的群名（传空数组时返回全部） */
+  getGroupNames(groupIds?: string[]): Promise<GroupNameEntry[]>;
+  /** 批量写入群名缓存（upsert） */
+  upsertGroupNames(entries: { groupId: string; name: string }[]): Promise<void>;
   close(): Promise<void>;
 }
 

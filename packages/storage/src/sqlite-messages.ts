@@ -2,6 +2,7 @@ import Database from "better-sqlite3";
 import { mkdirSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import type {
+  GroupNameEntry,
   GroupStat,
   MessageEntry,
   MessageRepository,
@@ -41,6 +42,12 @@ export class SqliteMessageRepository implements MessageRepository {
       CREATE INDEX IF NOT EXISTS idx_msg_group_id  ON messages(group_id);
       CREATE INDEX IF NOT EXISTS idx_msg_user_id   ON messages(user_id);
       CREATE INDEX IF NOT EXISTS idx_msg_timestamp ON messages(timestamp);
+
+      CREATE TABLE IF NOT EXISTS group_names (
+        group_id   TEXT    PRIMARY KEY,
+        name       TEXT    NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
     `);
   }
 
@@ -134,6 +141,39 @@ export class SqliteMessageRepository implements MessageRepository {
          GROUP BY date ORDER BY date ASC`
       )
       .all(bindings) as TrendPoint[];
+  }
+
+  async getGroupNames(groupIds?: string[]): Promise<GroupNameEntry[]> {
+    if (groupIds && groupIds.length > 0) {
+      const placeholders = groupIds.map(() => "?").join(", ");
+      return this.db
+        .prepare(
+          `SELECT group_id as groupId, name, updated_at as updatedAt
+           FROM group_names WHERE group_id IN (${placeholders}) ORDER BY name`
+        )
+        .all(...groupIds) as GroupNameEntry[];
+    }
+    return this.db
+      .prepare(
+        `SELECT group_id as groupId, name, updated_at as updatedAt
+         FROM group_names ORDER BY name`
+      )
+      .all() as GroupNameEntry[];
+  }
+
+  async upsertGroupNames(entries: { groupId: string; name: string }[]): Promise<void> {
+    const now = Math.floor(Date.now() / 1000);
+    const stmt = this.db.prepare(
+      `INSERT INTO group_names (group_id, name, updated_at)
+       VALUES (@groupId, @name, @updatedAt)
+       ON CONFLICT(group_id) DO UPDATE SET name = excluded.name, updated_at = excluded.updated_at`
+    );
+    const upsertAll = this.db.transaction(
+      (rows: { groupId: string; name: string }[]) => {
+        for (const row of rows) stmt.run({ groupId: row.groupId, name: row.name, updatedAt: now });
+      }
+    );
+    upsertAll(entries);
   }
 
   async close(): Promise<void> {
