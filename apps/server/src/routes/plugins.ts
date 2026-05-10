@@ -203,6 +203,63 @@ export async function pluginRoutes(
     }
   });
 
+  // ── POST /plugins/install-from-url ──────────────────────────────────────
+  // 服务端下载 ZIP 并安装，避免浏览器直接请求 GitHub Release 时的 CORS / 重定向问题
+  app.post<{
+    Body: { url?: unknown };
+  }>("/plugins/install-from-url", async (req, reply) => {
+    const { url } = (req.body ?? {}) as { url?: unknown };
+    if (typeof url !== "string" || !url.startsWith("http")) {
+      return reply.code(400).send({ error: "url must be a valid http/https string" });
+    }
+
+    // 从 URL 中提取插件名（取最后一段路径，去掉 .zip）
+    const urlName = url.split("/").pop()?.replace(/\.zip$/i, "").trim() ?? "";
+    if (!urlName || !/^[\w-]+$/.test(urlName)) {
+      return reply.code(400).send({ error: "cannot infer plugin name from url" });
+    }
+
+    let zipData: Uint8Array;
+    try {
+      const res = await fetch(url);
+      if (!res.ok) {
+        return reply.code(502).send({ error: `upstream responded ${res.status}: ${res.statusText}` });
+      }
+      zipData = new Uint8Array(await res.arrayBuffer());
+    } catch (err) {
+      logger.error(`Failed to download plugin from ${url}`, { err: (err as Error).message });
+      return reply.code(502).send({ error: `download failed: ${(err as Error).message}` });
+    }
+
+    const destDir = join(pluginsDir, urlName);
+    try {
+      await mkdir(destDir, { recursive: true });
+
+      await new Promise<void>((res, rej) => {
+        unzip(zipData, async (err, files) => {
+          if (err) { rej(err); return; }
+          try {
+            for (const [filePath, data] of Object.entries(files)) {
+              if (filePath.endsWith("/")) continue;
+              const dest = join(destDir, filePath);
+              await mkdir(dirname(dest), { recursive: true });
+              await writeFile(dest, data);
+            }
+            res();
+          } catch (writeErr) {
+            rej(writeErr);
+          }
+        });
+      });
+
+      logger.info(`Plugin installed from url: ${urlName} -> ${destDir}`);
+      return reply.send({ ok: true, name: urlName, destDir });
+    } catch (err) {
+      logger.error(`Plugin install-from-url failed: ${urlName}`, { err: (err as Error).message });
+      return reply.code(500).send({ error: (err as Error).message });
+    }
+  });
+
   // ── 插件 API（catch-all，热插拔无需重启） ────────────────────────────────
   // 关键设计：不再为每个 plugin/route 单独 app.route()（那样卸载/重载会撞重复注册），
   // 而是注册一个通配 handler，根据请求 URL 在内存中查找当前已加载插件 + 路由实例。

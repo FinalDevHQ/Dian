@@ -1,0 +1,28 @@
+services:
+  server:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    volumes:
+      - ./config:/app/config
+      - ./plugins:/app/plugins
+      - ./data:/app/data
+    restart: unless-stopped
+    networks:
+      - dian
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    ports:
+      - "18099:80"
+    depends_on:
+      - server
+    restart: unless-stopped
+    networks:
+      - dian
+
+networks:
+  dian:
+    driver: bridge

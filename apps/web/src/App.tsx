@@ -9,6 +9,7 @@ import { LogsPage } from "@/pages/logs"
 import { PluginsPage } from "@/pages/plugins"
 import { PlaceholderPage } from "@/pages/placeholder"
 import { PluginUiPage, type PluginNavItem } from "@/pages/plugin-ui"
+import { MarketPage } from "@/pages/market"
 import { api } from "@/lib/api"
 
 function App() {
@@ -87,6 +88,8 @@ function App() {
         <ConfigFilesPage />
       ) : active === "analytics" ? (
         <AnalyticsPage />
+      ) : active === "market" ? (
+        <MarketPage onPluginsChange={refreshPlugins} />
       ) : activePlugin ? (
         <PluginUiPage plugin={activePlugin} />
       ) : (
