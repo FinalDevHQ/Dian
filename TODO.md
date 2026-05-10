@@ -76,6 +76,7 @@
 - [x] `/plugins/:name/ui/*` — 插件静态 UI（目录穿越防护）
 - [x] `GET /db/sources` / 表结构 / `POST /db/sources/:name/query` — 数据库浏览
 - [x] `GET /events/recent` / `GET /events/stream` — 事件查询与 SSE 实时流
+- [x] `GET /stats/messages/overview|by-group|by-user|trend` — 消息统计 API（SQLite WAL，支持 botId / groupId / 时间段过滤）
 
 ---
 
@@ -88,6 +89,7 @@
 - [x] 配置中心（YAML 可视化编辑、格式化、脏检测、保存状态徽章）
 - [x] 数据库浏览器（数据源 / 表 / Schema / SQL 执行 / CSV 导出）
 - [x] `BotScopeSwitcher` — 全局 Bot 视角筛选器
+- [x] 消息统计可视化（消息总量/活跃群/活跃用户/趋势折线图/群排行/用户排行/Bot 对比，recharts）
 - [ ] 登录页（密码 + 会话，依赖 AuthService）
 - [ ] 模块管理（启停、依赖状态，依赖 ModuleManager HTTP 接口）
 - [ ] 消息调试台（向群/用户发送测试消息，依赖 MessageService）

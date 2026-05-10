@@ -1,6 +1,7 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import type { LogService } from "@dian/logger";
+import type { MessageRepository } from "@dian/storage";
 import type { BotManager } from "../bot/bot-manager.js";
 import type { EventBus } from "../event/event-bus.js";
 import type { DatabaseExplorer } from "../db/explorer.js";
@@ -11,6 +12,7 @@ import { eventRoutes } from "../routes/events.js";
 import { dbRoutes } from "../routes/db.js";
 import { pluginRoutes } from "../routes/plugins.js";
 import { botsRoutes } from "../routes/bots.js";
+import { statsRoutes } from "../routes/stats.js";
 
 export interface ServerOptions {
   host?: string;
@@ -21,6 +23,7 @@ export interface ServerOptions {
   pluginsDir: string;
   eventBus: EventBus;
   dbExplorer: DatabaseExplorer;
+  messageRepo?: MessageRepository;
   /** 插件 bot 白名单持久化（已在 main.ts 中创建） */
   persistPluginScope: () => Promise<void>;
 }
@@ -41,6 +44,7 @@ export async function createServer(opts: ServerOptions): Promise<{
     pluginsDir,
     eventBus,
     dbExplorer,
+    messageRepo,
     persistPluginScope,
   } = opts;
 
@@ -68,6 +72,9 @@ export async function createServer(opts: ServerOptions): Promise<{
     persistPluginScope,
   });
   await app.register(botsRoutes, { logger, configDir });
+  if (messageRepo) {
+    await app.register(statsRoutes, { messageRepo });
+  }
 
   return {
     async start() {

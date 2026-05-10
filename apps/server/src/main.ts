@@ -9,6 +9,7 @@ import { EventBus } from "./event/event-bus.js";
 import { EventDispatcher } from "./event/event-dispatcher.js";
 import { DatabaseExplorer } from "./db/explorer.js";
 import { installLogPersistence } from "./log-bridge.js";
+import { installMessagePersistence } from "./message-bridge.js";
 import { createPluginScopeIO } from "./plugin-scope.js";
 import { createServer } from "./server/fastify.js";
 
@@ -43,6 +44,9 @@ async function main(): Promise<void> {
       installLogPersistence(logger, storageService.log);
       logger.info("Log persistence enabled");
     }
+    if (storageService.hasMessage) {
+      logger.info("Message persistence enabled");
+    }
   }
 
   // ── 3. 加载插件 ───────────────────────────────────────────────────────────
@@ -67,11 +71,17 @@ async function main(): Promise<void> {
   // ── 4b. 事件总线 + 分发器 & BotManager ────────────────────────────────────
   const eventBus = new EventBus(200);
   const dispatcher = new EventDispatcher(logger);
+
+  // 消息持久化回调（在事件进入 dispatcher 前先写 DB）
+  const persistMessage = storageService.hasMessage
+    ? installMessagePersistence(storageService.message)
+    : null;
+
   const botManager = new BotManager(
     configService,
     logger,
     async (event) => {
-      // 先广播给 HTTP 订阅者（前端日志页等），再交给插件分发
+      persistMessage?.(event);
       eventBus.publish(event);
       await dispatcher.dispatch(event);
     }
@@ -88,6 +98,7 @@ async function main(): Promise<void> {
     pluginsDir: PLUGINS_DIR,
     eventBus,
     dbExplorer,
+    messageRepo: storageService.hasMessage ? storageService.message : undefined,
     persistPluginScope: () => pluginScopeIO.save(),
   });
   await server.start();

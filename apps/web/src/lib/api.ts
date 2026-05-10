@@ -328,3 +328,61 @@ export const api = {
       }
     ),
 }
+
+// ─── 统计接口 ─────────────────────────────────────────────────────────────────
+
+export interface StatsFilter {
+  botId?: string
+  groupId?: string
+  /** Unix 秒 */
+  from?: number
+  /** Unix 秒 */
+  to?: number
+}
+
+export interface OverviewStats {
+  total: number
+  groups: number
+  users: number
+  byBot: { botId: string; count: number }[]
+}
+
+export interface GroupStat {
+  groupId: string
+  count: number
+  lastAt: number
+}
+
+export interface UserStat {
+  userId: string
+  senderName?: string
+  count: number
+  lastAt: number
+}
+
+export interface TrendPoint {
+  date: string
+  count: number
+}
+
+function buildStatsQuery(filter: StatsFilter & { limit?: number }): string {
+  const p: Record<string, string | number | undefined> = {
+    botId:   filter.botId,
+    groupId: filter.groupId,
+    from:    filter.from,
+    to:      filter.to,
+    limit:   filter.limit,
+  }
+  return buildQuery(p)
+}
+
+export const statsApi = {
+  overview: (f: StatsFilter = {}) =>
+    request<OverviewStats>(`/stats/messages/overview${buildStatsQuery(f)}`),
+  byGroup: (f: StatsFilter & { limit?: number } = {}) =>
+    request<{ groups: GroupStat[] }>(`/stats/messages/by-group${buildStatsQuery(f)}`),
+  byUser: (f: StatsFilter & { limit?: number } = {}) =>
+    request<{ users: UserStat[] }>(`/stats/messages/by-user${buildStatsQuery(f)}`),
+  trend: (f: StatsFilter = {}) =>
+    request<{ trend: TrendPoint[] }>(`/stats/messages/trend${buildStatsQuery(f)}`),
+}

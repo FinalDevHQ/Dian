@@ -3966,6 +3966,12 @@ var chokidar_default = { watch, FSWatcher };
 var PluginManager = class {
   _plugins = /* @__PURE__ */ new Map();
   _blacklist = /* @__PURE__ */ new Set();
+  /**
+   * 插件 → 允许响应事件的 botId 白名单。
+   * 语义：未在 map 中或集合为空 ⇒ 对**任何 bot 都不响应**（白名单默认拒绝）。
+   * 装载/卸载插件不会清掉这里的配置，方便插件 reload 后保留作用域。
+   */
+  _botScope = /* @__PURE__ */ new Map();
   _maintenanceMode = false;
   _watcher = null;
   _pluginsDir = null;
@@ -4137,6 +4143,8 @@ var PluginManager = class {
     for (const plugin of this._plugins.values()) {
       if (this._blacklist.has(plugin.meta.name))
         continue;
+      if (!this.isPluginEnabledForBot(plugin.meta.name, event.botId))
+        continue;
       for (const im of plugin.interceptors) {
         allInterceptors.push({ plugin, meta: im });
       }
@@ -4158,6 +4166,8 @@ var PluginManager = class {
       if (stopped)
         return;
       if (this._blacklist.has(plugin.meta.name))
+        continue;
+      if (!this.isPluginEnabledForBot(plugin.meta.name, event.botId))
         continue;
       for (const hm of plugin.handlers) {
         if (stopped)
@@ -4193,6 +4203,36 @@ var PluginManager = class {
   setMaintenanceMode(enabled) {
     this._maintenanceMode = enabled;
   }
+  // ── Bot 作用域（白名单，默认空 = 拒绝所有 bot） ──────────────────────────
+  /**
+   * 设置插件允许响应的 bot 列表。传空数组 ⇒ 任何 bot 都不响应。
+   */
+  setPluginBots(name, botIds) {
+    this._botScope.set(name, new Set(botIds));
+  }
+  /** 读取插件当前的 bot 白名单（已注册顺序无保证；返回数组拷贝）。 */
+  getPluginBots(name) {
+    return [...this._botScope.get(name) ?? []];
+  }
+  /** 判断某个 bot 是否在指定插件的白名单内。 */
+  isPluginEnabledForBot(name, botId) {
+    const set = this._botScope.get(name);
+    return !!set && set.has(botId);
+  }
+  /** 批量导入持久化的 scope 配置（启动时调用）。 */
+  bulkSetPluginBots(map) {
+    for (const [name, bots] of Object.entries(map)) {
+      this._botScope.set(name, new Set(bots));
+    }
+  }
+  /** 导出当前所有 scope 配置（用于持久化）。 */
+  exportPluginBots() {
+    const out = {};
+    for (const [name, set] of this._botScope) {
+      out[name] = [...set];
+    }
+    return out;
+  }
   // ── 只读信息 ──────────────── 
   get plugins() {
     return [...this._plugins.values()];
@@ -4223,6 +4263,7 @@ var PluginManager = class {
         pattern: stringifyPattern(c.pattern),
         description: c.description
       })),
+      bots: this.getPluginBots(p.meta.name),
       routes: p.routes.map((r) => ({ method: r.method, path: r.path })),
       hasUI: p.ui !== null,
       uiUrl: p.ui?.externalUrl ? p.ui.externalUrl : p.ui ? `/plugins/${encodeURIComponent(p.meta.name)}/ui/` : null

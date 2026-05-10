@@ -1,8 +1,13 @@
 // 类型
-export type { LogEntry, LogQueryParams, LogRepository, CacheRepository } from "./types.js";
+export type {
+  LogEntry, LogQueryParams, LogRepository, CacheRepository,
+  MessageEntry, MessageRepository, StatsFilter, OverviewStats,
+  GroupStat, UserStat, TrendPoint,
+} from "./types.js";
 
 // 适配器
 export { SqliteLogRepository } from "./sqlite.js";
+export { SqliteMessageRepository } from "./sqlite-messages.js";
 export { MysqlLogRepository } from "./mysql.js";
 export { RedisRepository } from "./redis.js";
 

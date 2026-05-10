@@ -1,9 +1,8 @@
 import { existsSync, createReadStream, statSync } from "node:fs";
 import { mkdir, rm, unlink, writeFile } from "node:fs/promises";
 import { dirname, extname, join, normalize, resolve, sep } from "node:path";
-import { tmpdir } from "node:os";
-import { execSync } from "node:child_process";
 import type { FastifyInstance, FastifyReply } from "fastify";
+import { unzip } from "fflate";
 import { pluginManager } from "@dian/plugin-runtime";
 import type { LogService } from "@dian/logger";
 
@@ -172,25 +171,35 @@ export async function pluginRoutes(
       return reply.code(400).send({ error: "empty body" });
     }
 
-    const tmpFile = join(tmpdir(), `dian-plugin-${Date.now()}.zip`);
     const destDir = join(pluginsDir, name);
 
     try {
-      await writeFile(tmpFile, body);
       await mkdir(destDir, { recursive: true });
 
-      execSync(
-        `powershell -NoProfile -Command "Expand-Archive -Path '${tmpFile}' -DestinationPath '${destDir}' -Force"`,
-        { stdio: "pipe" }
-      );
+      // 使用 fflate 解压 ZIP（纯 JS，跨平台无需 PowerShell）
+      await new Promise<void>((res, rej) => {
+        unzip(new Uint8Array(body), async (err, files) => {
+          if (err) { rej(err); return; }
+          try {
+            for (const [filePath, data] of Object.entries(files)) {
+              // 跳过目录条目（fflate 中目录条目 data 长度为 0 且路径以 / 结尾）
+              if (filePath.endsWith("/")) continue;
+              const dest = join(destDir, filePath);
+              await mkdir(dirname(dest), { recursive: true });
+              await writeFile(dest, data);
+            }
+            res();
+          } catch (writeErr) {
+            rej(writeErr);
+          }
+        });
+      });
 
       logger.info(`Plugin installed: ${name} -> ${destDir}`);
       return reply.send({ ok: true, name, destDir });
     } catch (err) {
       logger.error(`Plugin install failed: ${name}`, { err: (err as Error).message });
       return reply.code(500).send({ error: (err as Error).message });
-    } finally {
-      unlink(tmpFile).catch(() => undefined);
     }
   });
 

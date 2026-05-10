@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react"
 import { AppLayout } from "@/components/layout/app-layout"
 import { navGroups } from "@/components/layout/nav-config"
+import { AnalyticsPage } from "@/pages/analytics"
 import { ConfigFilesPage } from "@/pages/config-files"
 import { DashboardPage } from "@/pages/dashboard"
 import { DatabasePage } from "@/pages/database"
@@ -31,6 +32,8 @@ function App() {
         <DatabasePage />
       ) : active === "config" ? (
         <ConfigFilesPage />
+      ) : active === "analytics" ? (
+        <AnalyticsPage />
       ) : (
         <PlaceholderPage title={title} />
       )}

@@ -1,7 +1,8 @@
 import { SqliteLogRepository } from "./sqlite.js";
+import { SqliteMessageRepository } from "./sqlite-messages.js";
 import { MysqlLogRepository } from "./mysql.js";
 import { RedisRepository } from "./redis.js";
-import type { CacheRepository, LogRepository } from "./types.js";
+import type { CacheRepository, LogRepository, MessageRepository } from "./types.js";
 
 // ---------------------------------------------------------------------------
 // StorageService 配置
@@ -22,6 +23,7 @@ export interface StorageOptions {
 
 export class StorageService {
   private _log: LogRepository | null = null;
+  private _message: MessageRepository | null = null;
   private _cache: CacheRepository | null = null;
 
   /**
@@ -35,6 +37,8 @@ export class StorageService {
       this._log = repo;
     } else if (options.sqlite) {
       this._log = new SqliteLogRepository(options.sqlite);
+      // 消息统计复用同一个 SQLite 文件
+      this._message = new SqliteMessageRepository(options.sqlite);
     }
 
     if (options.redis) {
@@ -57,6 +61,18 @@ export class StorageService {
   }
 
   /**
+   * 获取消息统计仓库。未配置时抛出错误。
+   */
+  get message(): MessageRepository {
+    if (!this._message) {
+      throw new Error(
+        "[storage] 未配置消息存储，请在 settings.yaml 中设置 storage.sqlite",
+      );
+    }
+    return this._message;
+  }
+
+  /**
    * 获取缓存仓库（Redis）。未配置时抛出错误。
    */
   get cache(): CacheRepository {
@@ -73,6 +89,11 @@ export class StorageService {
     return this._log !== null;
   }
 
+  /** 是否已配置消息存储 */
+  get hasMessage(): boolean {
+    return this._message !== null;
+  }
+
   /** 是否已配置 Redis 缓存 */
   get hasCache(): boolean {
     return this._cache !== null;
@@ -83,8 +104,10 @@ export class StorageService {
    */
   async close(): Promise<void> {
     await this._log?.close();
+    await this._message?.close();
     await this._cache?.close();
     this._log = null;
+    this._message = null;
     this._cache = null;
   }
 }
