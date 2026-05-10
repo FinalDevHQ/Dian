@@ -1,0 +1,21 @@
+node_modules
+**/node_modules
+dist
+**/*.tsbuildinfo
+data
+logs
+*.log
+.env
+.env.*
+!.env.example
+
+# plugin-template 有自己的 git 仓库，排除其 .git
+plugin-template/.git
+plugin-template/node_modules
+plugin-template/dist
+
+# Dian-plugins 目录
+Dian-plugins
+
+# test
+test

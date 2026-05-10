@@ -379,6 +379,60 @@ function buildStatsQuery(filter: StatsFilter & { limit?: number }): string {
   return buildQuery(p)
 }
 
+// ─── 插件市场 ─────────────────────────────────────────────────────────────────
+
+const MARKET_INDEX_URL =
+  "https://raw.githubusercontent.com/FinalDevHQ/Dian-plugins/main/index.json"
+
+export interface MarketPluginChangelog {
+  version: string
+  date: string
+  notes: string
+}
+
+export interface MarketPlugin {
+  name: string
+  displayName: string
+  description: string
+  version: string
+  author: string
+  icon?: string
+  tags?: string[]
+  hasUI?: boolean
+  minRuntimeVersion?: string
+  homepage?: string
+  downloadUrl: string
+  changelog?: MarketPluginChangelog[]
+}
+
+export interface MarketIndex {
+  apiVersion: string
+  updatedAt: string
+  plugins: MarketPlugin[]
+}
+
+export const marketApi = {
+  /** 拉取市场注册表（直接 fetch GitHub raw，支持 CORS） */
+  async fetchIndex(): Promise<MarketIndex> {
+    const res = await fetch(MARKET_INDEX_URL)
+    if (!res.ok) throw new Error(`拉取市场列表失败 (${res.status})`)
+    return res.json() as Promise<MarketIndex>
+  },
+  /** 让服务端代理下载并安装插件 ZIP */
+  async installFromUrl(url: string): Promise<{ ok: boolean; name: string }> {
+    const res = await fetch(`${BASE_URL}/plugins/install-from-url`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url }),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: res.statusText }))
+      throw new Error((err as { error?: string }).error ?? res.statusText)
+    }
+    return res.json() as Promise<{ ok: boolean; name: string }>
+  },
+}
+
 export const statsApi = {
   overview: (f: StatsFilter = {}) =>
     request<OverviewStats>(`/stats/messages/overview${buildStatsQuery(f)}`),
