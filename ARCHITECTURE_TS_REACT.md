@@ -1,4 +1,4 @@
-# ElainaBot v3 (TS + React) 架构文档
+# Dianbot (TS + React) 架构文档
 
 ## 项目目标
 
@@ -13,7 +13,7 @@
 采用 Monorepo + 前后端分离：
 
 ```text
-elainabot-v3/
+Dianbot/
 ├─ apps/
 │  ├─ server/                 # Node.js 机器人核心服务 (TS)
 │  └─ web/                    # React 管理面板

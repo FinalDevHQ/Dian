@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import {
   AlertCircle,
   BookOpen,
+  Bot as BotIcon,
   Box,
   CheckCircle2,
   ExternalLink,
@@ -206,16 +207,36 @@ function MethodBadge({ method }: { method: string }) {
 
 function PluginDetail({
   plugin,
+  availableBots,
   onToggle,
   onDelete,
+  onBotsChange,
 }: {
   plugin: PluginPublicMeta
+  /** 全部已运行的 botId（取自 /status） */
+  availableBots: string[]
   onToggle: (name: string, enabled: boolean) => Promise<void>
   onDelete: (name: string) => Promise<void>
+  onBotsChange: (name: string, bots: string[]) => Promise<void>
 }) {
   const [toggling, setToggling] = useState(false)
   const [confirm, setConfirm] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [savingBots, setSavingBots] = useState(false)
+
+  // 现代的 server-state：以 plugin.bots 为唯一源，点击 checkbox 直接调 API
+  const toggleBot = async (botId: string) => {
+    if (savingBots) return
+    const has = plugin.bots.includes(botId)
+    const next = has ? plugin.bots.filter((b) => b !== botId) : [...plugin.bots, botId]
+    setSavingBots(true)
+    try { await onBotsChange(plugin.name, next) } finally { setSavingBots(false) }
+  }
+
+  const setAllBots = async (all: boolean) => {
+    setSavingBots(true)
+    try { await onBotsChange(plugin.name, all ? [...availableBots] : []) } finally { setSavingBots(false) }
+  }
 
   const handleToggle = async (v: boolean) => {
     setToggling(true)
@@ -302,6 +323,83 @@ function PluginDetail({
         ))}
       </div>
 
+      {/* 作用范围（Bot 白名单） */}
+      <Card>
+        <CardHeader className="py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <BotIcon className="size-4 text-muted-foreground" />
+              <CardTitle className="text-sm">作用 Bot</CardTitle>
+              {savingBots && <Loader2 className="size-3 animate-spin text-muted-foreground" />}
+            </div>
+            {availableBots.length > 0 && (
+              <div className="flex items-center gap-1 text-xs">
+                <button
+                  type="button"
+                  className="text-muted-foreground hover:text-foreground disabled:opacity-50"
+                  disabled={savingBots || plugin.bots.length === availableBots.length}
+                  onClick={() => setAllBots(true)}
+                >全选</button>
+                <span className="text-muted-foreground">·</span>
+                <button
+                  type="button"
+                  className="text-muted-foreground hover:text-foreground disabled:opacity-50"
+                  disabled={savingBots || plugin.bots.length === 0}
+                  onClick={() => setAllBots(false)}
+                >清空</button>
+              </div>
+            )}
+          </div>
+          <CardDescription className="text-xs">
+            勾选后，该插件仅对选中的 bot 响应事件。默认为空 → 任何 bot 都不响应。
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="px-4 pb-3">
+          {availableBots.length === 0 ? (
+            <p className="text-xs text-muted-foreground">
+              未检测到运行中的 bot，请先在 <code className="font-mono">config/bot.yaml</code> 中配置。
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {availableBots.map((botId) => {
+                const checked = plugin.bots.includes(botId)
+                return (
+                  <button
+                    key={botId}
+                    type="button"
+                    onClick={() => toggleBot(botId)}
+                    disabled={savingBots}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs transition-colors disabled:opacity-50",
+                      checked
+                        ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-700"
+                        : "hover:bg-muted"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "flex size-3.5 items-center justify-center rounded-sm border",
+                        checked
+                          ? "border-emerald-500 bg-emerald-500 text-white"
+                          : "border-muted-foreground/40"
+                      )}
+                    >
+                      {checked && <CheckCircle2 className="size-3" />}
+                    </span>
+                    <span className="font-mono">{botId}</span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+          {plugin.bots.length === 0 && availableBots.length > 0 && (
+            <p className="mt-2 text-[11px] text-amber-600">
+              ⚠️ 当前未选中任何 bot，插件事件不会被触发。
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
       {/* API 路由 */}
       {plugin.routes.length > 0 && (
         <Card>
@@ -357,8 +455,9 @@ function PluginDetail({
   )
 }
 
-export function PluginsPage() {
+export function PluginsPage({ onPluginsChange }: { onPluginsChange?: () => void }) {
   const [plugins, setPlugins] = useState<PluginPublicMeta[] | null>(null)
+  const [availableBots, setAvailableBots] = useState<string[]>([])
   const [selected, setSelected] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -369,13 +468,20 @@ export function PluginsPage() {
     setLoading(true)
     setError(null)
     try {
-      const r = await api.listPlugins()
+      // 同步拉插件列表 + 可用 bot 列表（给 bot 多选用）
+      const [r, s] = await Promise.all([
+        api.listPlugins(),
+        api.status().catch(() => ({ bots: [] as { botId: string }[] })),
+      ])
       if (id !== loadRef.current) return
       setPlugins(r.plugins)
+      setAvailableBots(s.bots.map((b) => b.botId))
       setSelected((prev) => {
         if (prev && r.plugins.some((p) => p.name === prev)) return prev
         return r.plugins[0]?.name ?? null
       })
+      // 通知父组件刷新插件导航
+      onPluginsChange?.()
     } catch (err) {
       if (id === loadRef.current)
         setError(err instanceof Error ? err.message : String(err))
@@ -395,11 +501,13 @@ export function PluginsPage() {
         setPlugins((prev) =>
           prev?.map((p) => (p.name === name ? { ...p, enabled } : p)) ?? prev
         )
+        // 启停会影响导航栏（启用→出现，禁用→消失）
+        onPluginsChange?.()
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err))
       }
     },
-    []
+    [onPluginsChange]
   )
 
   const handleDelete = useCallback(
@@ -408,6 +516,23 @@ export function PluginsPage() {
         await api.deletePlugin(name)
         setPlugins((prev) => prev?.filter((p) => p.name !== name) ?? prev)
         setSelected((prev) => (prev === name ? null : prev))
+        // 删除后从导航栏移除
+        onPluginsChange?.()
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err))
+      }
+    },
+    [onPluginsChange]
+  )
+
+  const handleBotsChange = useCallback(
+    async (name: string, bots: string[]) => {
+      try {
+        const r = await api.setPluginBots(name, bots)
+        // 后端返回 accepted——以响应为准，避免丢进去的未知 bot
+        setPlugins((prev) =>
+          prev?.map((p) => (p.name === name ? { ...p, bots: r.bots } : p)) ?? prev
+        )
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err))
       }
@@ -504,6 +629,16 @@ export function PluginsPage() {
                   )}
                   <div className="mt-1 flex items-center gap-1.5 text-[10px] text-muted-foreground">
                     {p.version && <span>v{p.version}</span>}
+                    <span
+                      className={cn(
+                        "flex items-center gap-0.5",
+                        p.bots.length === 0 && "text-amber-600"
+                      )}
+                      title={p.bots.length === 0 ? "未选中任何 bot——事件不会被触发" : `作用于 ${p.bots.join(", ")}`}
+                    >
+                      <BotIcon className="size-2.5" />
+                      {p.bots.length}
+                    </span>
                     {p.routes.length > 0 && (
                       <span className="flex items-center gap-0.5">
                         <Network className="size-2.5" />
@@ -527,7 +662,13 @@ export function PluginsPage() {
       {/* ── 右侧详情 / iframe ── */}
       <Card className="flex min-h-0 flex-col overflow-hidden">
         {selectedPlugin ? (
-          <PluginDetail plugin={selectedPlugin} onToggle={handleToggle} onDelete={handleDelete} />
+          <PluginDetail
+            plugin={selectedPlugin}
+            availableBots={availableBots}
+            onToggle={handleToggle}
+            onDelete={handleDelete}
+            onBotsChange={handleBotsChange}
+          />
         ) : (
           <div className="flex flex-1 flex-col items-center justify-center gap-3 text-muted-foreground">
             <PlugZap className="size-12 opacity-30" />

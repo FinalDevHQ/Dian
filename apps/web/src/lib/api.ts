@@ -13,10 +13,80 @@ export interface HealthResponse {
 
 export interface BotInfo {
   botId: string
+  /** 是否启用此 bot 的连接（false 时不会创建 adapter） */
+  enabled: boolean
+  /** 当前是否正在运行 */
+  running: boolean
 }
 
 export interface StatusResponse {
   bots: BotInfo[]
+}
+
+// ─── Bot 管理（添加 / 删除 / 启停） ────────────────────────────────────────
+
+export type BotMode = "ws" | "http" | "hybrid"
+
+export interface BotWsConfigInput {
+  url: string
+  accessToken?: string
+  heartbeatIntervalMs?: number
+  reconnectIntervalMs?: number
+}
+
+export interface BotHttpConfigInput {
+  baseUrl: string
+  accessToken?: string
+  timeoutMs?: number
+}
+
+export interface BotEntryInput {
+  botId: string
+  enabled?: boolean
+  mode: BotMode
+  ws?: BotWsConfigInput
+  http?: BotHttpConfigInput
+}
+
+// ─── 系统信息（仪表盘用） ─────────────────────────────────────────────────────
+
+export interface SystemInfo {
+  ts: number
+  os: {
+    platform: string
+    type: string
+    release: string
+    arch: string
+    hostname: string
+    uptimeSec: number
+  }
+  node: {
+    version: string
+    pid: number
+    uptimeSec: number
+    cwd: string
+  }
+  cpu: {
+    model: string
+    cores: number
+    speedMHz: number
+    /** 0..100 */
+    usagePercent: number
+    loadAvg: [number, number, number]
+  }
+  memory: {
+    totalBytes: number
+    freeBytes: number
+    usedBytes: number
+    /** 0..100 */
+    usagePercent: number
+    process: {
+      rssBytes: number
+      heapUsedBytes: number
+      heapTotalBytes: number
+      externalBytes: number
+    }
+  }
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -103,6 +173,17 @@ export function eventStreamUrl(filter: { botId?: string; type?: BotEventType }):
 
 // ─── 插件管理 ────────────────────────────────────────────────────────────────
 
+export interface PluginCommandMeta {
+  name: string
+  pattern: string
+  description?: string
+}
+
+export interface PluginHandlerMeta {
+  method: string
+  pattern: string
+}
+
 export interface PluginPublicMeta {
   name: string
   description?: string
@@ -112,6 +193,10 @@ export interface PluginPublicMeta {
   enabled: boolean
   handlerCount: number
   commandCount: number
+  handlers: PluginHandlerMeta[]
+  commands: PluginCommandMeta[]
+  /** 当前生效的 bot 白名单（空数组表示任何 bot 都不响应） */
+  bots: string[]
   routes: { method: string; path: string }[]
   hasUI: boolean
   uiUrl: string | null
@@ -152,6 +237,23 @@ export interface QueryResult {
 export const api = {
   health: () => request<HealthResponse>("/health"),
   status: () => request<StatusResponse>("/status"),
+  system: () => request<SystemInfo>("/system"),
+
+  // Bot 管理
+  addBot: (entry: BotEntryInput) =>
+    request<{ ok: boolean; bot: BotEntryInput }>("/bots", {
+      method: "POST",
+      body: JSON.stringify(entry),
+    }),
+  deleteBot: (botId: string) =>
+    request<{ ok: boolean }>(`/bots/${encodeURIComponent(botId)}`, {
+      method: "DELETE",
+    }),
+  setBotEnabled: (botId: string, enabled: boolean) =>
+    request<{ ok: boolean }>(
+      `/bots/${encodeURIComponent(botId)}/enabled`,
+      { method: "PUT", body: JSON.stringify({ enabled }) }
+    ),
 
   listConfigFiles: () =>
     request<{ files: ConfigFileMeta[] }>("/config/files"),
@@ -160,6 +262,11 @@ export const api = {
   saveConfigFile: (name: string, content: string) =>
     request<ConfigFileMeta>(`/config/files/${encodeURIComponent(name)}`, {
       method: "PUT",
+      body: JSON.stringify({ content }),
+    }),
+  formatYaml: (content: string) =>
+    request<{ content: string }>("/config/format", {
+      method: "POST",
       body: JSON.stringify({ content }),
     }),
 
@@ -174,6 +281,11 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ enabled }),
     }),
+  setPluginBots: (name: string, bots: string[]) =>
+    request<{ ok: boolean; bots: string[]; rejected: string[] }>(
+      `/plugins/${encodeURIComponent(name)}/bots`,
+      { method: "PUT", body: JSON.stringify({ bots }) }
+    ),
   deletePlugin: (name: string) =>
     request<{ ok: boolean }>(`/plugins/${encodeURIComponent(name)}`, { method: "DELETE" }),
 
@@ -215,4 +327,73 @@ export const api = {
         }),
       }
     ),
+}
+
+// ─── 统计接口 ─────────────────────────────────────────────────────────────────
+
+export interface StatsFilter {
+  botId?: string
+  groupId?: string
+  /** Unix 秒 */
+  from?: number
+  /** Unix 秒 */
+  to?: number
+}
+
+export interface OverviewStats {
+  total: number
+  groups: number
+  users: number
+  byBot: { botId: string; count: number }[]
+}
+
+export interface GroupStat {
+  groupId: string
+  count: number
+  lastAt: number
+}
+
+export interface UserStat {
+  userId: string
+  senderName?: string
+  count: number
+  lastAt: number
+}
+
+export interface TrendPoint {
+  date: string
+  count: number
+}
+
+/** groupId → 群名 映射 */
+export type GroupNameMap = Record<string, string>
+
+function buildStatsQuery(filter: StatsFilter & { limit?: number }): string {
+  const p: Record<string, string | number | undefined> = {
+    botId:   filter.botId,
+    groupId: filter.groupId,
+    from:    filter.from,
+    to:      filter.to,
+    limit:   filter.limit,
+  }
+  return buildQuery(p)
+}
+
+export const statsApi = {
+  overview: (f: StatsFilter = {}) =>
+    request<OverviewStats>(`/stats/messages/overview${buildStatsQuery(f)}`),
+  byGroup: (f: StatsFilter & { limit?: number } = {}) =>
+    request<{ groups: GroupStat[] }>(`/stats/messages/by-group${buildStatsQuery(f)}`),
+  byUser: (f: StatsFilter & { limit?: number } = {}) =>
+    request<{ users: UserStat[] }>(`/stats/messages/by-user${buildStatsQuery(f)}`),
+  trend: (f: StatsFilter = {}) =>
+    request<{ trend: TrendPoint[] }>(`/stats/messages/trend${buildStatsQuery(f)}`),
+  /** 获取已缓存的群名。传空数组/不传时返回全部 */
+  groupNames: (groupIds: string[] = []) => {
+    const qs = groupIds.length ? `?groupIds=${groupIds.join(",")}` : ""
+    return request<GroupNameMap>(`/stats/group-names${qs}`)
+  },
+  /** 触发向所有活跃 bot 同步群名 */
+  syncGroupNames: () =>
+    request<{ ok: boolean; synced: number }>("/stats/group-names/sync", { method: "POST" }),
 }

@@ -23,6 +23,9 @@ export {
 export { loadAllConfig } from "./loader.js";
 export type { LoaderOptions } from "./loader.js";
 
+// Writer
+export { parseYaml, dumpYaml, writeYamlFile } from "./writer.js";
+
 // Service
 export { ConfigService, configService } from "./service.js";
 export type { ConfigChangeEvent, ConfigServiceEvents } from "./service.js";

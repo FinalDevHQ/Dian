@@ -5,6 +5,7 @@ import {
   FileCode,
   RefreshCw,
   Save,
+  Wand2,
 } from "lucide-react"
 import {
   api,
@@ -118,6 +119,26 @@ export function ConfigFilesPage() {
     setDraft(current.content)
     setSaveStatus({ kind: "idle" })
   }, [current])
+
+  const [formatErr, setFormatErr] = useState<string | null>(null)
+  const [formatting, setFormatting] = useState(false)
+  const formatYaml = useCallback(async () => {
+    if (!activeName) return
+    if (!/\.ya?ml$/i.test(activeName)) {
+      setFormatErr("仅支持 .yaml/.yml 文件")
+      return
+    }
+    setFormatErr(null)
+    setFormatting(true)
+    try {
+      const r = await api.formatYaml(draft)
+      setDraft(r.content)
+    } catch (err) {
+      setFormatErr(err instanceof Error ? err.message : String(err))
+    } finally {
+      setFormatting(false)
+    }
+  }, [activeName, draft])
 
   const saveBadge = useMemo(() => {
     switch (saveStatus.kind) {
@@ -239,6 +260,16 @@ export function ConfigFilesPage() {
             <Button
               variant="ghost"
               size="sm"
+              onClick={formatYaml}
+              disabled={!current || formatting || saveStatus.kind === "saving"}
+              title="格式化 YAML（会丢失注释，需手动保存后生效）"
+            >
+              <Wand2 />
+              格式化
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={reset}
               disabled={!dirty || saveStatus.kind === "saving"}
             >
@@ -263,6 +294,11 @@ export function ConfigFilesPage() {
           {saveStatus.kind === "error" && (
             <p className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs text-destructive">
               {saveStatus.message}
+            </p>
+          )}
+          {formatErr && (
+            <p className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+              格式化失败：{formatErr}
             </p>
           )}
           {loadingFile ? (

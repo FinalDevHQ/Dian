@@ -8,7 +8,6 @@ import {
   LayoutDashboard,
   MessageSquare,
   Settings,
-  Sparkles,
   Store,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
@@ -41,6 +40,6 @@ export const navGroups: NavGroup[] = [
   },
   {
     label: "扩展页面",
-    items: [{ key: "examples", label: "系统示例", icon: Sparkles }],
+    items: [],
   },
 ]

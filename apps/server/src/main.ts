@@ -9,6 +9,8 @@ import { EventBus } from "./event/event-bus.js";
 import { EventDispatcher } from "./event/event-dispatcher.js";
 import { DatabaseExplorer } from "./db/explorer.js";
 import { installLogPersistence } from "./log-bridge.js";
+import { installMessagePersistence } from "./message-bridge.js";
+import { createPluginScopeIO } from "./plugin-scope.js";
 import { createServer } from "./server/fastify.js";
 
 // ---------------------------------------------------------------------------
@@ -42,12 +44,19 @@ async function main(): Promise<void> {
       installLogPersistence(logger, storageService.log);
       logger.info("Log persistence enabled");
     }
+    if (storageService.hasMessage) {
+      logger.info("Message persistence enabled");
+    }
   }
 
   // ── 3. 加载插件 ───────────────────────────────────────────────────────────
   logger.info(`Loading plugins from ${PLUGINS_DIR}`);
   await pluginManager.loadAll(PLUGINS_DIR);
   pluginManager.watch(); // 监听新安装的插件文件，自动热加载
+
+  // ── 3b. 加载插件 bot 白名单（必须在插件 load 之后；scope 与插件按 name 关联） ──
+  const pluginScopeIO = createPluginScopeIO(CONFIG_DIR, logger);
+  await pluginScopeIO.load();
 
   // ── 4a. 数据库浏览器（按 settings.storage 注册数据源） ────────────────────
   const dbExplorer = new DatabaseExplorer(logger);
@@ -62,11 +71,17 @@ async function main(): Promise<void> {
   // ── 4b. 事件总线 + 分发器 & BotManager ────────────────────────────────────
   const eventBus = new EventBus(200);
   const dispatcher = new EventDispatcher(logger);
+
+  // 消息持久化回调（在事件进入 dispatcher 前先写 DB）
+  const persistMessage = storageService.hasMessage
+    ? installMessagePersistence(storageService.message)
+    : null;
+
   const botManager = new BotManager(
     configService,
     logger,
     async (event) => {
-      // 先广播给 HTTP 订阅者（前端日志页等），再交给插件分发
+      persistMessage?.(event);
       eventBus.publish(event);
       await dispatcher.dispatch(event);
     }
@@ -83,6 +98,8 @@ async function main(): Promise<void> {
     pluginsDir: PLUGINS_DIR,
     eventBus,
     dbExplorer,
+    messageRepo: storageService.hasMessage ? storageService.message : undefined,
+    persistPluginScope: () => pluginScopeIO.save(),
   });
   await server.start();
 

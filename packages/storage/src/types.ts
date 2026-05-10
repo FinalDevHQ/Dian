@@ -41,6 +41,90 @@ export interface LogRepository {
   close(): Promise<void>;
 }
 
+// ---------------------------------------------------------------------------
+// 消息统计存储接口
+// ---------------------------------------------------------------------------
+
+/** 消息条目（仅 message 类型事件） */
+export interface MessageEntry {
+  id?: number;
+  eventId: string;
+  botId: string;
+  /** group | private */
+  subtype: string;
+  groupId?: string;
+  userId?: string;
+  senderName?: string;
+  messageId?: string;
+  text?: string;
+  /** Unix 秒级时间戳 */
+  timestamp: number;
+}
+
+/** 群组统计行 */
+export interface GroupStat {
+  groupId: string;
+  count: number;
+  lastAt: number;
+}
+
+/** 用户统计行 */
+export interface UserStat {
+  userId: string;
+  senderName?: string;
+  count: number;
+  lastAt: number;
+}
+
+/** 时间趋势点 */
+export interface TrendPoint {
+  date: string;  // YYYY-MM-DD
+  count: number;
+}
+
+/** 群名缓存条目 */
+export interface GroupNameEntry {
+  groupId: string;
+  name: string;
+  /** Unix 秒 */
+  updatedAt: number;
+}
+
+/** 消息统计仓库接口 */
+export interface MessageRepository {
+  /** 写入一条消息（eventId 重复时忽略） */
+  writeMessage(entry: MessageEntry): Promise<void>;
+  /** 总览统计 */
+  overviewStats(filter: StatsFilter): Promise<OverviewStats>;
+  /** 按群组统计（Top N） */
+  groupStats(filter: StatsFilter & { limit?: number }): Promise<GroupStat[]>;
+  /** 按用户统计（Top N） */
+  userStats(filter: StatsFilter & { limit?: number; groupId?: string }): Promise<UserStat[]>;
+  /** 按天趋势 */
+  trendStats(filter: StatsFilter): Promise<TrendPoint[]>;
+  /** 查询已缓存的群名（传空数组时返回全部） */
+  getGroupNames(groupIds?: string[]): Promise<GroupNameEntry[]>;
+  /** 批量写入群名缓存（upsert） */
+  upsertGroupNames(entries: { groupId: string; name: string }[]): Promise<void>;
+  close(): Promise<void>;
+}
+
+export interface StatsFilter {
+  botId?: string;
+  groupId?: string;
+  /** Unix 秒 */
+  from?: number;
+  /** Unix 秒 */
+  to?: number;
+}
+
+export interface OverviewStats {
+  total: number;
+  groups: number;
+  users: number;
+  byBot: { botId: string; count: number }[];
+}
+
 /** KV 缓存接口（Redis 适配器实现） */
 export interface CacheRepository {
   get(key: string): Promise<string | null>;

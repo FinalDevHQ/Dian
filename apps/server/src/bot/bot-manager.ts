@@ -23,15 +23,33 @@ export class BotManager {
 
   async start(): Promise<void> {
     const bots = this.config.bots;
-    this.log.info(`Starting ${bots.length} bot(s)...`);
+    const enabled = bots.filter((b) => b.enabled !== false);
+    const skipped = bots.length - enabled.length;
+    this.log.info(
+      `Starting ${enabled.length} bot(s)${skipped > 0 ? ` (skipped ${skipped} disabled)` : ""}...`
+    );
 
-    for (const entry of bots) {
+    for (const entry of enabled) {
       const instance = new BotInstance(entry, this.logger, this.onEvent);
       this.bots.set(entry.botId, instance);
       await instance.start();
     }
 
     this.log.info("All bots started");
+  }
+
+  /** 全部已配置的 botId（含 disabled） */
+  getConfiguredBotIds(): string[] {
+    return this.config.bots.map((b) => b.botId);
+  }
+
+  /** 全部已配置 bot 的状态（含 disabled） */
+  getBotStates(): { botId: string; enabled: boolean; running: boolean }[] {
+    return this.config.bots.map((b) => ({
+      botId: b.botId,
+      enabled: b.enabled !== false,
+      running: this.bots.has(b.botId),
+    }));
   }
 
   async stop(): Promise<void> {
