@@ -13,10 +13,39 @@ export interface HealthResponse {
 
 export interface BotInfo {
   botId: string
+  /** 是否启用此 bot 的连接（false 时不会创建 adapter） */
+  enabled: boolean
+  /** 当前是否正在运行 */
+  running: boolean
 }
 
 export interface StatusResponse {
   bots: BotInfo[]
+}
+
+// ─── Bot 管理（添加 / 删除 / 启停） ────────────────────────────────────────
+
+export type BotMode = "ws" | "http" | "hybrid"
+
+export interface BotWsConfigInput {
+  url: string
+  accessToken?: string
+  heartbeatIntervalMs?: number
+  reconnectIntervalMs?: number
+}
+
+export interface BotHttpConfigInput {
+  baseUrl: string
+  accessToken?: string
+  timeoutMs?: number
+}
+
+export interface BotEntryInput {
+  botId: string
+  enabled?: boolean
+  mode: BotMode
+  ws?: BotWsConfigInput
+  http?: BotHttpConfigInput
 }
 
 // ─── 系统信息（仪表盘用） ─────────────────────────────────────────────────────
@@ -210,6 +239,22 @@ export const api = {
   status: () => request<StatusResponse>("/status"),
   system: () => request<SystemInfo>("/system"),
 
+  // Bot 管理
+  addBot: (entry: BotEntryInput) =>
+    request<{ ok: boolean; bot: BotEntryInput }>("/bots", {
+      method: "POST",
+      body: JSON.stringify(entry),
+    }),
+  deleteBot: (botId: string) =>
+    request<{ ok: boolean }>(`/bots/${encodeURIComponent(botId)}`, {
+      method: "DELETE",
+    }),
+  setBotEnabled: (botId: string, enabled: boolean) =>
+    request<{ ok: boolean }>(
+      `/bots/${encodeURIComponent(botId)}/enabled`,
+      { method: "PUT", body: JSON.stringify({ enabled }) }
+    ),
+
   listConfigFiles: () =>
     request<{ files: ConfigFileMeta[] }>("/config/files"),
   getConfigFile: (name: string) =>
@@ -217,6 +262,11 @@ export const api = {
   saveConfigFile: (name: string, content: string) =>
     request<ConfigFileMeta>(`/config/files/${encodeURIComponent(name)}`, {
       method: "PUT",
+      body: JSON.stringify({ content }),
+    }),
+  formatYaml: (content: string) =>
+    request<{ content: string }>("/config/format", {
+      method: "POST",
       body: JSON.stringify({ content }),
     }),
 

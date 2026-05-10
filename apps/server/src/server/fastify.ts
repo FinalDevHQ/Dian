@@ -10,6 +10,7 @@ import { configRoutes } from "../routes/config.js";
 import { eventRoutes } from "../routes/events.js";
 import { dbRoutes } from "../routes/db.js";
 import { pluginRoutes } from "../routes/plugins.js";
+import { botsRoutes } from "../routes/bots.js";
 
 export interface ServerOptions {
   host?: string;
@@ -66,6 +67,7 @@ export async function createServer(opts: ServerOptions): Promise<{
     knownBotIds: () => botManager.getBots().map((b) => b.botId),
     persistPluginScope,
   });
+  await app.register(botsRoutes, { logger, configDir });
 
   return {
     async start() {

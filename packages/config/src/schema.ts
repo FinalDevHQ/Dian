@@ -52,6 +52,8 @@ export const BotEntrySchema = z
   .object({
     /** 机器人唯一标识 */
     botId: z.string().min(1),
+    /** 是否启用此 bot 的连接（false 时不会创建 adapter）。省略时默认 true。 */
+    enabled: z.boolean().default(true),
     /** 传输模式 */
     mode: z.enum(["ws", "http", "hybrid"]),
     /** WS 配置（mode 为 ws 或 hybrid 时必填） */

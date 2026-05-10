@@ -14,11 +14,8 @@ export async function healthRoutes(
     return reply.send({ status: "ok", ts: Date.now() });
   });
 
-  // GET /status — 机器人状态
+  // GET /status — 机器人状态（含已禁用的；带 enabled / running 标志）
   app.get("/status", async (_req, reply) => {
-    const bots = opts.botManager.getBots().map((b) => ({
-      botId: b.botId,
-    }));
-    return reply.send({ bots });
+    return reply.send({ bots: opts.botManager.getBotStates() });
   });
 }

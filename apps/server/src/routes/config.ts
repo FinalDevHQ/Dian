@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { join, resolve, sep } from "node:path";
 import type { LogService } from "@dian/logger";
+import { parseYaml, dumpYaml } from "@dian/config";
 
 const ALLOWED_FILE = /^[a-zA-Z0-9._-]+\.ya?ml$/;
 
@@ -95,6 +96,26 @@ export async function configRoutes(
       } catch (err) {
         logger.error("Failed to write config file", { err });
         return reply.code(500).send({ error: "write failed" });
+      }
+    }
+  );
+
+  // POST /config/format — 一键格式化 YAML（解析 + dump，不落盘）
+  app.post<{ Body: { content: string } }>(
+    "/config/format",
+    async (req, reply) => {
+      const body = req.body;
+      if (!body || typeof body.content !== "string") {
+        return reply.code(400).send({ error: "content must be string" });
+      }
+      try {
+        const value = parseYaml(body.content);
+        return reply.send({ content: dumpYaml(value) });
+      } catch (err) {
+        return reply.code(400).send({
+          error: "YAML 解析失败",
+          detail: (err as Error).message,
+        });
       }
     }
   );
