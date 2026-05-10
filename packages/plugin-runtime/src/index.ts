@@ -10,6 +10,8 @@ export {
 export type {
   PluginMeta,
   PluginPublicMeta,
+  CommandPublicMeta,
+  HandlerPublicMeta,
   HandlerMeta,
   InterceptorMeta,
   CommandEntry,
@@ -18,6 +20,9 @@ export type {
   PluginSetupContext,
   PluginInstance,
   EventContext,
+  Pattern,
+  HttpMethod,
+  RouteHandler,
 } from "./decorators.js";
 
 // Manager

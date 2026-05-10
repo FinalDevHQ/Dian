@@ -1,7 +1,7 @@
 import "reflect-metadata";
 import { existsSync } from "node:fs";
 import { readdir } from "node:fs/promises";
-import { resolve, extname } from "node:path";
+import { resolve, extname, relative, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import chokidar, { type FSWatcher } from "chokidar";
 import type { BotEvent } from "@dian/shared";
@@ -67,7 +67,10 @@ export class PluginManager {
     let imported: Record<string, unknown>;
     try {
       // Windows 路径需要转换为 file:// URL，否则 ESM loader 报错
-      imported = (await import(pathToFileURL(filePath).href)) as Record<string, unknown>;
+      // 加 ?t=<timestamp> 绕过 Node ESM 模块缓存，保证 reload 时能拿到新代码
+      // （Node 的 import() 对同一 URL 永久缓存，不带 query 就拿不到磁盘上的最新版本）
+      const url = `${pathToFileURL(filePath).href}?t=${Date.now()}`;
+      imported = (await import(url)) as Record<string, unknown>;
     } catch (err) {
       console.error(`[plugin-runtime] 加载插件失败 "${filePath}":`, err);
       return;
@@ -166,7 +169,16 @@ export class PluginManager {
       awaitWriteFinish: { stabilityThreshold: 300, pollInterval: 50 },
     });
 
+    const isPluginEntry = (filePath: string): boolean => {
+      if (extname(filePath) !== ".js") return false;
+      const rel = relative(this._pluginsDir!, filePath);
+      const parts = rel.split(sep);
+      // 直接子文件: plugins/foo.js  或  目录插件入口: plugins/foo/index.js
+      return parts.length === 1 || (parts.length === 2 && parts[1] === "index.js");
+    };
+
     this._watcher.on("change", (filePath: string) => {
+      if (!isPluginEntry(filePath)) return;
       // 找到对应插件并 reload
       for (const [name, plugin] of this._plugins) {
         if (plugin.filePath === filePath) {
@@ -179,8 +191,7 @@ export class PluginManager {
     });
 
     this._watcher.on("add", (filePath: string) => {
-      // 只加载 .js 文件，忽略 .html 、.css 等静态资源
-      if (extname(filePath) !== ".js") return;
+      if (!isPluginEntry(filePath)) return;
       this._loadFile(filePath).catch(console.error);
     });
 
@@ -208,15 +219,17 @@ export class PluginManager {
    * 先按 priority 执行 interceptors，任意 interceptor 可调用 stopPropagation() 终止。
    * 再按注册顺序执行匹配 pattern 的 handlers。
    */
-  async dispatch(event: BotEvent): Promise<void> {
+  async dispatch(
+    event: BotEvent,
+    reply: (text: string) => Promise<void> = async () => {},
+  ): Promise<void> {
     if (this._maintenanceMode) return;
 
     let stopped = false;
     const ctx: EventContext = {
       event,
-      stopPropagation() {
-        stopped = true;
-      },
+      stopPropagation() { stopped = true; },
+      reply,
     };
 
     // 1. 执行所有 interceptors（已全局按 priority 排序）
@@ -315,6 +328,15 @@ export class PluginManager {
       enabled: !this._blacklist.has(p.meta.name),
       handlerCount: p.handlers.length,
       commandCount: p.commands.length,
+      handlers: p.handlers.map((h) => ({
+        method: h.method,
+        pattern: stringifyPattern(h.pattern),
+      })),
+      commands: p.commands.map((c) => ({
+        name: c.name,
+        pattern: stringifyPattern(c.pattern),
+        description: c.description,
+      })),
       routes: p.routes.map((r) => ({ method: r.method, path: r.path })),
       hasUI: p.ui !== null,
       uiUrl: p.ui?.externalUrl
@@ -330,14 +352,39 @@ export class PluginManager {
 // 工具函数
 // ---------------------------------------------------------------------------
 
-function matchPattern(pattern: RegExp | string, text: string): boolean {
-  if (pattern instanceof RegExp) return pattern.test(text);
-  return text === pattern;
+function matchPattern(
+  pattern: RegExp | string | (() => RegExp | string),
+  text: string,
+): boolean {
+  // 函数形式：每次匹配时求值，实现"配置即改即生效"
+  const resolved = typeof pattern === "function" ? pattern() : pattern;
+  if (resolved instanceof RegExp) return resolved.test(text);
+  return text === resolved;
+}
+
+/**
+ * 把 pattern 转成可读字符串，用于前端展示。
+ * - string  : 原样返回
+ * - RegExp  : 返回 .toString() 形式（如 "/^!echo (.+)$/"）
+ * - function: 调用并把返回值再递归 stringify。函数求值异常时返回 "<dynamic>"
+ */
+function stringifyPattern(
+  pattern: RegExp | string | (() => RegExp | string),
+): string {
+  try {
+    const resolved = typeof pattern === "function" ? pattern() : pattern;
+    if (resolved instanceof RegExp) return resolved.toString();
+    return String(resolved);
+  } catch {
+    return "<dynamic>";
+  }
 }
 
 function extractMessageText(event: BotEvent): string {
-  // BotEvent.payload 根据 event_type 有不同结构，尽量提取文本
+  // 标准路径：mapOneBotEvent 已把文本提取到 payload.text
   const payload = event.payload as Record<string, unknown>;
+  if (typeof payload.text === "string") return payload.text;
+  // 兼容路径：payload.message 直接是字符串或消息段数组
   if (typeof payload.message === "string") return payload.message;
   if (Array.isArray(payload.message)) {
     return (payload.message as Array<{ type: string; data: { text?: string } }>)

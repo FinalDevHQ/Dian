@@ -1,12 +1,33 @@
-import { existsSync } from "node:fs";
-import { mkdir, unlink, writeFile } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
+import { existsSync, createReadStream, statSync } from "node:fs";
+import { mkdir, rm, unlink, writeFile } from "node:fs/promises";
+import { dirname, extname, join, normalize, resolve, sep } from "node:path";
 import { tmpdir } from "node:os";
 import { execSync } from "node:child_process";
-import type { FastifyInstance } from "fastify";
-import fastifyStatic from "@fastify/static";
+import type { FastifyInstance, FastifyReply } from "fastify";
 import { pluginManager } from "@dian/plugin-runtime";
 import type { LogService } from "@dian/logger";
+
+// 静态资源 MIME 类型表（够用即可，无需引入 mime 库）
+const MIME_TYPES: Record<string, string> = {
+  ".html": "text/html; charset=utf-8",
+  ".htm":  "text/html; charset=utf-8",
+  ".js":   "application/javascript; charset=utf-8",
+  ".mjs":  "application/javascript; charset=utf-8",
+  ".css":  "text/css; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".svg":  "image/svg+xml",
+  ".png":  "image/png",
+  ".jpg":  "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".gif":  "image/gif",
+  ".webp": "image/webp",
+  ".ico":  "image/x-icon",
+  ".woff": "font/woff",
+  ".woff2":"font/woff2",
+  ".ttf":  "font/ttf",
+  ".map":  "application/json; charset=utf-8",
+  ".txt":  "text/plain; charset=utf-8",
+};
 
 interface PluginRoutesOptions {
   logger: LogService;
@@ -41,6 +62,61 @@ export async function pluginRoutes(
     }
     logger.info(`Plugin ${name} ${enabled ? "enabled" : "disabled"}`);
     return reply.send({ ok: true });
+  });
+
+  // ── DELETE /plugins/:name ──────────────────────────────────────────────────
+  app.delete<{ Params: { name: string } }>("/plugins/:name", async (req, reply) => {
+    const { name } = req.params;
+    if (!name || !/^[\w-]+$/.test(name)) {
+      return reply.code(400).send({ error: "invalid plugin name" });
+    }
+
+    // 必须在 unload 之前先拿到 filePath，
+    // 否则 plugins.find 会返回 undefined；且 meta.name 与目录名常不一致。
+    const loadedPlugin = pluginManager.plugins.find((p) => p.meta.name === name);
+    const loadedFilePath = loadedPlugin?.filePath;
+
+    // 从内存卸载
+    pluginManager.unload(name);
+    // 同步清掉黑名单状态，避免重装后仍处于禁用
+    pluginManager.removeFromBlacklist(name);
+
+    // 计算真实目标：优先用已加载插件的实际路径
+    const targetDir  = loadedFilePath ? dirname(loadedFilePath) : join(pluginsDir, name);
+    const targetFile = loadedFilePath && loadedFilePath.endsWith(".js")
+      ? loadedFilePath
+      : join(pluginsDir, `${name}.js`);
+
+    try {
+      let removed = false;
+      // 单文件插件（plugins/foo.js）：父目录就是 pluginsDir，只删文件
+      if (targetDir === resolve(pluginsDir)) {
+        if (existsSync(targetFile)) {
+          await unlink(targetFile);
+          removed = true;
+        }
+      } else if (existsSync(targetDir)) {
+        await rm(targetDir, { recursive: true, force: true });
+        removed = true;
+      } else if (existsSync(targetFile)) {
+        await unlink(targetFile);
+        removed = true;
+      }
+
+      if (!removed) {
+        logger.warn(`Plugin "${name}" unloaded from memory, but no files were found to delete (targetDir=${targetDir})`);
+        return reply.code(404).send({
+          error: `plugin "${name}" not found on disk`,
+          hint: "插件已从内存卸载，但磁盘上未找到对应目录或文件",
+        });
+      }
+
+      logger.info(`Plugin uninstalled: ${name}`);
+      return reply.send({ ok: true });
+    } catch (err) {
+      logger.error(`Failed to uninstall plugin: ${name}`, { err: (err as Error).message });
+      return reply.code(500).send({ error: (err as Error).message });
+    }
   });
 
   // ── POST /plugins/upload ─────────────────────────────────────────────────
@@ -82,49 +158,105 @@ export async function pluginRoutes(
     }
   });
 
-  // ── 插件自定义 API 路由（/plugins/:name/api/*） ──────────────────────────────
-  for (const plugin of pluginManager.plugins) {
-    const { name } = plugin.meta;
-    const prefix = `/plugins/${encodeURIComponent(name)}/api`;
+  // ── 插件 API（catch-all，热插拔无需重启） ────────────────────────────────
+  // 关键设计：不再为每个 plugin/route 单独 app.route()（那样卸载/重载会撞重复注册），
+  // 而是注册一个通配 handler，根据请求 URL 在内存中查找当前已加载插件 + 路由实例。
+  const apiHandler = async (req: import("fastify").FastifyRequest, reply: FastifyReply) => {
+    const { name, '*': rest } = req.params as { name: string; "*": string };
+    const subPath = `/${rest ?? ""}`.replace(/\/+$/, "") || "/";
 
-    for (const route of plugin.routes) {
-      const fullPath = `${prefix}${route.path}`;
-      try {
-        app.route({
-          method: route.method,
-          url: fullPath,
-          handler: route.handler,
-        });
-        logger.info(`Registered plugin route: ${route.method} ${fullPath}`);
-      } catch (err) {
-        logger.warn(`Failed to register plugin route ${route.method} ${fullPath}`, {
-          err: (err as Error).message,
-        });
-      }
+    const plugin = pluginManager.plugins.find((p) => p.meta.name === decodeURIComponent(name));
+    if (!plugin) {
+      return reply.code(404).send({ error: `plugin "${name}" not loaded` });
     }
+    const route = plugin.routes.find(
+      (r) => r.method === req.method && (r.path === subPath || r.path === subPath + "/" || r.path + "/" === subPath)
+    );
+    if (!route) {
+      return reply.code(404).send({ error: `no ${req.method} ${subPath} on plugin "${plugin.meta.name}"` });
+    }
+    return route.handler(req, reply);
+  };
 
-    // ── 插件静态 UI（/plugins/:name/ui/*） ──────────────────────────────────
-    if (plugin.ui?.staticDir) {
-      const pluginDir = dirname(plugin.filePath);
-      const staticRoot = resolve(pluginDir, plugin.ui.staticDir);
+  for (const method of ["GET", "POST", "PUT", "PATCH", "DELETE"] as const) {
+    app.route({ method, url: "/plugins/:name/api/*", handler: apiHandler });
+    app.route({ method, url: "/plugins/:name/api",   handler: apiHandler });
+  }
 
-      if (existsSync(staticRoot)) {
-        try {
-          await app.register(fastifyStatic, {
-            root: staticRoot,
-            prefix: `/plugins/${encodeURIComponent(name)}/ui/`,
-            index: plugin.ui.entry ?? "index.html",
-            decorateReply: false, // 允许多次注册
-          });
-          logger.info(`Serving plugin UI: /plugins/${name}/ui/ -> ${staticRoot}`);
-        } catch (err) {
-          logger.warn(`Failed to register plugin UI for ${name}`, {
-            err: (err as Error).message,
-          });
-        }
-      } else {
-        logger.warn(`Plugin ${name} declared staticDir=${plugin.ui.staticDir} but it does not exist: ${staticRoot}`);
-      }
+  // ── 插件静态 UI（/plugins/:name/ui/*，手动 serve，热插拔安全） ─────────────
+  app.get<{ Params: { name: string; "*": string } }>(
+    "/plugins/:name/ui/*",
+    async (req, reply) => serveStatic(req.params.name, req.params["*"], reply, logger)
+  );
+  app.get<{ Params: { name: string } }>(
+    "/plugins/:name/ui",
+    async (req, reply) => reply.redirect(`/plugins/${encodeURIComponent(req.params.name)}/ui/`)
+  );
+  app.get<{ Params: { name: string } }>(
+    "/plugins/:name/ui/",
+    async (req, reply) => serveStatic(req.params.name, "", reply, logger)
+  );
+
+  // 已加载插件的状态/UI 注册情况打印（仅日志）
+  for (const plugin of pluginManager.plugins) {
+    logger.info(
+      `Plugin ready: ${plugin.meta.name} (routes=${plugin.routes.length}, ui=${plugin.ui ? "yes" : "no"})`
+    );
+  }
+}
+
+/**
+ * 根据当前已加载插件元信息，从插件的 staticDir 中读取并返回文件。
+ * - 路径规范化，拒绝目录穿越。
+ * - 找不到文件或插件未声明 UI 时返回 404。
+ */
+async function serveStatic(
+  rawName: string,
+  rawSubPath: string,
+  reply: FastifyReply,
+  logger: LogService
+): Promise<FastifyReply> {
+  const name = decodeURIComponent(rawName);
+  const plugin = pluginManager.plugins.find((p) => p.meta.name === name);
+  if (!plugin || !plugin.ui?.staticDir) {
+    return reply.code(404).send({ error: `plugin "${name}" has no UI` });
+  }
+
+  const pluginDir = dirname(plugin.filePath);
+  const staticRoot = resolve(pluginDir, plugin.ui.staticDir);
+  const indexFile = plugin.ui.entry ?? "index.html";
+
+  // 解码 + 规范化子路径，去掉首尾斜杠，空则视为 index
+  const sub = decodeURIComponent(rawSubPath ?? "").replace(/^\/+|\/+$/g, "");
+  const target = sub === "" ? indexFile : sub;
+
+  // 防目录穿越：解析后的路径必须仍在 staticRoot 下
+  const filePath = normalize(resolve(staticRoot, target));
+  if (!filePath.startsWith(staticRoot + sep) && filePath !== staticRoot) {
+    return reply.code(403).send({ error: "forbidden" });
+  }
+
+  let stat;
+  try {
+    stat = statSync(filePath);
+  } catch {
+    return reply.code(404).send({ error: "not found" });
+  }
+  // 目录请求 → 回退到 index 文件
+  let finalPath = filePath;
+  if (stat.isDirectory()) {
+    finalPath = resolve(filePath, indexFile);
+    try {
+      stat = statSync(finalPath);
+    } catch {
+      return reply.code(404).send({ error: "not found" });
     }
   }
+
+  const mime = MIME_TYPES[extname(finalPath).toLowerCase()] ?? "application/octet-stream";
+  reply.header("Content-Type", mime);
+  reply.header("Content-Length", stat.size);
+  reply.header("Cache-Control", "no-cache");
+  logger.debug?.(`[plugin-ui] ${name} -> ${finalPath}`);
+  return reply.send(createReadStream(finalPath));
 }

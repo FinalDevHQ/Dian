@@ -2206,6 +2206,9 @@ var require_Reflect2 = __commonJS({
 
 // src/index.ts
 var import_reflect_metadata3 = __toESM(require_Reflect(), 1);
+import { existsSync as existsSync2, readFileSync, writeFileSync } from "fs";
+import { dirname as dirname3, resolve as resolve4 } from "path";
+import { fileURLToPath } from "url";
 
 // ../packages/plugin-runtime/dist/index.js
 var import_reflect_metadata2 = __toESM(require_Reflect2(), 1);
@@ -2219,25 +2222,13 @@ function Plugin(meta) {
     Reflect.defineMetadata(PLUGIN_META_KEY, meta, target);
   };
 }
-function Handler(pattern) {
-  return (target, propertyKey) => {
-    const existing = Reflect.getMetadata(HANDLER_META_KEY, target.constructor) ?? [];
-    existing.push({ method: String(propertyKey), pattern });
-    Reflect.defineMetadata(HANDLER_META_KEY, existing, target.constructor);
-  };
-}
-function Interceptor(priority = 100) {
-  return (target, propertyKey) => {
-    const existing = Reflect.getMetadata(INTERCEPTOR_META_KEY, target.constructor) ?? [];
-    existing.push({ method: String(propertyKey), priority });
-    Reflect.defineMetadata(INTERCEPTOR_META_KEY, existing, target.constructor);
-  };
-}
 
 // ../packages/plugin-runtime/dist/manager.js
 var import_reflect_metadata = __toESM(require_Reflect2(), 1);
+import { existsSync } from "fs";
 import { readdir as readdir3 } from "fs/promises";
-import { resolve as resolve3, extname as extname2 } from "path";
+import { resolve as resolve3, extname as extname2, relative as relative3, sep } from "path";
+import { pathToFileURL } from "url";
 
 // ../packages/node_modules/chokidar/index.js
 import { EventEmitter } from "events";
@@ -2984,9 +2975,9 @@ var NodeFsHandler = class {
     if (this.fsw.closed) {
       return;
     }
-    const dirname3 = sp.dirname(file);
+    const dirname4 = sp.dirname(file);
     const basename3 = sp.basename(file);
-    const parent = this.fsw._getWatchedDir(dirname3);
+    const parent = this.fsw._getWatchedDir(dirname4);
     let prevStats = stats;
     if (parent.has(basename3))
       return;
@@ -3013,7 +3004,7 @@ var NodeFsHandler = class {
             prevStats = newStats2;
           }
         } catch (error) {
-          this.fsw._remove(dirname3, basename3);
+          this.fsw._remove(dirname4, basename3);
         }
       } else if (parent.has(basename3)) {
         const at = newStats.atimeMs;
@@ -3110,7 +3101,7 @@ var NodeFsHandler = class {
         this._addToNodeFs(path, initialAdd, wh, depth + 1);
       }
     }).on(EV.ERROR, this._boundHandleError);
-    return new Promise((resolve4, reject) => {
+    return new Promise((resolve5, reject) => {
       if (!stream)
         return reject();
       stream.once(STR_END, () => {
@@ -3119,7 +3110,7 @@ var NodeFsHandler = class {
           return;
         }
         const wasThrottled = throttler ? throttler.clear() : false;
-        resolve4(void 0);
+        resolve5(void 0);
         previous.getChildren().filter((item) => {
           return item !== directory && !current.has(item);
         }).forEach((item) => {
@@ -3263,11 +3254,11 @@ function createPattern(matcher) {
       if (matcher.path === string)
         return true;
       if (matcher.recursive) {
-        const relative3 = sp2.relative(matcher.path, string);
-        if (!relative3) {
+        const relative4 = sp2.relative(matcher.path, string);
+        if (!relative4) {
           return false;
         }
-        return !relative3.startsWith("..") && !sp2.isAbsolute(relative3);
+        return !relative4.startsWith("..") && !sp2.isAbsolute(relative4);
       }
       return false;
     };
@@ -3994,15 +3985,21 @@ var PluginManager = class {
     for (const entry of entries) {
       const fullPath = resolve3(this._pluginsDir, entry);
       const ext = extname2(entry);
-      if (ext !== ".js" && ext !== "")
-        continue;
-      await this._loadFile(fullPath);
+      if (ext === ".js") {
+        await this._loadFile(fullPath);
+      } else if (ext === "") {
+        const indexFile = resolve3(fullPath, "index.js");
+        if (existsSync(indexFile)) {
+          await this._loadFile(indexFile);
+        }
+      }
     }
   }
   async _loadFile(filePath) {
     let imported;
     try {
-      imported = await import(filePath);
+      const url = `${pathToFileURL(filePath).href}?t=${Date.now()}`;
+      imported = await import(url);
     } catch (err) {
       console.error(`[plugin-runtime] \u52A0\u8F7D\u63D2\u4EF6\u5931\u8D25 "${filePath}":`, err);
       return;
@@ -4080,7 +4077,16 @@ var PluginManager = class {
       ignoreInitial: true,
       awaitWriteFinish: { stabilityThreshold: 300, pollInterval: 50 }
     });
+    const isPluginEntry = (filePath) => {
+      if (extname2(filePath) !== ".js")
+        return false;
+      const rel = relative3(this._pluginsDir, filePath);
+      const parts = rel.split(sep);
+      return parts.length === 1 || parts.length === 2 && parts[1] === "index.js";
+    };
     this._watcher.on("change", (filePath) => {
+      if (!isPluginEntry(filePath))
+        return;
       for (const [name, plugin] of this._plugins) {
         if (plugin.filePath === filePath) {
           this.reload(name).catch(console.error);
@@ -4090,6 +4096,8 @@ var PluginManager = class {
       this._loadFile(filePath).catch(console.error);
     });
     this._watcher.on("add", (filePath) => {
+      if (!isPluginEntry(filePath))
+        return;
       this._loadFile(filePath).catch(console.error);
     });
     this._watcher.on("unlink", (filePath) => {
@@ -4113,7 +4121,8 @@ var PluginManager = class {
    * 先按 priority 执行 interceptors，任意 interceptor 可调用 stopPropagation() 终止。
    * 再按注册顺序执行匹配 pattern 的 handlers。
    */
-  async dispatch(event) {
+  async dispatch(event, reply = async () => {
+  }) {
     if (this._maintenanceMode)
       return;
     let stopped = false;
@@ -4121,7 +4130,8 @@ var PluginManager = class {
       event,
       stopPropagation() {
         stopped = true;
-      }
+      },
+      reply
     };
     const allInterceptors = [];
     for (const plugin of this._plugins.values()) {
@@ -4204,6 +4214,15 @@ var PluginManager = class {
       enabled: !this._blacklist.has(p.meta.name),
       handlerCount: p.handlers.length,
       commandCount: p.commands.length,
+      handlers: p.handlers.map((h) => ({
+        method: h.method,
+        pattern: stringifyPattern(h.pattern)
+      })),
+      commands: p.commands.map((c) => ({
+        name: c.name,
+        pattern: stringifyPattern(c.pattern),
+        description: c.description
+      })),
       routes: p.routes.map((r) => ({ method: r.method, path: r.path })),
       hasUI: p.ui !== null,
       uiUrl: p.ui?.externalUrl ? p.ui.externalUrl : p.ui ? `/plugins/${encodeURIComponent(p.meta.name)}/ui/` : null
@@ -4211,12 +4230,25 @@ var PluginManager = class {
   }
 };
 function matchPattern(pattern, text) {
-  if (pattern instanceof RegExp)
-    return pattern.test(text);
-  return text === pattern;
+  const resolved = typeof pattern === "function" ? pattern() : pattern;
+  if (resolved instanceof RegExp)
+    return resolved.test(text);
+  return text === resolved;
+}
+function stringifyPattern(pattern) {
+  try {
+    const resolved = typeof pattern === "function" ? pattern() : pattern;
+    if (resolved instanceof RegExp)
+      return resolved.toString();
+    return String(resolved);
+  } catch {
+    return "<dynamic>";
+  }
 }
 function extractMessageText(event) {
   const payload = event.payload;
+  if (typeof payload.text === "string")
+    return payload.text;
   if (typeof payload.message === "string")
     return payload.message;
   if (Array.isArray(payload.message)) {
@@ -4227,64 +4259,84 @@ function extractMessageText(event) {
 var pluginManager = new PluginManager();
 
 // src/index.ts
-var MyPlugin = class {
-  async onPing(ctx) {
-    const { event } = ctx;
-    console.log(
-      `[my-plugin] ping from ${event.payload.senderName} (${event.payload.userId})`
-    );
-  }
-  async onEcho(ctx) {
-    const text = ctx.event.payload.text ?? "";
-    const match = text.match(/^!echo (.+)$/);
-    const content = match?.[1] ?? "";
-    console.log(`[my-plugin] echo: ${content}`);
-  }
-  async globalFilter(ctx) {
-    const blockedGroups = [];
-    if (ctx.event.payload.groupId && blockedGroups.includes(ctx.event.payload.groupId)) {
-      ctx.stopPropagation();
+var __dirname = dirname3(fileURLToPath(import.meta.url));
+var CONFIG_PATH = resolve4(__dirname, "config.json");
+var DEFAULTS = { command: "!ping", reply: "pong! \u{1F3D3}" };
+function loadConfig() {
+  try {
+    if (existsSync2(CONFIG_PATH)) {
+      return { ...DEFAULTS, ...JSON.parse(readFileSync(CONFIG_PATH, "utf8")) };
     }
+  } catch {
   }
-  // ── onSetup：注册 HTTP 路由 / 指令 / Web UI ───────────────────────────────
-  // 框架在加载插件后调用此方法。不需要可整个删除。
+  return { ...DEFAULTS };
+}
+function saveConfig(cfg) {
+  writeFileSync(CONFIG_PATH, JSON.stringify(cfg, null, 2));
+}
+var PingPongPlugin = class {
+  /** 插件加载时间（服务端时间戳，毫秒） */
+  startTime = Date.now();
+  /** 运行时配置（可通过 Web UI 修改 reply，修改 command 需重启） */
+  config = loadConfig();
+  /** 收到指令的累计次数 */
+  pingCount = 0;
+  /** 最近触发记录（最多保留 50 条） */
+  recentPings = [];
   onSetup(ctx) {
-    ctx.route("GET", "/status", (_req, reply) => {
-      reply.send({ ok: true, plugin: "my-plugin", timestamp: Date.now() });
-    });
     ctx.command({
-      name: "/help",
-      pattern: "!help",
-      description: "\u663E\u793A\u5E2E\u52A9\u4FE1\u606F",
-      async handler(c) {
-        console.log(`[my-plugin] help from ${c.event.payload.senderName}`);
+      name: this.config.command,
+      pattern: () => this.config.command,
+      description: `\u56DE\u590D "${this.config.reply}"`,
+      handler: async (c) => {
+        this.pingCount++;
+        this.recentPings.unshift({
+          sender: c.event.payload.senderName ?? "unknown",
+          userId: c.event.payload.userId,
+          group: c.event.payload.groupId,
+          time: c.event.timestamp
+        });
+        if (this.recentPings.length > 50) this.recentPings.pop();
+        console.log(
+          `[ping-pong] ${c.event.payload.senderName ?? "?"} \u2192 "${this.config.reply}"`
+        );
+        await c.reply(this.config.reply);
       }
+    });
+    ctx.route("GET", "/status", (_req, reply) => {
+      reply.send({
+        startTime: this.startTime,
+        // 服务端加载时间戳
+        pingCount: this.pingCount,
+        config: this.config,
+        recentPings: this.recentPings.slice(0, 10)
+      });
+    });
+    ctx.route("POST", "/config", (req, reply) => {
+      const body = req.body;
+      if (typeof body.reply === "string" && body.reply.trim()) {
+        this.config.reply = body.reply.trim();
+      }
+      if (typeof body.command === "string" && body.command.trim()) {
+        this.config.command = body.command.trim();
+      }
+      saveConfig(this.config);
+      reply.send({ ok: true, config: this.config });
     });
     ctx.ui({ staticDir: "./public", entry: "index.html" });
   }
 };
-__decorateClass([
-  Handler("!ping")
-], MyPlugin.prototype, "onPing", 1);
-__decorateClass([
-  Handler(/^!echo (.+)$/)
-], MyPlugin.prototype, "onEcho", 1);
-__decorateClass([
-  Interceptor(50)
-], MyPlugin.prototype, "globalFilter", 1);
-MyPlugin = __decorateClass([
+PingPongPlugin = __decorateClass([
   Plugin({
-    name: "my-plugin",
-    // ← 插件唯一标识，会出现在 /plugins/:name/... 路由中
-    description: "\u63D2\u4EF6\u6A21\u677F",
+    name: "ping-pong",
+    description: "\u53EF\u81EA\u5B9A\u4E49\u6307\u4EE4\u548C\u56DE\u590D\u5185\u5BB9\u7684 ping-pong \u63D2\u4EF6",
     version: "1.0.0",
     author: "your-name",
-    icon: "\u{1F50C}"
-    // emoji 或图标 URL
+    icon: "\u{1F3D3}"
   })
-], MyPlugin);
+], PingPongPlugin);
 export {
-  MyPlugin as default
+  PingPongPlugin as default
 };
 /*! Bundled license information:
 

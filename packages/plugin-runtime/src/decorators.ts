@@ -16,11 +16,21 @@ export interface RouteEntry {
   handler: RouteHandler;
 }
 
+/**
+ * 匹配模式：
+ * - string  : 与消息文本严格相等
+ * - RegExp  : 正则测试
+ * - function: 每次事件分发时调用，返回上面两种之一。
+ *             用这种形式可以实现"配置改了立即生效"的动态指令，
+ *             无需重启服务/重新注册。
+ */
+export type Pattern = RegExp | string | (() => RegExp | string);
+
 export interface CommandEntry {
   /** 指令名称，如 /help */
   name: string;
   /** 匹配规则，同 @Handler pattern */
-  pattern: RegExp | string;
+  pattern: Pattern;
   description?: string;
   handler: (ctx: EventContext) => void | Promise<void>;
 }
@@ -37,6 +47,23 @@ export interface UIDeclaration {
   entry?: string;
 }
 
+/** 指令的公开信息（前端展示用，不含 handler 实现） */
+export interface CommandPublicMeta {
+  /** 指令名，例如 "/help" */
+  name: string;
+  /** 当前 pattern 的字符串表示（函数 pattern 会被实时求值） */
+  pattern: string;
+  description?: string;
+}
+
+/** 事件处理器（@Handler）的公开信息 */
+export interface HandlerPublicMeta {
+  /** 类方法名 */
+  method: string;
+  /** 当前 pattern 的字符串表示（函数 pattern 会被实时求值） */
+  pattern: string;
+}
+
 /** 暴露给前端 API 的插件公开信息（不包含 handler 实现） */
 export interface PluginPublicMeta {
   name: string;
@@ -47,6 +74,10 @@ export interface PluginPublicMeta {
   enabled: boolean;
   handlerCount: number;
   commandCount: number;
+  /** 已注册的事件处理器（@Handler）详情 */
+  handlers: HandlerPublicMeta[];
+  /** 已注册的指令（ctx.command）详情 */
+  commands: CommandPublicMeta[];
   routes: { method: HttpMethod; path: string }[];
   hasUI: boolean;
   /** UI 访问地址（iframe src） */
@@ -91,8 +122,8 @@ export interface PluginMeta {
 export interface HandlerMeta {
   /** 方法名 */
   method: string;
-  /** 匹配模式：正则或精确字符串（对消息 message 字段做匹配） */
-  pattern: RegExp | string;
+  /** 匹配模式：正则、精确字符串，或返回它们的函数（动态/可热更新） */
+  pattern: Pattern;
 }
 
 // ---------------------------------------------------------------------------
@@ -134,6 +165,8 @@ export interface EventContext {
   event: BotEvent;
   /** 调用此方法可阻止后续 handler 继续处理该事件 */
   stopPropagation(): void;
+  /** 向事件来源（群/私聊）发送文本回复 */
+  reply(text: string): Promise<void>;
 }
 
 // ---------------------------------------------------------------------------
@@ -150,7 +183,7 @@ export function Plugin(meta: PluginMeta): ClassDecorator {
 // @Handler 装饰器
 // ---------------------------------------------------------------------------
 
-export function Handler(pattern: RegExp | string): MethodDecorator {
+export function Handler(pattern: Pattern): MethodDecorator {
   return (target, propertyKey) => {
     const existing: HandlerMeta[] =
       (Reflect.getMetadata(HANDLER_META_KEY, target.constructor) as HandlerMeta[] | undefined) ?? [];

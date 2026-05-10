@@ -1,84 +1,116 @@
 import "reflect-metadata";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   Plugin,
-  Handler,
-  Interceptor,
   type EventContext,
   type PluginSetupContext,
 } from "@dian/plugin-runtime";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 修改 @Plugin 里的 name 来设置插件 ID（需全局唯一）
-// ─────────────────────────────────────────────────────────────────────────────
+// ── 配置 ──────────────────────────────────────────────────────────────────────
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const CONFIG_PATH = resolve(__dirname, "config.json");
+
+interface Config {
+  command: string;   // 触发指令，默认 !ping
+  reply: string;     // 回复内容，默认 pong! 🏓
+}
+
+const DEFAULTS: Config = { command: "!ping", reply: "pong! 🏓" };
+
+function loadConfig(): Config {
+  try {
+    if (existsSync(CONFIG_PATH)) {
+      return { ...DEFAULTS, ...JSON.parse(readFileSync(CONFIG_PATH, "utf8")) as Config };
+    }
+  } catch { /* 读取失败时使用默认值 */ }
+  return { ...DEFAULTS };
+}
+
+function saveConfig(cfg: Config): void {
+  writeFileSync(CONFIG_PATH, JSON.stringify(cfg, null, 2));
+}
+
+// ── 插件主体 ──────────────────────────────────────────────────────────────────
 
 @Plugin({
-  name: "my-plugin",        // ← 插件唯一标识，会出现在 /plugins/:name/... 路由中
-  description: "插件模板",
+  name: "ping-pong",
+  description: "可自定义指令和回复内容的 ping-pong 插件",
   version: "1.0.0",
   author: "your-name",
-  icon: "🔌",               // emoji 或图标 URL
+  icon: "🏓",
 })
-export default class MyPlugin {
+export default class PingPongPlugin {
+  /** 插件加载时间（服务端时间戳，毫秒） */
+  private readonly startTime = Date.now();
 
-  // ── 消息 Handler ─────────────────────────────────────────────────────────
-  // @Handler 支持精确字符串或正则表达式，匹配消息文本后调用对应方法。
+  /** 运行时配置（可通过 Web UI 修改 reply，修改 command 需重启） */
+  private config = loadConfig();
 
-  /** 精确匹配 "!ping" */
-  @Handler("!ping")
-  async onPing(ctx: EventContext): Promise<void> {
-    const { event } = ctx;
-    console.log(
-      `[my-plugin] ping from ${event.payload.senderName} (${event.payload.userId})`
-    );
-    // 在此调用 bot API 发送回复，例如：
-    // await botApi.sendGroupMessage(event.payload.groupId!, "pong!");
-  }
+  /** 收到指令的累计次数 */
+  private pingCount = 0;
 
-  /** 正则匹配 "!echo <内容>" */
-  @Handler(/^!echo (.+)$/)
-  async onEcho(ctx: EventContext): Promise<void> {
-    const text = ctx.event.payload.text ?? "";
-    const match = text.match(/^!echo (.+)$/);
-    const content = match?.[1] ?? "";
-    console.log(`[my-plugin] echo: ${content}`);
-  }
-
-  // ── 拦截器 ───────────────────────────────────────────────────────────────
-  // 在所有 Handler 之前运行，priority 越小越先执行（默认 100）。
-  // 调用 ctx.stopPropagation() 可阻止后续所有 Handler。
-
-  @Interceptor(50)
-  async globalFilter(ctx: EventContext): Promise<void> {
-    // 示例：屏蔽特定群
-    const blockedGroups: string[] = [];
-    if (ctx.event.payload.groupId && blockedGroups.includes(ctx.event.payload.groupId)) {
-      ctx.stopPropagation();
-    }
-  }
-
-  // ── onSetup：注册 HTTP 路由 / 指令 / Web UI ───────────────────────────────
-  // 框架在加载插件后调用此方法。不需要可整个删除。
+  /** 最近触发记录（最多保留 50 条） */
+  private recentPings: Array<{
+    sender: string;
+    userId?: string;
+    group?: string;
+    time: number;
+  }> = [];
 
   onSetup(ctx: PluginSetupContext): void {
-    // ── HTTP API ────────────────────────────────────────────────────────────
-    // 访问地址：GET /plugins/my-plugin/api/status
-    ctx.route("GET", "/status", (_req, reply) => {
-      reply.send({ ok: true, plugin: "my-plugin", timestamp: Date.now() });
-    });
-
-    // ── 命令式指令（与 @Handler 等价，额外携带 description） ─────────────────
+    // ── 注册指令 ──────────────────────────────────────────────────────────
+    // pattern 用函数形式：每次事件分发时实时读取 this.config.command，
+    // 因此通过 /api/config 修改后立即生效，无需重启服务。
     ctx.command({
-      name: "/help",
-      pattern: "!help",
-      description: "显示帮助信息",
-      async handler(c) {
-        console.log(`[my-plugin] help from ${c.event.payload.senderName}`);
+      name: this.config.command,
+      pattern: () => this.config.command,
+      description: `回复 "${this.config.reply}"`,
+      handler: async (c: EventContext) => {
+        this.pingCount++;
+        this.recentPings.unshift({
+          sender: c.event.payload.senderName ?? "unknown",
+          userId: c.event.payload.userId,
+          group: c.event.payload.groupId,
+          time: c.event.timestamp,
+        });
+        if (this.recentPings.length > 50) this.recentPings.pop();
+
+        console.log(
+          `[ping-pong] ${c.event.payload.senderName ?? "?"} ` +
+          `→ "${this.config.reply}"`
+        );
+        await c.reply(this.config.reply);
       },
     });
 
-    // ── Web UI（静态文件，build 后 dist/public/ 目录）────────────────────────
-    // 访问地址：/plugins/my-plugin/ui/
-    // 在管理界面会以 iframe 形式嵌入
+    // ── GET /plugins/ping-pong/api/status ────────────────────────────────────
+    ctx.route("GET", "/status", (_req, reply) => {
+      reply.send({
+        startTime: this.startTime,           // 服务端加载时间戳
+        pingCount: this.pingCount,
+        config: this.config,
+        recentPings: this.recentPings.slice(0, 10),
+      });
+    });
+
+    // ── POST /plugins/ping-pong/api/config ───────────────────────────────────
+    // 修改 reply：立即生效；修改 command：需重启服务
+    ctx.route("POST", "/config", (req, reply) => {
+      const body = req.body as Partial<Config>;
+      if (typeof body.reply === "string" && body.reply.trim()) {
+        this.config.reply = body.reply.trim();
+      }
+      if (typeof body.command === "string" && body.command.trim()) {
+        this.config.command = body.command.trim();
+      }
+      saveConfig(this.config);
+      reply.send({ ok: true, config: this.config });
+    });
+
+    // ── Web UI ───────────────────────────────────────────────────────────────
     ctx.ui({ staticDir: "./public", entry: "index.html" });
   }
 }

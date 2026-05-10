@@ -95,7 +95,9 @@ export class OneBotHttpClient {
     body: OneBotActionRequest,
   ): Promise<ActionResult<TData>> {
     const { baseUrl, accessToken, timeoutMs = 5_000 } = this.config;
-    const url = `${baseUrl}/${body.action}`;
+    // 去除 baseUrl 结尾的所有 /，避免拼接出 //action 这种 OneBot 实现常返回 404 的地址
+    const normalizedBase = baseUrl.replace(/\/+$/, "");
+    const url = `${normalizedBase}/${body.action}`;
 
     const headers: Record<string, string> = {
       "Content-Type": "application/json",

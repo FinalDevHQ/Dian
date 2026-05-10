@@ -23,7 +23,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
     ...init,
     headers: {
-      "Content-Type": "application/json",
+      // 只在有 body 时加 Content-Type，避免 Fastify 对无 body 的 DELETE 报 400
+      ...(init?.body != null ? { "Content-Type": "application/json" } : {}),
       ...init?.headers,
     },
   })
@@ -173,6 +174,9 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ enabled }),
     }),
+  deletePlugin: (name: string) =>
+    request<{ ok: boolean }>(`/plugins/${encodeURIComponent(name)}`, { method: "DELETE" }),
+
   uploadPlugin: (name: string, file: File) => {
     const safeName = name.replace(/\.zip$/i, "")
     return fetch(`${BASE_URL}/plugins/upload?name=${encodeURIComponent(safeName)}`, {

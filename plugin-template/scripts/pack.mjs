@@ -22,6 +22,6 @@ try {
 }
 
 console.log(`\n✓  打包完成：${zipFile}`);
-console.log(`\n安装方法：`);
-console.log(`  1. 将 ${zipFile} 解压到 Dian 项目的 plugins/${pluginName}/ 目录`);
-console.log(`  2. 重启 Dian 服务，或等待热重载生效\n`);
+console.log(`安装方法：`);
+console.log(`  - 推荐：在 Dian Web UI「插件」页点「上传插件」选择 ${zipFile}，框架会自动热加载，无需重启`);
+console.log(`  - 或手动：将 ${zipFile} 解压到 Dian 项目的 plugins/${pluginName}/ 目录，文件监听会自动识别新插件\n`);

@@ -71,6 +71,8 @@ async function main(): Promise<void> {
       await dispatcher.dispatch(event);
     }
   );
+  // 将 botManager 注入 dispatcher，用于构建 reply 回调
+  dispatcher.setBotManager(botManager);
 
   // ── 5. 启动 HTTP 服务器 ───────────────────────────────────────────────────
   const server = await createServer({

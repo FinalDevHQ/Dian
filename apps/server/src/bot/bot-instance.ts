@@ -1,5 +1,5 @@
-import type { OneBotAdapter } from "@dian/sdk";
-import type { BotEvent } from "@dian/shared";
+import type { OneBotAdapter, OneBotActionRequest } from "@dian/sdk";
+import type { ActionResult, BotEvent } from "@dian/shared";
 import type { LogService } from "@dian/logger";
 import type { BotEntry } from "@dian/config";
 import { OneBotAdapter as Adapter } from "@dian/sdk";
@@ -46,5 +46,11 @@ export class BotInstance {
     this.log.info("Stopping bot...");
     await this.adapter.stop();
     this.log.info("Bot stopped");
+  }
+
+  async sendAction<TData = unknown>(
+    request: OneBotActionRequest,
+  ): Promise<ActionResult<TData>> {
+    return this.adapter.sendAction<TData>(request);
   }
 }

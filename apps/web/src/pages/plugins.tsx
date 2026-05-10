@@ -11,6 +11,7 @@ import {
   PlugZap,
   RefreshCw,
   TerminalSquare,
+  Trash2,
   Upload,
   X,
 } from "lucide-react"
@@ -206,19 +207,25 @@ function MethodBadge({ method }: { method: string }) {
 function PluginDetail({
   plugin,
   onToggle,
+  onDelete,
 }: {
   plugin: PluginPublicMeta
   onToggle: (name: string, enabled: boolean) => Promise<void>
+  onDelete: (name: string) => Promise<void>
 }) {
   const [toggling, setToggling] = useState(false)
+  const [confirm, setConfirm] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const handleToggle = async (v: boolean) => {
     setToggling(true)
-    try {
-      await onToggle(plugin.name, v)
-    } finally {
-      setToggling(false)
-    }
+    try { await onToggle(plugin.name, v) } finally { setToggling(false) }
+  }
+
+  const handleDelete = async () => {
+    if (!confirm) { setConfirm(true); setTimeout(() => setConfirm(false), 4000); return }
+    setDeleting(true)
+    try { await onDelete(plugin.name) } finally { setDeleting(false); setConfirm(false) }
   }
 
   return (
@@ -254,17 +261,28 @@ function PluginDetail({
             </p>
           )}
         </div>
-        <label className="flex shrink-0 cursor-pointer items-center gap-2">
-          {toggling ? (
-            <Loader2 className="size-4 animate-spin text-muted-foreground" />
-          ) : (
-            <Switch
-              checked={plugin.enabled}
-              onCheckedChange={handleToggle}
-            />
-          )}
-          <span className="text-sm">{plugin.enabled ? "启用" : "禁用"}</span>
-        </label>
+        <div className="flex shrink-0 items-center gap-2">
+          <label className="flex cursor-pointer items-center gap-2">
+            {toggling ? (
+              <Loader2 className="size-4 animate-spin text-muted-foreground" />
+            ) : (
+              <Switch checked={plugin.enabled} onCheckedChange={handleToggle} />
+            )}
+            <span className="text-sm">{plugin.enabled ? "启用" : "禁用"}</span>
+          </label>
+          <Button
+            variant={confirm ? "destructive" : "ghost"}
+            size="sm"
+            onClick={handleDelete}
+            disabled={deleting}
+            title="卸载插件"
+          >
+            {deleting
+              ? <Loader2 className="size-3.5 animate-spin" />
+              : <Trash2 className="size-3.5" />}
+            {confirm && <span className="ml-1 text-xs">确认?</span>}
+          </Button>
+        </div>
       </div>
 
       {/* 统计 */}
@@ -384,6 +402,19 @@ export function PluginsPage() {
     []
   )
 
+  const handleDelete = useCallback(
+    async (name: string) => {
+      try {
+        await api.deletePlugin(name)
+        setPlugins((prev) => prev?.filter((p) => p.name !== name) ?? prev)
+        setSelected((prev) => (prev === name ? null : prev))
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err))
+      }
+    },
+    []
+  )
+
   const selectedPlugin = plugins?.find((p) => p.name === selected) ?? null
 
   const [uploadOpen, setUploadOpen] = useState(false)
@@ -496,7 +527,7 @@ export function PluginsPage() {
       {/* ── 右侧详情 / iframe ── */}
       <Card className="flex min-h-0 flex-col overflow-hidden">
         {selectedPlugin ? (
-          <PluginDetail plugin={selectedPlugin} onToggle={handleToggle} />
+          <PluginDetail plugin={selectedPlugin} onToggle={handleToggle} onDelete={handleDelete} />
         ) : (
           <div className="flex flex-1 flex-col items-center justify-center gap-3 text-muted-foreground">
             <PlugZap className="size-12 opacity-30" />
