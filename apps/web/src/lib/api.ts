@@ -19,6 +19,47 @@ export interface StatusResponse {
   bots: BotInfo[]
 }
 
+// ─── 系统信息（仪表盘用） ─────────────────────────────────────────────────────
+
+export interface SystemInfo {
+  ts: number
+  os: {
+    platform: string
+    type: string
+    release: string
+    arch: string
+    hostname: string
+    uptimeSec: number
+  }
+  node: {
+    version: string
+    pid: number
+    uptimeSec: number
+    cwd: string
+  }
+  cpu: {
+    model: string
+    cores: number
+    speedMHz: number
+    /** 0..100 */
+    usagePercent: number
+    loadAvg: [number, number, number]
+  }
+  memory: {
+    totalBytes: number
+    freeBytes: number
+    usedBytes: number
+    /** 0..100 */
+    usagePercent: number
+    process: {
+      rssBytes: number
+      heapUsedBytes: number
+      heapTotalBytes: number
+      externalBytes: number
+    }
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
     ...init,
@@ -152,6 +193,7 @@ export interface QueryResult {
 export const api = {
   health: () => request<HealthResponse>("/health"),
   status: () => request<StatusResponse>("/status"),
+  system: () => request<SystemInfo>("/system"),
 
   listConfigFiles: () =>
     request<{ files: ConfigFileMeta[] }>("/config/files"),

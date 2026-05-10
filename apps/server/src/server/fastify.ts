@@ -5,6 +5,7 @@ import type { BotManager } from "../bot/bot-manager.js";
 import type { EventBus } from "../event/event-bus.js";
 import type { DatabaseExplorer } from "../db/explorer.js";
 import { healthRoutes } from "../routes/health.js";
+import { systemRoutes } from "../routes/system.js";
 import { configRoutes } from "../routes/config.js";
 import { eventRoutes } from "../routes/events.js";
 import { dbRoutes } from "../routes/db.js";
@@ -52,6 +53,7 @@ export async function createServer(opts: ServerOptions): Promise<{
 
   // 路由
   await app.register(healthRoutes, { logger, botManager });
+  await app.register(systemRoutes, { logger });
   await app.register(configRoutes, { logger, configDir });
   await app.register(eventRoutes, { logger, bus: eventBus });
   await app.register(dbRoutes, { logger, explorer: dbExplorer });
