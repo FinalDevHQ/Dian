@@ -1,0 +1,25 @@
+{
+  "name": "@dian/plugin-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "tsc -b --clean",
+    "dev": "tsc -b --watch"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "dependencies": {
+    "@dian/shared": "^0.1.0",
+    "chokidar": "^5.0.0",
+    "reflect-metadata": "^0.2.2"
+  }
+}

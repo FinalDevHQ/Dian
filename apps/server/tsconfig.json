@@ -1,0 +1,28 @@
+{
+  "extends": "../../packages/tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "rootDir": "src",
+    "outDir": "dist",
+    "types": ["node"],
+    "paths": {
+      "@dian/shared": ["../../packages/shared/src/index.ts"],
+      "@dian/sdk": ["../../packages/sdk/src/index.ts"],
+      "@dian/config": ["../../packages/config/src/index.ts"],
+      "@dian/logger": ["../../packages/logger/src/index.ts"],
+      "@dian/module-runtime": ["../../packages/module-runtime/src/index.ts"],
+      "@dian/plugin-runtime": ["../../packages/plugin-runtime/src/index.ts"],
+      "@dian/storage": ["../../packages/storage/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*.ts"],
+  "references": [
+    { "path": "../../packages/shared" },
+    { "path": "../../packages/sdk" },
+    { "path": "../../packages/config" },
+    { "path": "../../packages/logger" },
+    { "path": "../../packages/module-runtime" },
+    { "path": "../../packages/plugin-runtime" },
+    { "path": "../../packages/storage" }
+  ]
+}

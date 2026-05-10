@@ -1,0 +1,16 @@
+# settings.yaml — 全局设置
+# 修改此文件后，ConfigService 会自动热重载（如已调用 watch()）
+
+# 日志级别：debug | info | warn | error
+logLevel: info
+
+# 存储连接配置（按需填写，不需要的留空即可）
+storage:
+  # SQLite 数据库文件路径（相对于项目根目录）
+  sqlite: data/dian.db
+
+  # MySQL 连接字符串（可选）
+  # mysql: mysql://user:password@localhost:3306/dian
+
+  # Redis 连接字符串（可选）
+  # redis: redis://localhost:6379

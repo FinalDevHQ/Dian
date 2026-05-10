@@ -1,0 +1,22 @@
+{
+  "name": "@dian/packages",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "config",
+    "logger",
+    "module-runtime",
+    "plugin-runtime",
+    "sdk",
+    "shared",
+    "storage"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "tsc -b --clean",
+    "dev": "tsc -b --watch"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  }
+}

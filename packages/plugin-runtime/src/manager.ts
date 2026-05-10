@@ -1,0 +1,402 @@
+import "reflect-metadata";
+import { existsSync } from "node:fs";
+import { readdir } from "node:fs/promises";
+import { resolve, extname, relative, sep } from "node:path";
+import { pathToFileURL } from "node:url";
+import chokidar, { type FSWatcher } from "chokidar";
+import type { BotEvent } from "@dian/shared";
+import {
+  PLUGIN_META_KEY,
+  HANDLER_META_KEY,
+  INTERCEPTOR_META_KEY,
+  type CommandEntry,
+  type EventContext,
+  type HandlerMeta,
+  type InterceptorMeta,
+  type PluginInstance,
+  type PluginMeta,
+  type PluginPublicMeta,
+  type PluginSetupContext,
+  type RouteEntry,
+  type UIDeclaration,
+} from "./decorators.js";
+
+// ---------------------------------------------------------------------------
+// PluginManager
+// ---------------------------------------------------------------------------
+
+export class PluginManager {
+  private readonly _plugins = new Map<string, PluginInstance>();
+  private readonly _blacklist = new Set<string>();
+  private _maintenanceMode = false;
+  private _watcher: FSWatcher | null = null;
+  private _pluginsDir: string | null = null;
+
+  // ── 加载 ──────────────────────────────────────────────────────────────────
+
+  /**
+   * 扫描目录，动态 import 所有插件并注册。
+   * 约定：每个 .js 文件或子目录（含 index.js）默认导出一个被 @Plugin 装饰的类。
+   */
+  async loadAll(pluginsDir: string): Promise<void> {
+    this._pluginsDir = resolve(pluginsDir);
+
+    let entries: string[];
+    try {
+      entries = await readdir(this._pluginsDir);
+    } catch {
+      return; // 目录不存在时跳过
+    }
+
+    for (const entry of entries) {
+      const fullPath = resolve(this._pluginsDir, entry);
+      const ext = extname(entry);
+      if (ext === ".js") {
+        await this._loadFile(fullPath);
+      } else if (ext === "") {
+        // 目录插件：显式解析到 index.js（ESM 不支持裸目录 import）
+        const indexFile = resolve(fullPath, "index.js");
+        if (existsSync(indexFile)) {
+          await this._loadFile(indexFile);
+        }
+      }
+    }
+  }
+
+  private async _loadFile(filePath: string): Promise<void> {
+    let imported: Record<string, unknown>;
+    try {
+      // Windows 路径需要转换为 file:// URL，否则 ESM loader 报错
+      // 加 ?t=<timestamp> 绕过 Node ESM 模块缓存，保证 reload 时能拿到新代码
+      // （Node 的 import() 对同一 URL 永久缓存，不带 query 就拿不到磁盘上的最新版本）
+      const url = `${pathToFileURL(filePath).href}?t=${Date.now()}`;
+      imported = (await import(url)) as Record<string, unknown>;
+    } catch (err) {
+      console.error(`[plugin-runtime] 加载插件失败 "${filePath}":`, err);
+      return;
+    }
+
+    const PluginClass = imported.default;
+    if (typeof PluginClass !== "function") {
+      console.warn(`[plugin-runtime] "${filePath}" 未默认导出类，已跳过`);
+      return;
+    }
+
+    const meta = Reflect.getMetadata(PLUGIN_META_KEY, PluginClass) as PluginMeta | undefined;
+    if (!meta) {
+      console.warn(`[plugin-runtime] "${filePath}" 未使用 @Plugin 装饰，已跳过`);
+      return;
+    }
+
+    const instance = new (PluginClass as new () => unknown)();
+    const handlers: HandlerMeta[] =
+      (Reflect.getMetadata(HANDLER_META_KEY, PluginClass) as HandlerMeta[] | undefined) ?? [];
+    const interceptors: InterceptorMeta[] =
+      (Reflect.getMetadata(INTERCEPTOR_META_KEY, PluginClass) as InterceptorMeta[] | undefined) ?? [];
+
+    // 按 priority 升序排列
+    interceptors.sort((a, b) => a.priority - b.priority);
+
+    // ── 收集 onSetup 注册的路由/指令/UI ───────────────────────────────────
+    const routes: RouteEntry[] = [];
+    const commands: CommandEntry[] = [];
+    let ui: UIDeclaration | null = null;
+
+    // 支持 @Plugin 元数据里内联声明 UI
+    if ((meta as PluginMeta & { ui?: UIDeclaration }).ui) {
+      ui = (meta as PluginMeta & { ui?: UIDeclaration }).ui!;
+    }
+
+    // 如果插件实现了 onSetup 方法，调用之
+    if (typeof (instance as Record<string, unknown>)["onSetup"] === "function") {
+      const ctx: PluginSetupContext = {
+        route(method, path, handler) {
+          routes.push({ method, path, handler });
+        },
+        command(entry) {
+          commands.push(entry);
+        },
+        ui(decl) {
+          ui = decl;
+        },
+      };
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (instance as any).onSetup(ctx);
+      } catch (err) {
+        console.error(`[plugin-runtime] 插件 "${meta.name}" onSetup 异常:`, err);
+      }
+    }
+
+    this._plugins.set(meta.name, {
+      meta,
+      handlers,
+      interceptors,
+      routes,
+      commands,
+      ui,
+      instance,
+      filePath,
+    });
+    console.info(`[plugin-runtime] 插件 "${meta.name}" 已加载`);
+  }
+
+  // ── 卸载 / 热重载 ─────────────────────────────────────────────────────────
+
+  unload(name: string): void {
+    if (this._plugins.delete(name)) {
+      console.info(`[plugin-runtime] 插件 "${name}" 已卸载`);
+    }
+  }
+
+  async reload(name: string): Promise<void> {
+    const plugin = this._plugins.get(name);
+    if (!plugin) {
+      console.warn(`[plugin-runtime] 找不到插件 "${name}"，无法 reload`);
+      return;
+    }
+    this.unload(name);
+    await this._loadFile(plugin.filePath);
+  }
+
+  // ── 文件监听热重载 ────────────────────────────────────────────────────────
+
+  watch(): void {
+    if (this._watcher || !this._pluginsDir) return;
+
+    this._watcher = chokidar.watch(this._pluginsDir, {
+      ignoreInitial: true,
+      awaitWriteFinish: { stabilityThreshold: 300, pollInterval: 50 },
+    });
+
+    const isPluginEntry = (filePath: string): boolean => {
+      if (extname(filePath) !== ".js") return false;
+      const rel = relative(this._pluginsDir!, filePath);
+      const parts = rel.split(sep);
+      // 直接子文件: plugins/foo.js  或  目录插件入口: plugins/foo/index.js
+      return parts.length === 1 || (parts.length === 2 && parts[1] === "index.js");
+    };
+
+    this._watcher.on("change", (filePath: string) => {
+      if (!isPluginEntry(filePath)) return;
+      // 找到对应插件并 reload
+      for (const [name, plugin] of this._plugins) {
+        if (plugin.filePath === filePath) {
+          this.reload(name).catch(console.error);
+          return;
+        }
+      }
+      // 新文件
+      this._loadFile(filePath).catch(console.error);
+    });
+
+    this._watcher.on("add", (filePath: string) => {
+      if (!isPluginEntry(filePath)) return;
+      this._loadFile(filePath).catch(console.error);
+    });
+
+    this._watcher.on("unlink", (filePath: string) => {
+      for (const [name, plugin] of this._plugins) {
+        if (plugin.filePath === filePath) {
+          this.unload(name);
+          return;
+        }
+      }
+    });
+  }
+
+  async unwatch(): Promise<void> {
+    if (this._watcher) {
+      await this._watcher.close();
+      this._watcher = null;
+    }
+  }
+
+  // ── 事件分发 ──────────────────────────────────────────────────────────────
+
+  /**
+   * 将事件分发给所有匹配的 handler。
+   * 先按 priority 执行 interceptors，任意 interceptor 可调用 stopPropagation() 终止。
+   * 再按注册顺序执行匹配 pattern 的 handlers。
+   */
+  async dispatch(
+    event: BotEvent,
+    reply: (text: string) => Promise<void> = async () => {},
+  ): Promise<void> {
+    if (this._maintenanceMode) return;
+
+    let stopped = false;
+    const ctx: EventContext = {
+      event,
+      stopPropagation() { stopped = true; },
+      reply,
+    };
+
+    // 1. 执行所有 interceptors（已全局按 priority 排序）
+    const allInterceptors: Array<{ plugin: PluginInstance; meta: InterceptorMeta }> = [];
+    for (const plugin of this._plugins.values()) {
+      if (this._blacklist.has(plugin.meta.name)) continue;
+      for (const im of plugin.interceptors) {
+        allInterceptors.push({ plugin, meta: im });
+      }
+    }
+    allInterceptors.sort((a, b) => a.meta.priority - b.meta.priority);
+
+    for (const { plugin, meta } of allInterceptors) {
+      if (stopped) return;
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (plugin.instance as any)[meta.method](ctx);
+      } catch (err) {
+        console.error(`[plugin-runtime] interceptor "${meta.method}" 异常:`, err);
+      }
+    }
+
+    if (stopped) return;
+
+    // 2. 执行匹配 pattern 的 handlers + commands
+    const messageText = extractMessageText(event);
+
+    for (const plugin of this._plugins.values()) {
+      if (stopped) return;
+      if (this._blacklist.has(plugin.meta.name)) continue;
+
+      for (const hm of plugin.handlers) {
+        if (stopped) break;
+        if (!matchPattern(hm.pattern, messageText)) continue;
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await (plugin.instance as any)[hm.method](ctx);
+        } catch (err) {
+          console.error(
+            `[plugin-runtime] handler "${plugin.meta.name}.${hm.method}" 异常:`,
+            err,
+          );
+        }
+      }
+
+      for (const cmd of plugin.commands) {
+        if (stopped) break;
+        if (!matchPattern(cmd.pattern, messageText)) continue;
+        try {
+          await cmd.handler(ctx);
+        } catch (err) {
+          console.error(
+            `[plugin-runtime] command "${plugin.meta.name}/${cmd.name}" 异常:`,
+            err,
+          );
+        }
+      }
+    }
+  }
+
+  // ── 黑名单 & 维护模式 ─────────────────────────────────────────────────────
+
+  addToBlacklist(name: string): void {
+    this._blacklist.add(name);
+  }
+
+  removeFromBlacklist(name: string): void {
+    this._blacklist.delete(name);
+  }
+
+  setMaintenanceMode(enabled: boolean): void {
+    this._maintenanceMode = enabled;
+  }
+
+  // ── 只读信息 ──────────────── 
+
+  get plugins(): PluginInstance[] {
+    return [...this._plugins.values()];
+  }
+
+  get maintenanceMode(): boolean {
+    return this._maintenanceMode;
+  }
+
+  /**
+   * 返回所有插件的公开元信息（不包含 handler 实现）。
+   * 主要供前端 API 使用。
+   */
+  listPluginsMeta(): PluginPublicMeta[] {
+    return [...this._plugins.values()].map((p) => ({
+      name: p.meta.name,
+      description: p.meta.description,
+      version: p.meta.version,
+      author: p.meta.author,
+      icon: p.meta.icon,
+      enabled: !this._blacklist.has(p.meta.name),
+      handlerCount: p.handlers.length,
+      commandCount: p.commands.length,
+      handlers: p.handlers.map((h) => ({
+        method: h.method,
+        pattern: stringifyPattern(h.pattern),
+      })),
+      commands: p.commands.map((c) => ({
+        name: c.name,
+        pattern: stringifyPattern(c.pattern),
+        description: c.description,
+      })),
+      routes: p.routes.map((r) => ({ method: r.method, path: r.path })),
+      hasUI: p.ui !== null,
+      uiUrl: p.ui?.externalUrl
+        ? p.ui.externalUrl
+        : p.ui
+          ? `/plugins/${encodeURIComponent(p.meta.name)}/ui/`
+          : null,
+    }));
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 工具函数
+// ---------------------------------------------------------------------------
+
+function matchPattern(
+  pattern: RegExp | string | (() => RegExp | string),
+  text: string,
+): boolean {
+  // 函数形式：每次匹配时求值，实现"配置即改即生效"
+  const resolved = typeof pattern === "function" ? pattern() : pattern;
+  if (resolved instanceof RegExp) return resolved.test(text);
+  return text === resolved;
+}
+
+/**
+ * 把 pattern 转成可读字符串，用于前端展示。
+ * - string  : 原样返回
+ * - RegExp  : 返回 .toString() 形式（如 "/^!echo (.+)$/"）
+ * - function: 调用并把返回值再递归 stringify。函数求值异常时返回 "<dynamic>"
+ */
+function stringifyPattern(
+  pattern: RegExp | string | (() => RegExp | string),
+): string {
+  try {
+    const resolved = typeof pattern === "function" ? pattern() : pattern;
+    if (resolved instanceof RegExp) return resolved.toString();
+    return String(resolved);
+  } catch {
+    return "<dynamic>";
+  }
+}
+
+function extractMessageText(event: BotEvent): string {
+  // 标准路径：mapOneBotEvent 已把文本提取到 payload.text
+  const payload = event.payload as Record<string, unknown>;
+  if (typeof payload.text === "string") return payload.text;
+  // 兼容路径：payload.message 直接是字符串或消息段数组
+  if (typeof payload.message === "string") return payload.message;
+  if (Array.isArray(payload.message)) {
+    return (payload.message as Array<{ type: string; data: { text?: string } }>)
+      .filter((seg) => seg.type === "text")
+      .map((seg) => seg.data.text ?? "")
+      .join("");
+  }
+  return "";
+}
+
+// ---------------------------------------------------------------------------
+// 全局单例
+// ---------------------------------------------------------------------------
+
+export const pluginManager = new PluginManager();

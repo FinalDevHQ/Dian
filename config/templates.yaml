@@ -1,0 +1,8 @@
+# templates.yaml — 消息模板
+# key 为模板名，value 为模板字符串
+# 在插件/模块中通过 configService.templates["key"] 访问
+
+templates:
+  welcome: "欢迎 {name} 加入群聊！"
+  goodbye: "再见，{name}，期待你的归来。"
+  # error: "发生了一个错误：{message}"
