@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { Activity, Bot, CheckCircle2, Cpu, Loader2, MemoryStick, Plus, RefreshCw, Server, Trash2, XCircle } from "lucide-react"
+import { Activity, Bot, CheckCircle2, Cpu, Loader2, MemoryStick, Pencil, Plus, RefreshCw, Server, Trash2, XCircle } from "lucide-react"
 import { api, type BotEntryInput, type BotInfo, type BotMode, type BotStatus, type HealthResponse, type SystemInfo } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -33,6 +33,8 @@ export function DashboardPage() {
   /** 以 botId 为键记录正在 toggle/删除中的 bot，避免重复点击 */
   const [busyBots, setBusyBots] = useState<Record<string, boolean>>({})
   const [addOpen, setAddOpen] = useState(false)
+  /** 正在编辑的 botId，null 表示未打开编辑器 */
+  const [editingBotId, setEditingBotId] = useState<string | null>(null)
 
   const visibleBots = useMemo(() => {
     if (!bots) return null
@@ -207,6 +209,7 @@ export function DashboardPage() {
                       key={b.botId}
                       bot={b}
                       busy={!!busyBots[b.botId]}
+                      onEdit={() => setEditingBotId(b.botId)}
                       onToggle={async (enabled) => {
                         setBusyBots((m) => ({ ...m, [b.botId]: true }))
                         try {
@@ -249,9 +252,19 @@ export function DashboardPage() {
       </div>
 
       {addOpen && (
-        <AddBotDialog
+        <BotEditorDialog
+          mode="add"
           onClose={() => setAddOpen(false)}
           onSuccess={() => { setAddOpen(false); setTimeout(refresh, 800) }}
+        />
+      )}
+
+      {editingBotId !== null && (
+        <BotEditorDialog
+          mode="edit"
+          botId={editingBotId}
+          onClose={() => setEditingBotId(null)}
+          onSuccess={() => { setEditingBotId(null); setTimeout(refresh, 800) }}
         />
       )}
 
@@ -335,11 +348,13 @@ function BotStatusBadge({ status }: { status: BotStatus }) {
 function BotRow({
   bot,
   busy,
+  onEdit,
   onToggle,
   onDelete,
 }: {
   bot: BotInfo
   busy: boolean
+  onEdit: () => void
   onToggle: (enabled: boolean) => Promise<void> | void
   onDelete: () => Promise<void> | void
 }) {
@@ -364,6 +379,15 @@ function BotRow({
           variant="ghost"
           size="sm"
           disabled={busy}
+          onClick={onEdit}
+          title="编辑 bot"
+        >
+          <Pencil className="size-3.5" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={busy}
           onClick={() => { void onDelete() }}
           title="删除 bot"
         >
@@ -375,16 +399,26 @@ function BotRow({
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// 添加 Bot 弹窗
+// Bot 编辑器弹窗（添加 / 编辑共用）
 // ────────────────────────────────────────────────────────────────────────────
 
-function AddBotDialog({
-  onClose,
-  onSuccess,
-}: {
-  onClose: () => void
-  onSuccess: () => void
-}) {
+type BotEditorProps =
+  | {
+      mode: "add"
+      onClose: () => void
+      onSuccess: () => void
+    }
+  | {
+      mode: "edit"
+      botId: string
+      onClose: () => void
+      onSuccess: () => void
+    }
+
+function BotEditorDialog(props: BotEditorProps) {
+  const isEdit = props.mode === "edit"
+  const originalBotId = isEdit ? props.botId : null
+
   const [botId, setBotId] = useState("")
   const [mode, setMode] = useState<BotMode>("hybrid")
   const [wsUrl, setWsUrl] = useState("")
@@ -393,9 +427,39 @@ function AddBotDialog({
   const [httpToken, setHttpToken] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [err, setErr] = useState<string | null>(null)
+  /** 编辑模式下加载初始数据 */
+  const [loadingInitial, setLoadingInitial] = useState(isEdit)
 
   const needWs = mode === "ws" || mode === "hybrid"
   const needHttp = mode === "http" || mode === "hybrid"
+
+  // 编辑模式：拉取原配置回填
+  useEffect(() => {
+    if (!isEdit || !originalBotId) return
+    let cancelled = false
+    setLoadingInitial(true)
+    api
+      .getBot(originalBotId)
+      .then(({ bot }) => {
+        if (cancelled) return
+        setBotId(bot.botId)
+        setMode(bot.mode)
+        setWsUrl(bot.ws?.url ?? "")
+        setWsToken(bot.ws?.accessToken ?? "")
+        setHttpUrl(bot.http?.baseUrl ?? "")
+        setHttpToken(bot.http?.accessToken ?? "")
+      })
+      .catch((e) => {
+        if (cancelled) return
+        setErr(e instanceof Error ? e.message : String(e))
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingInitial(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [isEdit, originalBotId])
 
   const submit = async () => {
     setErr(null)
@@ -423,8 +487,12 @@ function AddBotDialog({
 
     setSubmitting(true)
     try {
-      await api.addBot(entry)
-      onSuccess()
+      if (isEdit && originalBotId) {
+        await api.updateBot(originalBotId, entry)
+      } else {
+        await api.addBot(entry)
+      }
+      props.onSuccess()
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e))
     } finally {
@@ -432,108 +500,125 @@ function AddBotDialog({
     }
   }
 
+  const title = isEdit ? `编辑 Bot · ${originalBotId}` : "添加 Bot"
+  const submitLabel = isEdit
+    ? submitting ? "保存中…" : "保存"
+    : submitting ? "添加中…" : "添加"
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
       <div className="w-full max-w-lg rounded-xl border bg-background shadow-2xl">
         <div className="flex items-center justify-between border-b px-5 py-4">
           <div className="flex items-center gap-2">
             <Bot className="size-4 text-muted-foreground" />
-            <span className="font-semibold">添加 Bot</span>
+            <span className="font-semibold">{title}</span>
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={props.onClose}
             className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
           >
             <XCircle className="size-4" />
           </button>
         </div>
 
-        <div className="flex flex-col gap-4 p-5">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="bot-id">botId</Label>
-              <Input
-                id="bot-id"
-                placeholder="例如：点点"
-                value={botId}
-                onChange={(e) => setBotId(e.target.value)}
-                disabled={submitting}
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="bot-mode">传输模式</Label>
-              <select
-                id="bot-mode"
-                value={mode}
-                onChange={(e) => setMode(e.target.value as BotMode)}
-                disabled={submitting}
-                className="flex h-9 w-full rounded-md border bg-input/30 px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
-              >
-                <option value="hybrid">hybrid（推荐）</option>
-                <option value="ws">ws（仅事件）</option>
-                <option value="http">http（仅 action）</option>
-              </select>
-            </div>
+        {loadingInitial ? (
+          <div className="flex items-center justify-center gap-2 p-10 text-sm text-muted-foreground">
+            <Loader2 className="size-4 animate-spin" /> 加载配置…
           </div>
-
-          {needWs && (
-            <div className="flex flex-col gap-3 rounded-md border bg-muted/30 p-3">
-              <Label className="text-xs">WebSocket</Label>
-              <Input
-                placeholder="ws://192.168.x.x:13001/"
-                value={wsUrl}
-                onChange={(e) => setWsUrl(e.target.value)}
-                disabled={submitting}
-              />
-              <Input
-                placeholder="accessToken（可选）"
-                value={wsToken}
-                onChange={(e) => setWsToken(e.target.value)}
-                disabled={submitting}
-              />
+        ) : (
+          <div className="flex flex-col gap-4 p-5">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="bot-id">botId</Label>
+                <Input
+                  id="bot-id"
+                  placeholder="例如：点点"
+                  value={botId}
+                  onChange={(e) => setBotId(e.target.value)}
+                  disabled={submitting}
+                />
+                {isEdit && botId.trim() !== originalBotId && (
+                  <p className="text-[11px] text-amber-600">
+                    将从 <code className="font-mono">{originalBotId}</code> 改名为{" "}
+                    <code className="font-mono">{botId.trim()}</code>
+                  </p>
+                )}
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="bot-mode">传输模式</Label>
+                <select
+                  id="bot-mode"
+                  value={mode}
+                  onChange={(e) => setMode(e.target.value as BotMode)}
+                  disabled={submitting}
+                  className="flex h-9 w-full rounded-md border bg-input/30 px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                >
+                  <option value="hybrid">hybrid（推荐）</option>
+                  <option value="ws">ws（仅事件）</option>
+                  <option value="http">http（仅 action）</option>
+                </select>
+              </div>
             </div>
-          )}
 
-          {needHttp && (
-            <div className="flex flex-col gap-3 rounded-md border bg-muted/30 p-3">
-              <Label className="text-xs">HTTP</Label>
-              <Input
-                placeholder="http://192.168.x.x:13000/"
-                value={httpUrl}
-                onChange={(e) => setHttpUrl(e.target.value)}
-                disabled={submitting}
-              />
-              <Input
-                placeholder="accessToken（可选）"
-                value={httpToken}
-                onChange={(e) => setHttpToken(e.target.value)}
-                disabled={submitting}
-              />
+            {needWs && (
+              <div className="flex flex-col gap-3 rounded-md border bg-muted/30 p-3">
+                <Label className="text-xs">WebSocket</Label>
+                <Input
+                  placeholder="ws://192.168.x.x:13001/"
+                  value={wsUrl}
+                  onChange={(e) => setWsUrl(e.target.value)}
+                  disabled={submitting}
+                />
+                <Input
+                  placeholder="accessToken（可选）"
+                  value={wsToken}
+                  onChange={(e) => setWsToken(e.target.value)}
+                  disabled={submitting}
+                />
+              </div>
+            )}
+
+            {needHttp && (
+              <div className="flex flex-col gap-3 rounded-md border bg-muted/30 p-3">
+                <Label className="text-xs">HTTP</Label>
+                <Input
+                  placeholder="http://192.168.x.x:13000/"
+                  value={httpUrl}
+                  onChange={(e) => setHttpUrl(e.target.value)}
+                  disabled={submitting}
+                />
+                <Input
+                  placeholder="accessToken（可选）"
+                  value={httpToken}
+                  onChange={(e) => setHttpToken(e.target.value)}
+                  disabled={submitting}
+                />
+              </div>
+            )}
+
+            {err && (
+              <p className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+                {err}
+              </p>
+            )}
+
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={props.onClose} disabled={submitting}>
+                取消
+              </Button>
+              <Button className="flex-1" onClick={submit} disabled={submitting}>
+                {submitting && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
+                {submitLabel}
+              </Button>
             </div>
-          )}
 
-          {err && (
-            <p className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
-              {err}
+            <p className="text-[11px] text-muted-foreground">
+              提交后会写入 <code className="font-mono">config/bot.yaml</code>，
+              框架检测到文件变化会自动重启所有 bot 连接。注意：写入时<strong>会丢失原有注释</strong>。
             </p>
-          )}
-
-          <div className="flex gap-2">
-            <Button variant="outline" className="flex-1" onClick={onClose} disabled={submitting}>
-              取消
-            </Button>
-            <Button className="flex-1" onClick={submit} disabled={submitting}>
-              {submitting && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
-              {submitting ? "添加中…" : "添加"}
-            </Button>
           </div>
-
-          <p className="text-[11px] text-muted-foreground">
-            提交后会写入 <code className="font-mono">config/bot.yaml</code>，
-            框架检测到文件变化会自动重启所有 bot 连接。注意：写入时<strong>会丢失原有注释</strong>。
-          </p>
-        </div>
+        )}
       </div>
     </div>
   )

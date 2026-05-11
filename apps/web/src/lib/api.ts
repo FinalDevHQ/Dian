@@ -261,11 +261,19 @@ export const api = {
   system: () => request<SystemInfo>("/system"),
 
   // Bot 管理
+  getBot: (botId: string) =>
+    request<{ bot: BotEntryInput }>(`/bots/${encodeURIComponent(botId)}`),
   addBot: (entry: BotEntryInput) =>
     request<{ ok: boolean; bot: BotEntryInput }>("/bots", {
       method: "POST",
       body: JSON.stringify(entry),
     }),
+  /** 整条替换；body 必须是完整的 BotEntryInput。支持改名（body.botId 可与原 botId 不同）。 */
+  updateBot: (botId: string, entry: BotEntryInput) =>
+    request<{ ok: boolean; bot: BotEntryInput }>(
+      `/bots/${encodeURIComponent(botId)}`,
+      { method: "PUT", body: JSON.stringify(entry) }
+    ),
   deleteBot: (botId: string) =>
     request<{ ok: boolean }>(`/bots/${encodeURIComponent(botId)}`, {
       method: "DELETE",

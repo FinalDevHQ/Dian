@@ -11,7 +11,10 @@ interface BotsRoutesOptions {
 
 /**
  * Bot CRUD 路由：
+ *   GET    /bots                — 列出所有 bot 完整配置
+ *   GET    /bots/:botId         — 读取单个 bot 完整配置（用于编辑表单回填）
  *   POST   /bots                — 添加新 bot（写入 bot.yaml）
+ *   PUT    /bots/:botId         — 替换 bot 完整配置（支持改名）
  *   DELETE /bots/:botId         — 删除指定 bot
  *   PUT    /bots/:botId/enabled — 切换连接开关（program-level on/off）
  *
@@ -49,6 +52,35 @@ export async function botsRoutes(
     }
     await writeYamlFile(botFile, { bots: ok.data.bots });
   }
+
+  // ── GET /bots ─────────────────────────────────────────────────────────────
+  app.get("/bots", async (_req, reply) => {
+    try {
+      const list = await readBots();
+      return reply.send({ bots: list });
+    } catch (err) {
+      return reply.code(500).send({ error: (err as Error).message });
+    }
+  });
+
+  // ── GET /bots/:botId ──────────────────────────────────────────────────────
+  app.get<{ Params: { botId: string } }>(
+    "/bots/:botId",
+    async (req, reply) => {
+      const target = decodeURIComponent(req.params.botId);
+      let list: BotEntry[];
+      try {
+        list = await readBots();
+      } catch (err) {
+        return reply.code(500).send({ error: (err as Error).message });
+      }
+      const entry = list.find((b) => b.botId === target);
+      if (!entry) {
+        return reply.code(404).send({ error: `bot "${target}" not found` });
+      }
+      return reply.send({ bot: entry });
+    },
+  );
 
   // ── POST /bots ────────────────────────────────────────────────────────────
   app.post<{ Body: unknown }>("/bots", async (req, reply) => {
@@ -118,6 +150,64 @@ export async function botsRoutes(
 
       logger.info(`Bot deleted: ${target}`);
       return reply.send({ ok: true });
+    },
+  );
+
+  // ── PUT /bots/:botId ──────────────────────────────────────────────────────
+  // 整条替换（编辑）。请求 body 必须是完整的 BotEntry。
+  // 允许改名：若 body.botId !== path :botId，按 path 找到原条目然后替换为新 botId；
+  // 但新 botId 不能与其它已存在的 botId 重复。
+  app.put<{ Params: { botId: string }; Body: unknown }>(
+    "/bots/:botId",
+    async (req, reply) => {
+      const target = decodeURIComponent(req.params.botId);
+
+      const parsed = BotEntrySchema.safeParse(req.body);
+      if (!parsed.success) {
+        return reply.code(400).send({
+          error: "bot 配置校验失败",
+          details: parsed.error.issues.map((i) => ({
+            path: i.path.join("."),
+            message: i.message,
+          })),
+        });
+      }
+
+      let list: BotEntry[];
+      try {
+        list = await readBots();
+      } catch (err) {
+        return reply.code(500).send({ error: (err as Error).message });
+      }
+
+      const idx = list.findIndex((b) => b.botId === target);
+      if (idx < 0) {
+        return reply.code(404).send({ error: `bot "${target}" not found` });
+      }
+
+      // 改名场景：新名字不能与其它现有 bot 冲突
+      if (
+        parsed.data.botId !== target &&
+        list.some((b, i) => i !== idx && b.botId === parsed.data.botId)
+      ) {
+        return reply.code(409).send({
+          error: `botId "${parsed.data.botId}" 已存在`,
+        });
+      }
+
+      list[idx] = parsed.data;
+      try {
+        await writeBots(list);
+      } catch (err) {
+        return reply.code(500).send({ error: (err as Error).message });
+      }
+
+      logger.info(
+        target === parsed.data.botId
+          ? `Bot updated: ${target}`
+          : `Bot updated: ${target} -> ${parsed.data.botId}`,
+      );
+      return reply.send({ ok: true, bot: parsed.data });
     },
   );
 
