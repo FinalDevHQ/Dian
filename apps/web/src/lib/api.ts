@@ -11,12 +11,33 @@ export interface HealthResponse {
   ts: number
 }
 
+/**
+ * Bot 连接状态
+ * - disabled     ：在配置中被禁用
+ * - idle         ：实例未启动
+ * - connecting   ：首次握手进行中
+ * - connected    ：WS 已连接（在线）
+ * - reconnecting ：连接已断开，等待重连
+ * - closed       ：连接已关闭（主动停止或不再重连）
+ * - no-ws        ：仅配置 HTTP，没有 WS 通道
+ */
+export type BotStatus =
+  | "disabled"
+  | "idle"
+  | "connecting"
+  | "connected"
+  | "reconnecting"
+  | "closed"
+  | "no-ws"
+
 export interface BotInfo {
   botId: string
   /** 是否启用此 bot 的连接（false 时不会创建 adapter） */
   enabled: boolean
-  /** 当前是否正在运行 */
+  /** 适配器实例是否已创建并注册 */
   running: boolean
+  /** 实时连接状态 */
+  status: BotStatus
 }
 
 export interface StatusResponse {

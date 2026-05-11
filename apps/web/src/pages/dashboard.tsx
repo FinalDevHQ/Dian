@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { Activity, Bot, CheckCircle2, Cpu, Loader2, MemoryStick, Plus, RefreshCw, Server, Trash2, XCircle } from "lucide-react"
-import { api, type BotEntryInput, type BotInfo, type BotMode, type HealthResponse, type SystemInfo } from "@/lib/api"
+import { api, type BotEntryInput, type BotInfo, type BotMode, type BotStatus, type HealthResponse, type SystemInfo } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -15,7 +15,6 @@ import { Switch } from "@/components/ui/switch"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useBotScope } from "@/contexts/bot-scope-context"
-import { cn } from "@/lib/utils"
 
 const POLL_INTERVAL = 5000
 
@@ -271,6 +270,65 @@ export function DashboardPage() {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
+// Bot 状态徽章
+// ────────────────────────────────────────────────────────────────────────────
+
+const BOT_STATUS_META: Record<
+  BotStatus,
+  { label: string; className: string; dot: string }
+> = {
+  connected: {
+    label: "在线",
+    className: "border-emerald-500/40 text-emerald-700",
+    dot: "bg-emerald-500",
+  },
+  connecting: {
+    label: "连接中",
+    className: "border-amber-500/40 text-amber-700",
+    dot: "bg-amber-500 animate-pulse",
+  },
+  reconnecting: {
+    label: "离线 · 重连中",
+    className: "border-rose-500/40 text-rose-700",
+    dot: "bg-rose-500 animate-pulse",
+  },
+  closed: {
+    label: "已停止",
+    className: "border-rose-500/40 text-rose-700",
+    dot: "bg-rose-500",
+  },
+  idle: {
+    label: "未启动",
+    className: "border-muted-foreground/30 text-muted-foreground",
+    dot: "bg-muted-foreground",
+  },
+  "no-ws": {
+    label: "仅 HTTP",
+    className: "border-sky-500/40 text-sky-700",
+    dot: "bg-sky-500",
+  },
+  disabled: {
+    label: "已禁用",
+    className: "border-muted-foreground/30 text-muted-foreground",
+    dot: "bg-muted-foreground/60",
+  },
+}
+
+function BotStatusBadge({ status }: { status: BotStatus }) {
+  const meta = BOT_STATUS_META[status] ?? BOT_STATUS_META.idle
+  return (
+    <Badge
+      variant="outline"
+      className={`gap-1.5 ${meta.className}`}
+      title={status}
+    >
+      <span className={`size-1.5 rounded-full ${meta.dot}`} />
+      {meta.label}
+    </Badge>
+  )
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 // Bot 列表行
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -289,22 +347,7 @@ function BotRow({
     <li className="flex items-center justify-between gap-3 py-2 text-sm">
       <div className="flex min-w-0 flex-1 items-center gap-2">
         <span className="truncate font-mono">{bot.botId}</span>
-        {bot.enabled ? (
-          <Badge
-            variant="outline"
-            className={cn(
-              bot.running
-                ? "border-emerald-500/40 text-emerald-700"
-                : "border-amber-500/40 text-amber-700"
-            )}
-          >
-            {bot.running ? "running" : "starting"}
-          </Badge>
-        ) : (
-          <Badge variant="outline" className="text-muted-foreground">
-            disabled
-          </Badge>
-        )}
+        <BotStatusBadge status={bot.status} />
       </div>
       <div className="flex shrink-0 items-center gap-2">
         {busy ? (
