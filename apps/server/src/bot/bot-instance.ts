@@ -42,6 +42,15 @@ export class BotInstance {
     this.log.info("Bot started");
   }
 
+  /**
+   * 当前连接状态
+   * - 有 WS 配置时：返回 WS 状态（idle / connecting / connected / reconnecting / closed）
+   * - 仅 HTTP 模式：返回 "no-ws"（无事件接入但可下发动作）
+   */
+  get status(): "idle" | "connecting" | "connected" | "reconnecting" | "closed" | "no-ws" {
+    return this.adapter.wsState ?? "no-ws";
+  }
+
   async stop(): Promise<void> {
     this.log.info("Stopping bot...");
     await this.adapter.stop();

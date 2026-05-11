@@ -29,13 +29,26 @@ export class BotManager {
       `Starting ${enabled.length} bot(s)${skipped > 0 ? ` (skipped ${skipped} disabled)` : ""}...`
     );
 
+    let failed = 0;
     for (const entry of enabled) {
       const instance = new BotInstance(entry, this.logger, this.onEvent);
+      // 始终注册实例：即使首次握手失败，底层 WsClient 也会进入 reconnecting
+      // 状态自动重连，前端通过 /status 可观察到 connecting/reconnecting/connected。
       this.bots.set(entry.botId, instance);
-      await instance.start();
+      try {
+        await instance.start();
+      } catch (err) {
+        failed++;
+        this.log.warn(
+          `Bot "${entry.botId}" initial connect failed; will keep retrying in background`,
+          { err: err instanceof Error ? err.message : String(err) }
+        );
+      }
     }
 
-    this.log.info("All bots started");
+    this.log.info(
+      `Bots startup complete: ${this.bots.size} registered, ${failed} initial failure(s)`
+    );
   }
 
   /** 全部已配置的 botId（含 disabled） */
@@ -44,12 +57,32 @@ export class BotManager {
   }
 
   /** 全部已配置 bot 的状态（含 disabled） */
-  getBotStates(): { botId: string; enabled: boolean; running: boolean }[] {
-    return this.config.bots.map((b) => ({
-      botId: b.botId,
-      enabled: b.enabled !== false,
-      running: this.bots.has(b.botId),
-    }));
+  getBotStates(): {
+    botId: string;
+    enabled: boolean;
+    running: boolean;
+    status:
+      | "disabled"
+      | "idle"
+      | "connecting"
+      | "connected"
+      | "reconnecting"
+      | "closed"
+      | "no-ws";
+  }[] {
+    return this.config.bots.map((b) => {
+      const enabled = b.enabled !== false;
+      const inst = this.bots.get(b.botId);
+      const status = !enabled
+        ? ("disabled" as const)
+        : (inst?.status ?? ("idle" as const));
+      return {
+        botId: b.botId,
+        enabled,
+        running: !!inst,
+        status,
+      };
+    });
   }
 
   async stop(): Promise<void> {
