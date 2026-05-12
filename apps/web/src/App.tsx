@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
+import type { ReactNode } from "react"
 import { AppLayout } from "@/components/layout/app-layout"
 import { navGroups } from "@/components/layout/nav-config"
 import { AnalyticsPage } from "@/pages/analytics"
+import { BotManagePage } from "@/pages/bot-manage"
 import { ConfigFilesPage } from "@/pages/config-files"
 import { DashboardPage } from "@/pages/dashboard"
 import { DatabasePage } from "@/pages/database"
@@ -68,6 +70,22 @@ function App() {
     [active, pluginNavItems]
   )
 
+  // ── 页面路由映射 ──────────────────────────────────────────────────────────
+  const pages: Record<string, ReactNode> = useMemo(() => ({
+    dashboard: <DashboardPage />,
+    bots:      <BotManagePage />,
+    logs:      <LogsPage />,
+    plugins:   <PluginsPage onPluginsChange={refreshPlugins} />,
+    database:  <DatabasePage />,
+    config:    <ConfigFilesPage />,
+    analytics: <AnalyticsPage />,
+    market:    <MarketPage onPluginsChange={refreshPlugins} />,
+  }), [refreshPlugins])
+
+  const content = activePlugin
+    ? <PluginUiPage plugin={activePlugin} />
+    : pages[active] ?? <PlaceholderPage title={title} />
+
   return (
     <AppLayout
       active={active}
@@ -76,25 +94,7 @@ function App() {
       pluginNavItems={pluginNavItems}
       bare={activePlugin !== null}
     >
-      {active === "dashboard" ? (
-        <DashboardPage />
-      ) : active === "logs" ? (
-        <LogsPage />
-      ) : active === "plugins" ? (
-        <PluginsPage onPluginsChange={refreshPlugins} />
-      ) : active === "database" ? (
-        <DatabasePage />
-      ) : active === "config" ? (
-        <ConfigFilesPage />
-      ) : active === "analytics" ? (
-        <AnalyticsPage />
-      ) : active === "market" ? (
-        <MarketPage onPluginsChange={refreshPlugins} />
-      ) : activePlugin ? (
-        <PluginUiPage plugin={activePlugin} />
-      ) : (
-        <PlaceholderPage title={title} />
-      )}
+      {content}
     </AppLayout>
   )
 }
