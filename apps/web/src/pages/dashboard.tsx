@@ -1,5 +1,5 @@
 import { type ReactNode, useCallback, useEffect, useState } from "react"
-import { Activity, Blocks, Bot, CheckCircle2, Clock, Cpu, MemoryStick, RefreshCw, Server, XCircle } from "lucide-react"
+import { Activity, Blocks, Bot, Cpu, MemoryStick, RefreshCw, Server, XCircle } from "lucide-react"
 import { api, type BotInfo, type BotStatus, type HealthResponse, type PluginPublicMeta, type SystemInfo } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -141,54 +141,55 @@ export function DashboardPage() {
           color={pluginEnabled > 0 ? "sky" : "muted"}
           loading={loading && !plugins}
         />
-        <OverviewStat
-          icon={<Clock className="size-4" />}
-          label="系统运行"
-          value={system ? formatDuration(system.os.uptimeSec) : "—"}
-          sub={system ? system.os.hostname : undefined}
-          color="muted"
-          loading={loading && !system}
-        />
       </div>
 
-      {/* ── 服务器状态 + Bot 概况 ─────────────────────────────────── */}
+      {/* ── 插件概览 + Bot 概况 ─────────────────────────────────── */}
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-1">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Activity className="size-4 text-muted-foreground" aria-hidden />
-                <CardTitle>服务器状态</CardTitle>
+                <Blocks className="size-4 text-muted-foreground" aria-hidden />
+                <CardTitle>插件概览</CardTitle>
               </div>
-              {health ? (
-                <Badge variant={online ? "default" : "destructive"}>
-                  {online ? (
-                    <CheckCircle2 className="size-3" aria-hidden />
-                  ) : (
-                    <XCircle className="size-3" aria-hidden />
-                  )}
-                  {online ? "在线" : "异常"}
-                </Badge>
-              ) : loading ? (
-                <Skeleton className="h-5 w-14" />
-              ) : (
-                <Badge variant="destructive">离线</Badge>
+              {plugins && (
+                <Badge variant="secondary">{pluginEnabled}/{pluginTotal}</Badge>
               )}
             </div>
-            <CardDescription>GET /health</CardDescription>
+            <CardDescription>已启用插件 · 共 {totalCommands} 条命令</CardDescription>
           </CardHeader>
           <CardContent>
-            {health ? (
-              <dl className="grid grid-cols-[6rem_1fr] gap-y-2 text-sm">
-                <dt className="text-muted-foreground">status</dt>
-                <dd className="font-mono">{health.status}</dd>
-                <dt className="text-muted-foreground">ts</dt>
-                <dd className="font-mono">{formatTs(health.ts)}</dd>
-              </dl>
+            {plugins ? (
+              plugins.length === 0 ? (
+                <p className="text-sm text-muted-foreground">暂无插件</p>
+              ) : (
+                <ul className="space-y-1.5">
+                  {plugins
+                    .filter((p) => p.enabled)
+                    .slice(0, 6)
+                    .map((p) => (
+                      <li
+                        key={p.name}
+                        className="flex items-center justify-between rounded-md border px-2.5 py-1.5 text-sm"
+                      >
+                        <span className="truncate font-medium">{p.name}</span>
+                        <span className="shrink-0 text-xs text-muted-foreground">
+                          {p.commandCount} 命令
+                        </span>
+                      </li>
+                    ))}
+                  {plugins.filter((p) => p.enabled).length > 6 && (
+                    <li className="text-center text-xs text-muted-foreground">
+                      …等共 {plugins.filter((p) => p.enabled).length} 个插件
+                    </li>
+                  )}
+                </ul>
+              )
             ) : loading ? (
               <div className="space-y-2">
-                <Skeleton className="h-4 w-3/4" />
-                <Skeleton className="h-4 w-1/2" />
+                <Skeleton className="h-8 w-full" />
+                <Skeleton className="h-8 w-full" />
+                <Skeleton className="h-8 w-full" />
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">暂无数据</p>
