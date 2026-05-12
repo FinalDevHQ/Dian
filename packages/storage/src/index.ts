@@ -1,7 +1,8 @@
 // 类型
 export type {
   LogEntry, LogQueryParams, LogRepository, CacheRepository,
-  MessageEntry, MessageRepository, StatsFilter, OverviewStats,
+  MessageEntry, MessageRepository, MessageQueryParams, MessagePage,
+  StatsFilter, OverviewStats,
   GroupStat, UserStat, TrendPoint, GroupNameEntry,
 } from "./types.js";
 

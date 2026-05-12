@@ -12,6 +12,7 @@ import { PluginsPage } from "@/pages/plugins"
 import { PlaceholderPage } from "@/pages/placeholder"
 import { PluginUiPage, type PluginNavItem } from "@/pages/plugin-ui"
 import { MarketPage } from "@/pages/market"
+import { MessagesPage } from "@/pages/messages"
 import { api } from "@/lib/api"
 
 /** 从 URL hash 读取初始页，fallback 到 dashboard */
@@ -100,6 +101,7 @@ function App() {
     database:  <DatabasePage />,
     config:    <ConfigFilesPage />,
     analytics: <AnalyticsPage />,
+    messages:  <MessagesPage />,
     market:    <MarketPage onPluginsChange={refreshPlugins} />,
   }), [refreshPlugins])
 

@@ -480,3 +480,55 @@ export const statsApi = {
   syncGroupNames: () =>
     request<{ ok: boolean; synced: number }>("/stats/group-names/sync", { method: "POST" }),
 }
+
+// ─── 消息记录 ─────────────────────────────────────────────────────────────────
+
+export interface MessageEntry {
+  id?: number
+  eventId: string
+  botId: string
+  subtype: string
+  groupId?: string
+  userId?: string
+  senderName?: string
+  messageId?: string
+  text?: string
+  timestamp: number
+}
+
+export interface MessagePage {
+  total: number
+  items: MessageEntry[]
+}
+
+export interface MessageQueryParams {
+  botId?: string
+  groupId?: string
+  userId?: string
+  subtype?: string
+  keyword?: string
+  from?: number
+  to?: number
+  limit?: number
+  offset?: number
+}
+
+function buildMessageQuery(p: MessageQueryParams): string {
+  const kv: Record<string, string | number | undefined> = {
+    botId:   p.botId,
+    groupId: p.groupId,
+    userId:  p.userId,
+    subtype: p.subtype,
+    keyword: p.keyword,
+    from:    p.from,
+    to:      p.to,
+    limit:   p.limit,
+    offset:  p.offset,
+  }
+  return buildQuery(kv)
+}
+
+export const messagesApi = {
+  query: (params: MessageQueryParams = {}) =>
+    request<MessagePage>(`/messages${buildMessageQuery(params)}`),
+}

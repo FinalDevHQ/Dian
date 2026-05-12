@@ -90,10 +90,33 @@ export interface GroupNameEntry {
   updatedAt: number;
 }
 
+/** 消息查询参数 */
+export interface MessageQueryParams {
+  botId?: string;
+  groupId?: string;
+  userId?: string;
+  /** 关键词全文搜索 */
+  keyword?: string;
+  /** subtype: group | private */
+  subtype?: string;
+  from?: number;
+  to?: number;
+  limit?: number;
+  offset?: number;
+}
+
+/** 消息查询结果页 */
+export interface MessagePage {
+  total: number;
+  items: MessageEntry[];
+}
+
 /** 消息统计仓库接口 */
 export interface MessageRepository {
   /** 写入一条消息（eventId 重复时忽略） */
   writeMessage(entry: MessageEntry): Promise<void>;
+  /** 分页查询消息记录 */
+  queryMessages(params: MessageQueryParams): Promise<MessagePage>;
   /** 总览统计 */
   overviewStats(filter: StatsFilter): Promise<OverviewStats>;
   /** 按群组统计（Top N） */

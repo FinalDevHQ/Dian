@@ -100,4 +100,29 @@ export async function statsRoutes(
 
     return reply.send({ ok: true, synced });
   });
+
+  // ── GET /messages ──────────────────────────────────────────────────────────
+  // 分页查询消息记录
+  type MQ = {
+    botId?: string; groupId?: string; userId?: string;
+    subtype?: string; keyword?: string;
+    from?: string; to?: string;
+    limit?: string; offset?: string;
+  };
+  app.get<{ Querystring: MQ }>("/messages", async (req, reply) => {
+    const q = req.query as Record<string, string | undefined>;
+    const params = {
+      botId:   q.botId,
+      groupId: q.groupId,
+      userId:  q.userId,
+      subtype: q.subtype,
+      keyword: q.keyword,
+      from:    q.from   ? Number(q.from)   : undefined,
+      to:      q.to     ? Number(q.to)     : undefined,
+      limit:   q.limit  ? Math.min(Number(q.limit),  200) : 50,
+      offset:  q.offset ? Number(q.offset) : 0,
+    };
+    const data = await messageRepo.queryMessages(params);
+    return reply.send(data);
+  });
 }
