@@ -13,6 +13,8 @@ import { PlaceholderPage } from "@/pages/placeholder"
 import { PluginUiPage, type PluginNavItem } from "@/pages/plugin-ui"
 import { MarketPage } from "@/pages/market"
 import { MessagesPage } from "@/pages/messages"
+import { LoginPage } from "@/pages/login"
+import { AuthProvider, useAuth } from "@/contexts/auth-context"
 import { api } from "@/lib/api"
 
 /** 从 URL hash 读取初始页，fallback 到 dashboard */
@@ -21,7 +23,28 @@ function getHashPage(): string {
   return hash || "dashboard"
 }
 
-function App() {
+function AppContent() {
+  const { isAuthenticated, needAuth, loading, login } = useAuth()
+
+  // 正在检查认证状态时显示加载
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <p className="text-muted-foreground">加载中...</p>
+      </div>
+    )
+  }
+
+  // 需要认证但未登录时显示登录页
+  if (needAuth && !isAuthenticated) {
+    return <LoginPage onLogin={login} />
+  }
+
+  return <MainApp />
+}
+
+function MainApp() {
+  const { logout } = useAuth()
   const [active, setActive] = useState(getHashPage)
 
   // 当 active 变化时同步到 hash
@@ -116,10 +139,17 @@ function App() {
       title={title}
       pluginNavItems={pluginNavItems}
       bare={activePlugin !== null}
+      onLogout={logout}
     >
       {content}
     </AppLayout>
   )
 }
 
-export default App
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
+  )
+}

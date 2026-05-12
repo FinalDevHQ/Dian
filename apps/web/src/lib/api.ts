@@ -6,6 +6,16 @@
  */
 const BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "/api").replace(/\/$/, "")
 
+const TOKEN_KEY = "dian_token"
+
+function getToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY)
+}
+
+function clearToken() {
+  localStorage.removeItem(TOKEN_KEY)
+}
+
 export interface HealthResponse {
   status: "ok"
   ts: number
@@ -111,14 +121,26 @@ export interface SystemInfo {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = getToken()
+  const headers: Record<string, string> = {
+    // 只在有 body 时加 Content-Type，避免 Fastify 对无 body 的 DELETE 报 400
+    ...(init?.body != null ? { "Content-Type": "application/json" } : {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(init?.headers as Record<string, string> ?? {}),
+  }
+
   const res = await fetch(`${BASE_URL}${path}`, {
     ...init,
-    headers: {
-      // 只在有 body 时加 Content-Type，避免 Fastify 对无 body 的 DELETE 报 400
-      ...(init?.body != null ? { "Content-Type": "application/json" } : {}),
-      ...init?.headers,
-    },
+    headers,
   })
+
+  // 401 时清除 token 并刷新页面（触发登录流程）
+  if (res.status === 401) {
+    clearToken()
+    window.location.reload()
+    throw new Error("未登录或登录已过期")
+  }
+
   if (!res.ok) {
     let detail = ""
     try {
@@ -189,7 +211,12 @@ function buildQuery(params: Record<string, string | number | undefined>): string
 
 /** 事件流 SSE 地址（含 query），主动用 EventSource 连接 */
 export function eventStreamUrl(filter: { botId?: string; type?: BotEventType }): string {
-  return `${BASE_URL}/events/stream${buildQuery(filter)}`
+  const token = getToken()
+  const params: Record<string, string | number | undefined> = {
+    ...filter,
+    ...(token ? { token } : {}),
+  }
+  return `${BASE_URL}/events/stream${buildQuery(params)}`
 }
 
 // ─── 插件管理 ────────────────────────────────────────────────────────────────
@@ -320,11 +347,20 @@ export const api = {
 
   uploadPlugin: (name: string, file: File) => {
     const safeName = name.replace(/\.zip$/i, "")
+    const token = getToken()
     return fetch(`${BASE_URL}/plugins/upload?name=${encodeURIComponent(safeName)}`, {
       method: "POST",
-      headers: { "Content-Type": "application/octet-stream" },
+      headers: {
+        "Content-Type": "application/octet-stream",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: file,
     }).then(async (res) => {
+      if (res.status === 401) {
+        clearToken()
+        window.location.reload()
+        throw new Error("未登录或登录已过期")
+      }
       const data = await res.json() as { ok?: boolean; error?: string; name?: string }
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`)
       return data
@@ -449,11 +485,20 @@ export const marketApi = {
   },
   /** 让服务端代理下载并安装插件 ZIP */
   async installFromUrl(url: string): Promise<{ ok: boolean; name: string }> {
+    const token = getToken()
     const res = await fetch(`${BASE_URL}/plugins/install-from-url`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: JSON.stringify({ url }),
     })
+    if (res.status === 401) {
+      clearToken()
+      window.location.reload()
+      throw new Error("未登录或登录已过期")
+    }
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: res.statusText }))
       throw new Error((err as { error?: string }).error ?? res.statusText)

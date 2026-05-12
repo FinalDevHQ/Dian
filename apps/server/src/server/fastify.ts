@@ -5,6 +5,9 @@ import type { MessageRepository } from "@dian/storage";
 import type { BotManager } from "../bot/bot-manager.js";
 import type { EventBus } from "../event/event-bus.js";
 import type { DatabaseExplorer } from "../db/explorer.js";
+import type { AuthService } from "../auth/service.js";
+import { createAuthMiddleware } from "../auth/middleware.js";
+import { authRoutes } from "../routes/auth.js";
 import { healthRoutes } from "../routes/health.js";
 import { systemRoutes } from "../routes/system.js";
 import { configRoutes } from "../routes/config.js";
@@ -26,6 +29,8 @@ export interface ServerOptions {
   messageRepo?: MessageRepository;
   /** 插件 bot 白名单持久化（已在 main.ts 中创建） */
   persistPluginScope: () => Promise<void>;
+  /** 认证服务 */
+  authService: AuthService;
 }
 
 /**
@@ -46,6 +51,7 @@ export async function createServer(opts: ServerOptions): Promise<{
     dbExplorer,
     messageRepo,
     persistPluginScope,
+    authService,
   } = opts;
 
   const app = Fastify({ logger: false, bodyLimit: 50 * 1024 * 1024 }); // 50 MB
@@ -58,6 +64,12 @@ export async function createServer(opts: ServerOptions): Promise<{
     { parseAs: "buffer" },
     (_req, body, done) => done(null, body)
   );
+
+  // 全局认证中间件
+  app.addHook("preHandler", createAuthMiddleware(authService));
+
+  // 认证路由（无需认证）
+  await app.register(authRoutes, { authService });
 
   // 路由
   await app.register(healthRoutes, { logger, botManager });

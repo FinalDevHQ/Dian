@@ -4,8 +4,6 @@ import {
   Search,
   RefreshCw,
   Loader2,
-  ChevronLeft,
-  ChevronRight,
   Users,
   Hash,
   Clock,
@@ -17,10 +15,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Pagination } from "@/components/ui/pagination"
 import { useBotScope } from "@/contexts/bot-scope-context"
 import { cn } from "@/lib/utils"
-
-const PAGE_SIZE = 50
 
 function fmtTime(ts: number): string {
   const ms = ts > 1e12 ? ts : ts * 1000
@@ -62,6 +59,7 @@ export function MessagesPage() {
   const [userId, setUserId]       = useState("")
   const [subtype, setSubtype]     = useState<"" | "group" | "private">("")
   const [page, setPage]           = useState(0)
+  const [pageSize, setPageSize]   = useState(50)
 
   const [loading, setLoading]     = useState(false)
   const [items, setItems]         = useState<MessageEntry[]>([])
@@ -84,8 +82,8 @@ export function MessagesPage() {
           ...(filters.userId   ? { userId:  filters.userId }    : {}),
           ...(filters.subtype  ? { subtype: filters.subtype }   : {}),
           ...(filters.keyword  ? { keyword: filters.keyword }   : {}),
-          limit:  PAGE_SIZE,
-          offset: pg * PAGE_SIZE,
+          limit:  pageSize,
+          offset: pg * pageSize,
         }),
         statsApi.groupNames(),
       ])
@@ -98,13 +96,13 @@ export function MessagesPage() {
     } finally {
       if (seq === fetchRef.current) setLoading(false)
     }
-  }, [])
+  }, [pageSize])
 
   useEffect(() => {
     setPage(0)
     load(0, committed, scope)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scope, committed])
+  }, [scope, committed, pageSize])
 
   useEffect(() => {
     load(page, committed, scope)
@@ -120,8 +118,6 @@ export function MessagesPage() {
   function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === "Enter") handleSearch()
   }
-
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   function groupLabel(id: string) {
     return groupNames[id] ? `${groupNames[id]}` : id
@@ -278,28 +274,17 @@ export function MessagesPage() {
 
       {/* 分页 */}
       {total > 0 && (
-        <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <span>
-            第 {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, total)} 条，共 {total.toLocaleString()} 条
-          </span>
-          <div className="flex items-center gap-1">
-            <Button
-              variant="outline" size="icon" className="h-8 w-8"
-              disabled={page === 0 || loading}
-              onClick={() => setPage((p) => p - 1)}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <span className="px-2">{page + 1} / {totalPages}</span>
-            <Button
-              variant="outline" size="icon" className="h-8 w-8"
-              disabled={page >= totalPages - 1 || loading}
-              onClick={() => setPage((p) => p + 1)}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
+        <Pagination
+          page={page}
+          total={total}
+          pageSize={pageSize}
+          loading={loading}
+          onPageChange={setPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size)
+            setPage(0)
+          }}
+        />
       )}
     </div>
   )

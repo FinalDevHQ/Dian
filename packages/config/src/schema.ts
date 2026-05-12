@@ -15,11 +15,24 @@ export const StorageSchema = z.object({
   redis: z.string().optional(),
 });
 
+export const AuthSchema = z.object({
+  /** 密码的 bcrypt 哈希值 */
+  passwordHash: z.string().optional(),
+  /** JWT 密钥，留空则自动生成随机串 */
+  jwtSecret: z.string().optional(),
+  /** Token 有效期（秒），默认 86400 (24h) */
+  tokenExpiresIn: z.number().int().positive().optional(),
+});
+
+export type AuthConfig = z.infer<typeof AuthSchema>;
+
 export const SettingsSchema = z.object({
   /** 日志级别，默认 info */
   logLevel: LogLevelSchema.default("info"),
   /** 存储连接配置 */
   storage: StorageSchema.default({}),
+  /** 认证配置 */
+  auth: AuthSchema.default({}),
 });
 
 export type Settings = z.infer<typeof SettingsSchema>;

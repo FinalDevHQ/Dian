@@ -7,6 +7,7 @@ export type {
   BotsConfig,
   TemplatesConfig,
   AllConfig,
+  AuthConfig,
 } from "./schema.js";
 
 export {
