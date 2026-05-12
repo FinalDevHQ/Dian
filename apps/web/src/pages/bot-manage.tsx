@@ -16,11 +16,11 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useBotScope } from "@/contexts/bot-scope-context"
 
-const POLL_INTERVAL = 5000
+type BotDetail = BotInfo & { config?: BotEntryInput }
 
 export function BotManagePage() {
   const { scope } = useBotScope()
-  const [bots, setBots] = useState<BotInfo[] | null>(null)
+  const [bots, setBots] = useState<BotDetail[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [lastUpdated, setLastUpdated] = useState<number | null>(null)
@@ -39,7 +39,18 @@ export function BotManagePage() {
     setError(null)
     try {
       const s = await api.status()
-      setBots(s.bots)
+      // 并行拉取每个 bot 的详细配置
+      const details = await Promise.all(
+        s.bots.map(async (b) => {
+          try {
+            const { bot: cfg } = await api.getBot(b.botId)
+            return { ...b, config: cfg } as BotDetail
+          } catch {
+            return { ...b } as BotDetail
+          }
+        })
+      )
+      setBots(details)
       setLastUpdated(Date.now())
     } catch (err) {
       setBots(null)
@@ -49,12 +60,17 @@ export function BotManagePage() {
     }
   }, [])
 
+  // 挂载时加载一次 + 页面重新可见时刷新
   useEffect(() => {
     const t = window.setTimeout(refresh, 0)
-    const id = window.setInterval(refresh, POLL_INTERVAL)
+
+    const onVis = () => {
+      if (!document.hidden) refresh()
+    }
+    document.addEventListener("visibilitychange", onVis)
     return () => {
       window.clearTimeout(t)
-      window.clearInterval(id)
+      document.removeEventListener("visibilitychange", onVis)
     }
   }, [refresh])
 
@@ -174,9 +190,6 @@ export function BotManagePage() {
         />
       )}
 
-      <p className="text-center text-xs text-muted-foreground">
-        每 {POLL_INTERVAL / 1000}s 自动刷新
-      </p>
     </div>
   )
 }
@@ -251,15 +264,22 @@ function BotCard({
   onToggle,
   onDelete,
 }: {
-  bot: BotInfo
+  bot: BotDetail
   busy: boolean
   onEdit: () => void
   onToggle: (enabled: boolean) => Promise<void> | void
   onDelete: () => Promise<void> | void
 }) {
+  const cfg = bot.config
+  const modeLabel: Record<BotMode, string> = {
+    hybrid: "hybrid（WS + HTTP）",
+    ws: "ws（仅事件）",
+    http: "http（仅 action）",
+  }
+
   return (
     <Card className="relative">
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <Bot className="size-5 text-muted-foreground" />
@@ -269,10 +289,49 @@ function BotCard({
         </div>
         <CardDescription className="text-xs">
           {bot.enabled ? "已启用" : "已禁用"} · {bot.running ? "运行中" : "未运行"}
+          {cfg && (
+            <span className="ml-1">· {modeLabel[cfg.mode]}</span>
+          )}
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <div className="flex items-center justify-between">
+      <CardContent className="space-y-3">
+        {/* 配置信息 */}
+        {cfg && (
+          <div className="space-y-1.5 text-xs text-muted-foreground">
+            {cfg.ws && (
+              <div className="flex items-center gap-1.5">
+                <span className="shrink-0 rounded bg-sky-50 px-1 py-0.5 text-[10px] font-medium text-sky-700 dark:bg-sky-950/40 dark:text-sky-400">
+                  WS
+                </span>
+                <span className="truncate font-mono">{cfg.ws.url}</span>
+                {cfg.ws.accessToken && (
+                  <Badge variant="outline" className="shrink-0 text-[10px] border-amber-200/60 text-amber-700">
+                    Token 已设
+                  </Badge>
+                )}
+              </div>
+            )}
+            {cfg.http && (
+              <div className="flex items-center gap-1.5">
+                <span className="shrink-0 rounded bg-emerald-50 px-1 py-0.5 text-[10px] font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
+                  HTTP
+                </span>
+                <span className="truncate font-mono">{cfg.http.baseUrl}</span>
+                {cfg.http.accessToken && (
+                  <Badge variant="outline" className="shrink-0 text-[10px] border-amber-200/60 text-amber-700">
+                    Token 已设
+                  </Badge>
+                )}
+              </div>
+            )}
+            {!cfg.ws && !cfg.http && (
+              <p className="text-[11px] text-muted-foreground">无连接配置</p>
+            )}
+          </div>
+        )}
+
+        {/* 操作栏 */}
+        <div className="flex items-center justify-between border-t pt-2">
           <div className="flex items-center gap-2">
             {busy ? (
               <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
