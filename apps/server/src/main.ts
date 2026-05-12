@@ -8,6 +8,7 @@ import { BotManager } from "./bot/bot-manager.js";
 import { EventBus } from "./event/event-bus.js";
 import { EventDispatcher } from "./event/event-dispatcher.js";
 import { DatabaseExplorer } from "./db/explorer.js";
+import { AuthService } from "./auth/service.js";
 import { installLogPersistence } from "./log-bridge.js";
 import { installMessagePersistence } from "./message-bridge.js";
 import { createPluginScopeIO } from "./plugin-scope.js";
@@ -89,7 +90,15 @@ async function main(): Promise<void> {
   // 将 botManager 注入 dispatcher，用于构建 reply 回调
   dispatcher.setBotManager(botManager);
 
-  // ── 5. 启动 HTTP 服务器 ───────────────────────────────────────────────────
+  // ── 5. 初始化认证服务 ─────────────────────────────────────────────────────
+  const authService = new AuthService(configService.settings.auth ?? {});
+  if (authService.isConfigured()) {
+    logger.info("Auth service enabled");
+  } else {
+    logger.warn("Auth service disabled: no password configured");
+  }
+
+  // ── 6. 启动 HTTP 服务器 ───────────────────────────────────────────────────
   const server = await createServer({
     port: Number(process.env.PORT ?? 3000),
     logger,
@@ -100,6 +109,7 @@ async function main(): Promise<void> {
     dbExplorer,
     messageRepo: storageService.hasMessage ? storageService.message : undefined,
     persistPluginScope: () => pluginScopeIO.save(),
+    authService,
   });
   await server.start();
 
