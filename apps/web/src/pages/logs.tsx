@@ -292,26 +292,28 @@ function describeEvent(e: BotEvent): ReactNode {
   return `${type}.${e.subtype}`
 }
 
+const BADGE_BASE = "h-5 px-1.5 py-0 text-[10px] leading-5"
+
 function eventTypeBadge(e: BotEvent) {
   switch (e.type) {
     case "message":
-      return <Badge variant="default">收</Badge>
+      return <Badge variant="default" className={BADGE_BASE}>收</Badge>
     case "message_sent":
-      return <Badge variant="secondary">发</Badge>
+      return <Badge variant="secondary" className={BADGE_BASE}>发</Badge>
     case "notice":
       return (
-        <Badge variant="outline" className="border-amber-500/40 text-amber-600">
+        <Badge variant="outline" className={cn("border-amber-500/40 text-amber-600", BADGE_BASE)}>
           通知
         </Badge>
       )
     case "request":
       return (
-        <Badge variant="outline" className="border-blue-500/40 text-blue-600">
+        <Badge variant="outline" className={cn("border-blue-500/40 text-blue-600", BADGE_BASE)}>
           请求
         </Badge>
       )
     default:
-      return <Badge variant="outline">{e.type}</Badge>
+      return <Badge variant="outline" className={BADGE_BASE}>{e.type}</Badge>
   }
 }
 
@@ -516,16 +518,16 @@ export function LogsPage() {
             {filtered.map((e) => (
               <li
                 key={e.eventId}
-                className="flex items-start gap-2 border-b border-border/40 px-3 py-1.5 hover:bg-muted/50"
+                className="grid grid-cols-[auto_auto_auto_1fr] gap-x-2 items-center border-b border-border/40 px-3 py-1.5 hover:bg-muted/50"
               >
-                <span className="shrink-0 text-muted-foreground tabular-nums">
+                <span className="text-muted-foreground tabular-nums leading-5">
                   {formatTime(e.timestamp)}
                 </span>
-                <span className="shrink-0">{eventTypeBadge(e)}</span>
-                <span className="shrink-0 text-muted-foreground">
+                <span className="leading-5">{eventTypeBadge(e)}</span>
+                <span className="text-muted-foreground leading-5">
                   [{e.botId}]
                 </span>
-                <span className="break-all whitespace-pre-wrap">
+                <span className="break-all whitespace-pre-wrap leading-5 min-w-0">
                   {describeEvent(e)}
                 </span>
               </li>

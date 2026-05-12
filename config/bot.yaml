@@ -1,6 +1,7 @@
 bots:
   - botId: 点点
-    enabled: true
+    enabled: false
+    platform: onebot
     mode: hybrid
     ws:
       url: ws://192.168.2.14:13001/
@@ -12,7 +13,8 @@ bots:
       accessToken: IBC39ocS1ceznq87
       timeoutMs: 5000
   - botId: ikun
-    enabled: true
+    enabled: false
+    platform: onebot
     mode: hybrid
     ws:
       url: ws://192.168.2.14:7301/

@@ -5,6 +5,8 @@ import type {
   GroupNameEntry,
   GroupStat,
   MessageEntry,
+  MessagePage,
+  MessageQueryParams,
   MessageRepository,
   OverviewStats,
   StatsFilter,
@@ -70,6 +72,44 @@ export class SqliteMessageRepository implements MessageRepository {
         text:       entry.text ?? null,
         timestamp:  entry.timestamp,
       });
+  }
+
+  async queryMessages(params: MessageQueryParams): Promise<MessagePage> {
+    const conds: string[] = [];
+    const bindings: Record<string, unknown> = {};
+
+    if (params.botId)   { conds.push("bot_id = @botId");     bindings.botId   = params.botId; }
+    if (params.groupId) { conds.push("group_id = @groupId"); bindings.groupId = params.groupId; }
+    if (params.userId)  { conds.push("user_id = @userId");   bindings.userId  = params.userId; }
+    if (params.subtype) { conds.push("subtype = @subtype");  bindings.subtype = params.subtype; }
+    if (params.from != null) { conds.push("timestamp >= @from"); bindings.from = params.from; }
+    if (params.to   != null) { conds.push("timestamp <= @to");   bindings.to   = params.to; }
+    if (params.keyword) {
+      conds.push("text LIKE @keyword");
+      bindings.keyword = `%${params.keyword}%`;
+    }
+
+    const where = conds.length ? `WHERE ${conds.join(" AND ")}` : "";
+    const limit  = Math.min(params.limit  ?? 50, 200);
+    const offset = params.offset ?? 0;
+
+    const { total } = this.db
+      .prepare(`SELECT COUNT(*) as total FROM messages ${where}`)
+      .get(bindings) as { total: number };
+
+    const items = this.db
+      .prepare(
+        `SELECT id, event_id as eventId, bot_id as botId, subtype,
+                group_id as groupId, user_id as userId,
+                sender_name as senderName, message_id as messageId,
+                text, timestamp
+         FROM messages ${where}
+         ORDER BY timestamp DESC
+         LIMIT @limit OFFSET @offset`
+      )
+      .all({ ...bindings, limit, offset }) as MessageEntry[];
+
+    return { total, items };
   }
 
   async overviewStats(filter: StatsFilter): Promise<OverviewStats> {

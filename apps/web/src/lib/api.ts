@@ -261,11 +261,19 @@ export const api = {
   system: () => request<SystemInfo>("/system"),
 
   // Bot 管理
+  getBot: (botId: string) =>
+    request<{ bot: BotEntryInput }>(`/bots/${encodeURIComponent(botId)}`),
   addBot: (entry: BotEntryInput) =>
     request<{ ok: boolean; bot: BotEntryInput }>("/bots", {
       method: "POST",
       body: JSON.stringify(entry),
     }),
+  /** 整条替换；body 必须是完整的 BotEntryInput。支持改名（body.botId 可与原 botId 不同）。 */
+  updateBot: (botId: string, entry: BotEntryInput) =>
+    request<{ ok: boolean; bot: BotEntryInput }>(
+      `/bots/${encodeURIComponent(botId)}`,
+      { method: "PUT", body: JSON.stringify(entry) }
+    ),
   deleteBot: (botId: string) =>
     request<{ ok: boolean }>(`/bots/${encodeURIComponent(botId)}`, {
       method: "DELETE",
@@ -471,4 +479,56 @@ export const statsApi = {
   /** 触发向所有活跃 bot 同步群名 */
   syncGroupNames: () =>
     request<{ ok: boolean; synced: number }>("/stats/group-names/sync", { method: "POST" }),
+}
+
+// ─── 消息记录 ─────────────────────────────────────────────────────────────────
+
+export interface MessageEntry {
+  id?: number
+  eventId: string
+  botId: string
+  subtype: string
+  groupId?: string
+  userId?: string
+  senderName?: string
+  messageId?: string
+  text?: string
+  timestamp: number
+}
+
+export interface MessagePage {
+  total: number
+  items: MessageEntry[]
+}
+
+export interface MessageQueryParams {
+  botId?: string
+  groupId?: string
+  userId?: string
+  subtype?: string
+  keyword?: string
+  from?: number
+  to?: number
+  limit?: number
+  offset?: number
+}
+
+function buildMessageQuery(p: MessageQueryParams): string {
+  const kv: Record<string, string | number | undefined> = {
+    botId:   p.botId,
+    groupId: p.groupId,
+    userId:  p.userId,
+    subtype: p.subtype,
+    keyword: p.keyword,
+    from:    p.from,
+    to:      p.to,
+    limit:   p.limit,
+    offset:  p.offset,
+  }
+  return buildQuery(kv)
+}
+
+export const messagesApi = {
+  query: (params: MessageQueryParams = {}) =>
+    request<MessagePage>(`/messages${buildMessageQuery(params)}`),
 }

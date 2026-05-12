@@ -18,7 +18,7 @@ export function installMessagePersistence(
       .writeMessage({
         eventId:    event.eventId,
         botId:      event.botId,
-        subtype:    event.subtype,               // 'group' / 'private' / ...
+        subtype:    event.subtype.split(".")[0],  // 取第一段：'group' | 'private'
         groupId:    event.payload.groupId,
         userId:     event.payload.userId,
         senderName: event.payload.senderName,

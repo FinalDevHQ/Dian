@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
+import type { ReactNode } from "react"
 import { AppLayout } from "@/components/layout/app-layout"
 import { navGroups } from "@/components/layout/nav-config"
 import { AnalyticsPage } from "@/pages/analytics"
+import { BotManagePage } from "@/pages/bot-manage"
 import { ConfigFilesPage } from "@/pages/config-files"
 import { DashboardPage } from "@/pages/dashboard"
 import { DatabasePage } from "@/pages/database"
@@ -10,10 +12,32 @@ import { PluginsPage } from "@/pages/plugins"
 import { PlaceholderPage } from "@/pages/placeholder"
 import { PluginUiPage, type PluginNavItem } from "@/pages/plugin-ui"
 import { MarketPage } from "@/pages/market"
+import { MessagesPage } from "@/pages/messages"
 import { api } from "@/lib/api"
 
+/** 从 URL hash 读取初始页，fallback 到 dashboard */
+function getHashPage(): string {
+  const hash = window.location.hash.slice(1) // 去掉 '#'
+  return hash || "dashboard"
+}
+
 function App() {
-  const [active, setActive] = useState("dashboard")
+  const [active, setActive] = useState(getHashPage)
+
+  // 当 active 变化时同步到 hash
+  useEffect(() => {
+    const hash = `#${active}`
+    if (window.location.hash !== hash) {
+      window.history.pushState(null, "", hash)
+    }
+  }, [active])
+
+  // 监听浏览器前进/后退
+  useEffect(() => {
+    const onPopState = () => { setActive(getHashPage()) }
+    window.addEventListener("popstate", onPopState)
+    return () => window.removeEventListener("popstate", onPopState)
+  }, [])
 
   // ── 插件导航条目（已启用 + 有 UI）────────────────────────────────────────
   const [pluginNavItems, setPluginNavItems] = useState<PluginNavItem[]>([])
@@ -68,6 +92,23 @@ function App() {
     [active, pluginNavItems]
   )
 
+  // ── 页面路由映射 ──────────────────────────────────────────────────────────
+  const pages: Record<string, ReactNode> = useMemo(() => ({
+    dashboard: <DashboardPage />,
+    bots:      <BotManagePage />,
+    logs:      <LogsPage />,
+    plugins:   <PluginsPage onPluginsChange={refreshPlugins} />,
+    database:  <DatabasePage />,
+    config:    <ConfigFilesPage />,
+    analytics: <AnalyticsPage />,
+    messages:  <MessagesPage />,
+    market:    <MarketPage onPluginsChange={refreshPlugins} />,
+  }), [refreshPlugins])
+
+  const content = activePlugin
+    ? <PluginUiPage plugin={activePlugin} />
+    : pages[active] ?? <PlaceholderPage title={title} />
+
   return (
     <AppLayout
       active={active}
@@ -76,25 +117,7 @@ function App() {
       pluginNavItems={pluginNavItems}
       bare={activePlugin !== null}
     >
-      {active === "dashboard" ? (
-        <DashboardPage />
-      ) : active === "logs" ? (
-        <LogsPage />
-      ) : active === "plugins" ? (
-        <PluginsPage onPluginsChange={refreshPlugins} />
-      ) : active === "database" ? (
-        <DatabasePage />
-      ) : active === "config" ? (
-        <ConfigFilesPage />
-      ) : active === "analytics" ? (
-        <AnalyticsPage />
-      ) : active === "market" ? (
-        <MarketPage onPluginsChange={refreshPlugins} />
-      ) : activePlugin ? (
-        <PluginUiPage plugin={activePlugin} />
-      ) : (
-        <PlaceholderPage title={title} />
-      )}
+      {content}
     </AppLayout>
   )
 }

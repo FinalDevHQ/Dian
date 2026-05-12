@@ -81,6 +81,35 @@ function truncate(s: string, maxLen = 9): string {
   return s.length <= maxLen ? s : `${s.slice(0, maxLen - 1)}…`
 }
 
+/** 支持换行的 Y 轴自定义 tick，每行最多 8 个字符 */
+function WrapTick(props: { x?: number; y?: number; payload?: { value: string } }) {
+  const { x = 0, y = 0, payload } = props
+  const text = payload?.value ?? ""
+  const chunkSize = 8
+  const lines: string[] = []
+  for (let i = 0; i < text.length; i += chunkSize) {
+    lines.push(text.slice(i, i + chunkSize))
+  }
+  const lineHeight = 14
+  const totalHeight = lines.length * lineHeight
+  return (
+    <g transform={`translate(${x},${y})`}>
+      {lines.map((line, i) => (
+        <text
+          key={i}
+          x={0}
+          y={i * lineHeight - totalHeight / 2 + lineHeight / 2}
+          textAnchor="end"
+          fontSize={11}
+          fill="hsl(var(--muted-foreground))"
+        >
+          {line}
+        </text>
+      ))}
+    </g>
+  )
+}
+
 // ─── 卡片骨架 ─────────────────────────────────────────────────────────────────
 
 function StatCardSkeleton() {
@@ -407,7 +436,7 @@ export function AnalyticsPage() {
       </Card>
 
       {/* ── 群组 + 用户并排 ── */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 items-start">
 
         {/* Top 群聊 */}
         <Card>
@@ -430,28 +459,20 @@ export function AnalyticsPage() {
                 <p className="text-xs text-muted-foreground mb-2">
                   点击群组可下钻查看该群用户统计
                 </p>
-                <ResponsiveContainer width="100%" height={Math.max(groupChartData.length * 30 + 20, 160)}>
+                <ResponsiveContainer width="100%" height={Math.max(groupChartData.length * 40 + 24, 160)}>
                   <BarChart
                     layout="vertical"
                     data={groupChartData}
                     margin={{ top: 0, right: 52, bottom: 0, left: 8 }}
-                    onClick={(e) => {
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      const payload = (e as any)?.activePayload?.[0]?.payload as { id: string } | undefined
-                      if (payload?.id) {
-                        setDrillGroup((prev) => prev === payload.id ? null : payload.id)
-                      }
-                    }}
-                    style={{ cursor: "pointer" }}
                   >
                     <CartesianGrid horizontal={false} strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis type="number" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} allowDecimals={false} />
                     <YAxis
                       type="category"
                       dataKey="name"
-                      width={96}
-                      tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-                      tickFormatter={(v: string) => truncate(v, 10)}
+                      width={80}
+                      tick={<WrapTick />}
+                      interval={0}
                     />
                     <Tooltip
                       content={({ active, payload }) => {
@@ -472,7 +493,14 @@ export function AnalyticsPage() {
                         )
                       }}
                     />
-                    <Bar dataKey="count" radius={[0, 3, 3, 0]} maxBarSize={22}>
+                    <Bar dataKey="count" radius={[0, 3, 3, 0]} maxBarSize={22}
+                      onClick={(data: { id: string }) => {
+                        if (data?.id) {
+                          setDrillGroup((prev) => prev === data.id ? null : data.id)
+                        }
+                      }}
+                      style={{ cursor: "pointer" }}
+                    >
                       {groupChartData.map((d) => (
                         <Cell
                           key={d.id}
@@ -517,7 +545,7 @@ export function AnalyticsPage() {
             ) : userChartData.length === 0 ? (
               <EmptyState text="暂无用户消息数据" />
             ) : (
-              <ResponsiveContainer width="100%" height={Math.max(userChartData.length * 30 + 20, 160)}>
+              <ResponsiveContainer width="100%" height={Math.max(userChartData.length * 40 + 24, 160)}>
                 <BarChart
                   layout="vertical"
                   data={userChartData}
@@ -528,9 +556,9 @@ export function AnalyticsPage() {
                   <YAxis
                     type="category"
                     dataKey="name"
-                    width={96}
-                    tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-                    tickFormatter={(v: string) => truncate(v, 10)}
+                    width={80}
+                    tick={<WrapTick />}
+                    interval={0}
                   />
                   <Tooltip
                     content={({ active, payload }) => {
