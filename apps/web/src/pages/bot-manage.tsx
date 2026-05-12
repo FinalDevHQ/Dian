@@ -133,11 +133,24 @@ export function BotManagePage() {
                 busy={!!busyBots[b.botId]}
                 onEdit={() => setEditingBotId(b.botId)}
                 onToggle={async (enabled) => {
+                  // 乐观更新：先改本地状态
+                  setBots((prev) => {
+                    if (!prev) return prev
+                    return prev.map((bot) =>
+                      bot.botId === b.botId ? { ...bot, enabled } : bot
+                    )
+                  })
                   setBusyBots((m) => ({ ...m, [b.botId]: true }))
                   try {
                     await api.setBotEnabled(b.botId, enabled)
-                    setTimeout(refresh, 800)
                   } catch (err) {
+                    // 失败回滚
+                    setBots((prev) => {
+                      if (!prev) return prev
+                      return prev.map((bot) =>
+                        bot.botId === b.botId ? { ...bot, enabled: !enabled } : bot
+                      )
+                    })
                     setError(err instanceof Error ? err.message : String(err))
                   } finally {
                     setBusyBots((m) => ({ ...m, [b.botId]: false }))
@@ -333,19 +346,16 @@ function BotCard({
         {/* 操作栏 */}
         <div className="flex items-center justify-between border-t pt-2">
           <div className="flex items-center gap-2">
-            {busy ? (
-              <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
-            ) : (
-              <Switch
-                checked={bot.enabled}
-                disabled={busy}
-                onCheckedChange={(v) => { void onToggle(v) }}
-                aria-label={`toggle ${bot.botId}`}
-              />
-            )}
+            <Switch
+              checked={bot.enabled}
+              disabled={busy}
+              onCheckedChange={(v) => { void onToggle(v) }}
+              aria-label={`toggle ${bot.botId}`}
+            />
             <span className="text-xs text-muted-foreground">
               {bot.enabled ? "启用" : "禁用"}
             </span>
+            {busy && <Loader2 className="size-3.5 animate-spin text-muted-foreground" />}
           </div>
           <div className="flex items-center gap-1">
             <Button variant="ghost" size="sm" disabled={busy} onClick={onEdit} title="编辑 bot">
