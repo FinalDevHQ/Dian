@@ -9,6 +9,7 @@ export type {
 // 适配器
 export { SqliteLogRepository } from "./sqlite.js";
 export { SqliteMessageRepository } from "./sqlite-messages.js";
+export { SqlitePluginStore } from "./sqlite-plugin-store.js";
 export { MysqlLogRepository } from "./mysql.js";
 export { RedisRepository } from "./redis.js";
 

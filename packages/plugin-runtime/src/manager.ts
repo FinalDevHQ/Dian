@@ -18,6 +18,7 @@ import {
   type PluginMeta,
   type PluginPublicMeta,
   type PluginSetupContext,
+  type PluginStore,
   type RouteEntry,
   type UIDeclaration,
 } from "./decorators.js";
@@ -296,6 +297,7 @@ export class PluginManager {
     event: BotEvent,
     reply: (text: string) => Promise<void> = async () => {},
     sendAction: SendActionFn = async () => ({ ok: false, status: "failed", message: "sendAction not implemented" }),
+    store?: PluginStore,
   ): Promise<void> {
     if (this._maintenanceMode) return;
 
@@ -305,6 +307,7 @@ export class PluginManager {
       stopPropagation() { stopped = true; },
       reply,
       sendAction,
+      store,
     };
 
     // 1. 执行所有 interceptors（已全局按 priority 排序）

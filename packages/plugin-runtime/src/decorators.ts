@@ -1,5 +1,44 @@
 import type { BotEvent, SendActionFn, ActionResult } from "@dian/shared";
 
+/**
+ * 插件可用的存储接口
+ * 用于插件注册和操作自己的数据表
+ */
+export interface PluginStore {
+  /**
+   * 创建插件专属表
+   * @param tableName 完整表名（建议格式：插件名_功能名，如 qq_group_admin_bot_messages）
+   * @param columns 列定义，如 ["message_id TEXT", "group_id TEXT", "timestamp INTEGER"]
+   */
+  createTable(tableName: string, columns: string[]): Promise<void>;
+  
+  /**
+   * 插入数据
+   * @param tableName 完整表名
+   * @param data 要插入的数据对象
+   */
+  insert(tableName: string, data: Record<string, unknown>): Promise<void>;
+  
+  /**
+   * 查询数据
+   * @param tableName 完整表名
+   * @param params 查询条件
+   * @param options 选项（limit, orderBy 等）
+   */
+  query(tableName: string, params?: Record<string, unknown>, options?: {
+    limit?: number;
+    orderBy?: string;
+    order?: "ASC" | "DESC";
+  }): Promise<Record<string, unknown>[]>;
+  
+  /**
+   * 删除数据
+   * @param tableName 完整表名
+   * @param params 查询条件
+   */
+  delete(tableName: string, params?: Record<string, unknown>): Promise<number>;
+}
+
 // ---------------------------------------------------------------------------
 // 路由 / 指令 / UI 声明（供 onSetup 使用）
 // ---------------------------------------------------------------------------
@@ -184,6 +223,8 @@ export interface EventContext {
    * @returns       ActionResult
    */
   sendAction(action: string, params?: Record<string, unknown>): Promise<ActionResult>;
+  /** 插件存储接口，用于创建和操作插件专属表 */
+  store?: PluginStore;
 }
 
 // ---------------------------------------------------------------------------
