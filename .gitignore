@@ -18,6 +18,14 @@ data/
 .env.*
 !.env.example
 
+# Bot config with secrets
+config/bot.yaml
+!config/bot.yaml.example
+
+# Settings with secrets
+config/settings.yaml
+!config/settings.yaml.example
+
 # Editor
 .vscode/*
 !.vscode/settings.json

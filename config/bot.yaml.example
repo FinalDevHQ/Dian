@@ -1,0 +1,29 @@
+# bot.yaml — Bot 配置
+# 复制此文件为 bot.yaml 并填入实际的 accessToken
+
+bots:
+  - botId: 点点
+    enabled: true
+    mode: hybrid
+    ws:
+      url: ws://117.72.196.152:14001/
+      accessToken: ""  # 填入你的 WS accessToken
+      heartbeatIntervalMs: 30000
+      reconnectIntervalMs: 5000
+    http:
+      baseUrl: http://117.72.196.152:14000/
+      accessToken: ""  # 填入你的 HTTP accessToken
+      timeoutMs: 5000
+
+  # - botId: ikun
+  #   enabled: false
+  #   mode: hybrid
+  #   ws:
+  #     url: ws://192.168.2.14:7301/
+  #     accessToken: ""
+  #     heartbeatIntervalMs: 30000
+  #     reconnectIntervalMs: 5000
+  #   http:
+  #     baseUrl: http://192.168.2.14:7300/
+  #     accessToken: ""
+  #     timeoutMs: 5000
