@@ -33,6 +33,10 @@ export interface CommandEntry {
   pattern: Pattern;
   description?: string;
   handler: (ctx: EventContext) => void | Promise<void>;
+  /** 分类名，用于菜单分组展示，如 "基础群管" */
+  category?: string;
+  /** 子命令列表，用于树状菜单展示 */
+  children?: CommandEntry[];
 }
 
 export interface UIDeclaration {
@@ -54,6 +58,10 @@ export interface CommandPublicMeta {
   /** 当前 pattern 的字符串表示（函数 pattern 会被实时求值） */
   pattern: string;
   description?: string;
+  /** 分类名 */
+  category?: string;
+  /** 子命令（递归结构） */
+  children?: CommandPublicMeta[];
 }
 
 /** 事件处理器（@Handler）的公开信息 */
