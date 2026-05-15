@@ -4,7 +4,7 @@ import { readdir } from "node:fs/promises";
 import { resolve, extname, relative, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import chokidar, { type FSWatcher } from "chokidar";
-import type { BotEvent } from "@dian/shared";
+import type { BotEvent, SendActionFn, ActionResult } from "@dian/shared";
 import {
   PLUGIN_META_KEY,
   HANDLER_META_KEY,
@@ -295,6 +295,7 @@ export class PluginManager {
   async dispatch(
     event: BotEvent,
     reply: (text: string) => Promise<void> = async () => {},
+    sendAction: SendActionFn = async () => ({ ok: false, status: "failed", message: "sendAction not implemented" }),
   ): Promise<void> {
     if (this._maintenanceMode) return;
 
@@ -303,6 +304,7 @@ export class PluginManager {
       event,
       stopPropagation() { stopped = true; },
       reply,
+      sendAction,
     };
 
     // 1. 执行所有 interceptors（已全局按 priority 排序）

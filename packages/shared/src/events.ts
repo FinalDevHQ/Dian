@@ -76,6 +76,12 @@ export interface ActionResult<TData = unknown> {
   data?: TData;
 }
 
+/**
+ * 通用 action 发送函数类型
+ * 插件通过此函数调用底层 API（OneBot/飞书等），无需关心具体实现
+ */
+export type SendActionFn = (action: string, params?: Record<string, unknown>) => Promise<ActionResult>;
+
 // ---------------------------------------------------------------------------
 // OneBot v11 原始事件类型（仅 sdk 内部使用，外部不应直接依赖）
 // ---------------------------------------------------------------------------

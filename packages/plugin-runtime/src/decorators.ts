@@ -1,4 +1,4 @@
-import type { BotEvent } from "@dian/shared";
+import type { BotEvent, SendActionFn, ActionResult } from "@dian/shared";
 
 // ---------------------------------------------------------------------------
 // 路由 / 指令 / UI 声明（供 onSetup 使用）
@@ -177,6 +177,13 @@ export interface EventContext {
   stopPropagation(): void;
   /** 向事件来源（群/私聊）发送文本回复 */
   reply(text: string): Promise<void>;
+  /**
+   * 发送 action 请求到底层 API（OneBot/飞书等）
+   * @param action  action 名称，如 "send_group_msg"、"set_group_ban"
+   * @param params  action 参数
+   * @returns       ActionResult
+   */
+  sendAction(action: string, params?: Record<string, unknown>): Promise<ActionResult>;
 }
 
 // ---------------------------------------------------------------------------

@@ -78,6 +78,11 @@ async function main(): Promise<void> {
     ? installMessagePersistence(storageService.message)
     : null;
 
+  // 注入消息仓库到 dispatcher，用于存储机器人发送的消息
+  if (storageService.hasMessage) {
+    dispatcher.setMessageRepository(storageService.message);
+  }
+
   const botManager = new BotManager(
     configService,
     logger,
