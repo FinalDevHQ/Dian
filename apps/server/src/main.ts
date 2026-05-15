@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { configService } from "@dian/config";
 import { logService } from "@dian/logger";
 import { pluginManager } from "@dian/plugin-runtime";
-import { storageService } from "@dian/storage";
+import { storageService, SqlitePluginStore } from "@dian/storage";
 import { BotManager } from "./bot/bot-manager.js";
 import { EventBus } from "./event/event-bus.js";
 import { EventDispatcher } from "./event/event-dispatcher.js";
@@ -81,6 +81,14 @@ async function main(): Promise<void> {
   // 注入消息仓库到 dispatcher，用于存储机器人发送的消息
   if (storageService.hasMessage) {
     dispatcher.setMessageRepository(storageService.message);
+  }
+
+  // 创建插件存储实例
+  if (configService.settings.storage?.sqlite) {
+    const sqliteFile = resolve(ROOT_DIR, configService.settings.storage.sqlite);
+    const pluginStore = new SqlitePluginStore(sqliteFile);
+    dispatcher.setStore(pluginStore);
+    logger.info("Plugin store enabled (SQLite)");
   }
 
   const botManager = new BotManager(

@@ -1,6 +1,8 @@
 import type { BotEvent } from "@dian/shared";
 import type { LogService } from "@dian/logger";
 import type { MessageRepository } from "@dian/storage";
+import { SqlitePluginStore } from "@dian/storage";
+import type { PluginStore } from "@dian/plugin-runtime";
 import { pluginManager } from "@dian/plugin-runtime";
 import type { BotManager } from "../bot/bot-manager.js";
 
@@ -16,6 +18,9 @@ export class EventDispatcher {
   private readonly MAX_SEEN = 2000;
   private botManager?: BotManager;
   private messageRepo?: MessageRepository;
+  private sqliteStore?: SqlitePluginStore;
+  /** 已初始化的插件表 */
+  private initializedTables = new Set<string>();
 
   constructor(logger: LogService) {
     this.log = logger.child({ component: "EventDispatcher" });
@@ -27,6 +32,21 @@ export class EventDispatcher {
 
   setMessageRepository(repo: MessageRepository): void {
     this.messageRepo = repo;
+  }
+
+  setStore(store: SqlitePluginStore): void {
+    this.sqliteStore = store;
+  }
+
+  /**
+   * 确保插件表存在
+   */
+  private async ensureTable(tableName: string, columns: string[]): Promise<void> {
+    if (this.initializedTables.has(tableName)) return;
+    if (!this.sqliteStore) return;
+    
+    await this.sqliteStore.createTable(tableName, columns);
+    this.initializedTables.add(tableName);
   }
 
   async dispatch(event: BotEvent): Promise<void> {
@@ -89,7 +109,7 @@ export class EventDispatcher {
               botId: event.botId,
               subtype: groupId ? "group" : "private",
               groupId: groupId,
-              userId: undefined, // 机器人发的，没有 userId
+              userId: undefined,
               senderName: undefined,
               messageId: String(replyMsgId),
               text: text,
@@ -97,6 +117,27 @@ export class EventDispatcher {
             }).catch((err) => {
               this.log.error("Failed to persist reply message", { err });
             });
+            
+            // 同时写入插件表
+            if (this.sqliteStore && groupId) {
+              this.ensureTable("qq_group_admin_bot_messages", [
+                "bot_id TEXT NOT NULL",
+                "group_id TEXT NOT NULL",
+                "message_id TEXT NOT NULL",
+                "text TEXT",
+                "timestamp INTEGER NOT NULL",
+              ]).then(() => {
+                return this.sqliteStore!.insert("qq_group_admin_bot_messages", {
+                  bot_id: event.botId,
+                  group_id: groupId,
+                  message_id: String(replyMsgId),
+                  text: text,
+                  timestamp: Math.floor(Date.now() / 1000),
+                });
+              }).catch((err) => {
+                this.log.error("Failed to persist reply to plugin table", { err });
+              });
+            }
           }
         }
       }
@@ -128,6 +169,27 @@ export class EventDispatcher {
           }).catch((err) => {
             this.log.error("Failed to persist sendAction message", { err });
           });
+          
+          // 同时写入插件表
+          if (this.sqliteStore && groupId) {
+            this.ensureTable("qq_group_admin_bot_messages", [
+              "bot_id TEXT NOT NULL",
+              "group_id TEXT NOT NULL",
+              "message_id TEXT NOT NULL",
+              "text TEXT",
+              "timestamp INTEGER NOT NULL",
+            ]).then(() => {
+              return this.sqliteStore!.insert("qq_group_admin_bot_messages", {
+                bot_id: event.botId,
+                group_id: String(groupId),
+                message_id: String(replyMsgId),
+                text: typeof params?.message === "string" ? params.message : null,
+                timestamp: Math.floor(Date.now() / 1000),
+              });
+            }).catch((err) => {
+              this.log.error("Failed to persist sendAction to plugin table", { err });
+            });
+          }
         }
       }
       
@@ -135,7 +197,15 @@ export class EventDispatcher {
     };
 
     try {
-      await pluginManager.dispatch(event, reply, sendAction);
+      // 创建 PluginStore 包装器
+      const pluginStore: PluginStore | undefined = this.sqliteStore ? {
+        createTable: (tableName, columns) => this.sqliteStore!.createTable(tableName, columns),
+        insert: (tableName, data) => this.sqliteStore!.insert(tableName, data),
+        query: (tableName, params, options) => this.sqliteStore!.query(tableName, params, options),
+        delete: (tableName, params) => this.sqliteStore!.delete(tableName, params),
+      } : undefined;
+      
+      await pluginManager.dispatch(event, reply, sendAction, pluginStore);
     } catch (err) {
       this.log.error("Plugin dispatch error", { err, eventId: event.eventId });
     }
