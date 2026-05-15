@@ -4,12 +4,13 @@ import { readdir } from "node:fs/promises";
 import { resolve, extname, relative, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import chokidar, { type FSWatcher } from "chokidar";
-import type { BotEvent } from "@dian/shared";
+import type { BotEvent, SendActionFn, ActionResult } from "@dian/shared";
 import {
   PLUGIN_META_KEY,
   HANDLER_META_KEY,
   INTERCEPTOR_META_KEY,
   type CommandEntry,
+  type CommandPublicMeta,
   type EventContext,
   type HandlerMeta,
   type InterceptorMeta,
@@ -17,6 +18,7 @@ import {
   type PluginMeta,
   type PluginPublicMeta,
   type PluginSetupContext,
+  type PluginStore,
   type RouteEntry,
   type UIDeclaration,
 } from "./decorators.js";
@@ -221,6 +223,72 @@ export class PluginManager {
   // ── 事件分发 ──────────────────────────────────────────────────────────────
 
   /**
+   * 生成树状帮助菜单文本
+   * 遍历所有已注册的命令，按分类组织成树状结构
+   */
+  generateHelpText(): string {
+    const lines: string[] = ["📋 可用命令："];
+    
+    // 收集所有命令，按分类分组
+    const categorized = new Map<string, Array<{ name: string; description?: string; children?: CommandEntry[] }>>();
+    const uncategorized: Array<{ name: string; description?: string; children?: CommandEntry[] }> = [];
+
+    for (const plugin of this._plugins.values()) {
+      if (this._blacklist.has(plugin.meta.name)) continue;
+      
+      for (const cmd of plugin.commands) {
+        const entry = { name: cmd.name, description: cmd.description, children: cmd.children };
+        if (cmd.category) {
+          if (!categorized.has(cmd.category)) {
+            categorized.set(cmd.category, []);
+          }
+          categorized.get(cmd.category)!.push(entry);
+        } else {
+          uncategorized.push(entry);
+        }
+      }
+    }
+
+    // 渲染分类命令
+    let categoryIndex = 0;
+    for (const [category, commands] of categorized) {
+      categoryIndex++;
+      const isLastCategory = categoryIndex === categorized.size && uncategorized.length === 0;
+      lines.push(`${isLastCategory ? "└" : "├"}─ ${category}`);
+      
+      for (let i = 0; i < commands.length; i++) {
+        const cmd = commands[i];
+        const isLast = i === commands.length - 1;
+        const prefix = isLastCategory ? "   " : "│  ";
+        const branch = isLast ? "└" : "├";
+        const desc = cmd.description ? ` - ${cmd.description}` : "";
+        lines.push(`${prefix}${branch} ${cmd.name}${desc}`);
+        
+        // 渲染子命令
+        if (cmd.children && cmd.children.length > 0) {
+          const childPrefix = isLastCategory ? "   " : "│  ";
+          renderChildren(cmd.children, lines, `${childPrefix}${isLast ? "   " : "│  "}`);
+        }
+      }
+    }
+
+    // 渲染未分类命令
+    for (let i = 0; i < uncategorized.length; i++) {
+      const cmd = uncategorized[i];
+      const isLast = i === uncategorized.length - 1;
+      const branch = isLast ? "└" : "├";
+      const desc = cmd.description ? ` - ${cmd.description}` : "";
+      lines.push(`${branch} ${cmd.name}${desc}`);
+      
+      if (cmd.children && cmd.children.length > 0) {
+        renderChildren(cmd.children, lines, isLast ? "   " : "│  ");
+      }
+    }
+
+    return lines.join("\n");
+  }
+
+  /**
    * 将事件分发给所有匹配的 handler。
    * 先按 priority 执行 interceptors，任意 interceptor 可调用 stopPropagation() 终止。
    * 再按注册顺序执行匹配 pattern 的 handlers。
@@ -228,6 +296,8 @@ export class PluginManager {
   async dispatch(
     event: BotEvent,
     reply: (text: string) => Promise<void> = async () => {},
+    sendAction: SendActionFn = async () => ({ ok: false, status: "failed", message: "sendAction not implemented" }),
+    store?: PluginStore,
   ): Promise<void> {
     if (this._maintenanceMode) return;
 
@@ -236,6 +306,8 @@ export class PluginManager {
       event,
       stopPropagation() { stopped = true; },
       reply,
+      sendAction,
+      store,
     };
 
     // 1. 执行所有 interceptors（已全局按 priority 排序）
@@ -261,8 +333,18 @@ export class PluginManager {
 
     if (stopped) return;
 
-    // 2. 执行匹配 pattern 的 handlers + commands
+    // 2. 内置菜单/帮助命令
     const messageText = extractMessageText(event);
+    if (/^菜单$|^help$|^帮助$/i.test(messageText.trim())) {
+      try {
+        await reply(this.generateHelpText());
+      } catch (err) {
+        console.error(`[plugin-runtime] 生成帮助菜单异常:`, err);
+      }
+      return;
+    }
+
+    // 3. 执行匹配 pattern 的 handlers + commands
 
     for (const plugin of this._plugins.values()) {
       if (stopped) return;
@@ -380,6 +462,8 @@ export class PluginManager {
         name: c.name,
         pattern: stringifyPattern(c.pattern),
         description: c.description,
+        category: c.category,
+        children: c.children ? mapCommandChildren(c.children) : undefined,
       })),
       bots: this.getPluginBots(p.meta.name),
       routes: p.routes.map((r) => ({ method: r.method, path: r.path })),
@@ -438,6 +522,40 @@ function extractMessageText(event: BotEvent): string {
       .join("");
   }
   return "";
+}
+
+/**
+ * 递归渲染子命令树
+ */
+function renderChildren(
+  children: CommandEntry[],
+  lines: string[],
+  prefix: string,
+): void {
+  for (let i = 0; i < children.length; i++) {
+    const child = children[i];
+    const isLast = i === children.length - 1;
+    const branch = isLast ? "└" : "├";
+    const desc = child.description ? ` - ${child.description}` : "";
+    lines.push(`${prefix}${branch} ${child.name}${desc}`);
+    
+    if (child.children && child.children.length > 0) {
+      renderChildren(child.children, lines, `${prefix}${isLast ? "   " : "│  "}`);
+    }
+  }
+}
+
+/**
+ * 递归映射子命令到公开元信息
+ */
+function mapCommandChildren(children: CommandEntry[]): CommandPublicMeta[] {
+  return children.map((c) => ({
+    name: c.name,
+    pattern: stringifyPattern(c.pattern),
+    description: c.description,
+    category: c.category,
+    children: c.children ? mapCommandChildren(c.children) : undefined,
+  }));
 }
 
 // ---------------------------------------------------------------------------

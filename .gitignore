@@ -18,6 +18,14 @@ data/
 .env.*
 !.env.example
 
+# Bot config with secrets
+config/bot.yaml
+!config/bot.yaml.example
+
+# Settings with secrets
+config/settings.yaml
+!config/settings.yaml.example
+
 # Editor
 .vscode/*
 !.vscode/settings.json
@@ -27,6 +35,13 @@ data/
 *.ntvs*
 *.njsproj
 *.sln
+
+# External plugin repos (independent repositories, not part of this framework)
+Dian-plugin-help/
+Dian-plugin-qq-manager/
+Dian-plugin-template/
+Dian-plugins/
+plugin-template/
 
 # OS
 .DS_Store

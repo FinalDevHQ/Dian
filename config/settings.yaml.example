@@ -1,0 +1,26 @@
+# settings.yaml — 全局设置
+# 复制此文件为 settings.yaml 并填入实际值
+
+# 日志级别：debug | info | warn | error
+logLevel: info
+
+# 认证配置
+auth:
+  # 密码的 bcrypt 哈希值（默认密码: change_me）
+  # 使用 `node -e "console.log(require('bcryptjs').hashSync('your_password', 10))"` 生成
+  passwordHash: ""
+  # JWT 密钥，留空则自动生成随机串（建议生产环境设置固定值）
+  # jwtSecret: "your-secret-key-here"
+  # Token 有效期（秒），默认 86400 (24小时)
+  tokenExpiresIn: 86400
+
+# 存储连接配置（按需填写，不需要的留空即可）
+storage:
+  # SQLite 数据库文件路径（相对于项目根目录）
+  sqlite: data/dian.db
+
+  # MySQL 连接字符串（可选）
+  # mysql: mysql://user:password@localhost:3306/dian
+
+  # Redis 连接字符串（可选）
+  # redis: redis://localhost:6379

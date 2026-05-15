@@ -20,6 +20,7 @@ export type {
   PluginSetupContext,
   PluginInstance,
   EventContext,
+  PluginStore,
   Pattern,
   HttpMethod,
   RouteHandler,

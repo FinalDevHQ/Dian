@@ -1,4 +1,43 @@
-import type { BotEvent } from "@dian/shared";
+import type { BotEvent, SendActionFn, ActionResult } from "@dian/shared";
+
+/**
+ * 插件可用的存储接口
+ * 用于插件注册和操作自己的数据表
+ */
+export interface PluginStore {
+  /**
+   * 创建插件专属表
+   * @param tableName 完整表名（建议格式：插件名_功能名，如 qq_group_admin_bot_messages）
+   * @param columns 列定义，如 ["message_id TEXT", "group_id TEXT", "timestamp INTEGER"]
+   */
+  createTable(tableName: string, columns: string[]): Promise<void>;
+  
+  /**
+   * 插入数据
+   * @param tableName 完整表名
+   * @param data 要插入的数据对象
+   */
+  insert(tableName: string, data: Record<string, unknown>): Promise<void>;
+  
+  /**
+   * 查询数据
+   * @param tableName 完整表名
+   * @param params 查询条件
+   * @param options 选项（limit, orderBy 等）
+   */
+  query(tableName: string, params?: Record<string, unknown>, options?: {
+    limit?: number;
+    orderBy?: string;
+    order?: "ASC" | "DESC";
+  }): Promise<Record<string, unknown>[]>;
+  
+  /**
+   * 删除数据
+   * @param tableName 完整表名
+   * @param params 查询条件
+   */
+  delete(tableName: string, params?: Record<string, unknown>): Promise<number>;
+}
 
 // ---------------------------------------------------------------------------
 // 路由 / 指令 / UI 声明（供 onSetup 使用）
@@ -33,6 +72,10 @@ export interface CommandEntry {
   pattern: Pattern;
   description?: string;
   handler: (ctx: EventContext) => void | Promise<void>;
+  /** 分类名，用于菜单分组展示，如 "基础群管" */
+  category?: string;
+  /** 子命令列表，用于树状菜单展示 */
+  children?: CommandEntry[];
 }
 
 export interface UIDeclaration {
@@ -54,6 +97,10 @@ export interface CommandPublicMeta {
   /** 当前 pattern 的字符串表示（函数 pattern 会被实时求值） */
   pattern: string;
   description?: string;
+  /** 分类名 */
+  category?: string;
+  /** 子命令（递归结构） */
+  children?: CommandPublicMeta[];
 }
 
 /** 事件处理器（@Handler）的公开信息 */
@@ -169,6 +216,15 @@ export interface EventContext {
   stopPropagation(): void;
   /** 向事件来源（群/私聊）发送文本回复 */
   reply(text: string): Promise<void>;
+  /**
+   * 发送 action 请求到底层 API（OneBot/飞书等）
+   * @param action  action 名称，如 "send_group_msg"、"set_group_ban"
+   * @param params  action 参数
+   * @returns       ActionResult
+   */
+  sendAction(action: string, params?: Record<string, unknown>): Promise<ActionResult>;
+  /** 插件存储接口，用于创建和操作插件专属表 */
+  store?: PluginStore;
 }
 
 // ---------------------------------------------------------------------------
