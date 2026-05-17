@@ -39,3 +39,5 @@ config/settings.yaml
 # OS
 .DS_Store
 Thumbs.db
+
+.plugins/
