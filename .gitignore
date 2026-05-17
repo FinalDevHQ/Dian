@@ -36,6 +36,13 @@ config/settings.yaml
 *.njsproj
 *.sln
 
+# External plugin repos (independent repositories, not part of this framework)
+Dian-plugin-help/
+Dian-plugin-qq-manager/
+Dian-plugin-template/
+Dian-plugins/
+plugin-template/
+
 # OS
 .DS_Store
 Thumbs.db
