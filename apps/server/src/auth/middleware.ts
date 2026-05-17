@@ -7,9 +7,12 @@ const PUBLIC_PREFIXES = [
   "/auth/check",
   "/health",
   "/status",
+  "/plugins",   // 插件列表和插件 UI/API（插件可自行决定是否需要认证）
 ];
 
-function isPublicPath(path: string): boolean {
+function isPublicPath(url: string): boolean {
+  // 去掉查询参数，只检查路径部分
+  const path = url.split("?")[0];
   return PUBLIC_PREFIXES.some((p) => path.startsWith(p));
 }
 
