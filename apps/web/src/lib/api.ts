@@ -345,10 +345,11 @@ export const api = {
   deletePlugin: (name: string) =>
     request<{ ok: boolean }>(`/plugins/${encodeURIComponent(name)}`, { method: "DELETE" }),
 
-  uploadPlugin: (name: string, file: File) => {
+  uploadPlugin: (name: string, file: File, force = false) => {
     const safeName = name.replace(/\.zip$/i, "")
     const token = getToken()
-    return fetch(`${BASE_URL}/plugins/upload?name=${encodeURIComponent(safeName)}`, {
+    const qs = `name=${encodeURIComponent(safeName)}${force ? "&force=true" : ""}`
+    return fetch(`${BASE_URL}/plugins/upload?${qs}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/octet-stream",
@@ -361,7 +362,11 @@ export const api = {
         window.location.reload()
         throw new Error("未登录或登录已过期")
       }
-      const data = await res.json() as { ok?: boolean; error?: string; name?: string }
+      const data = await res.json() as {
+        ok?: boolean; error?: string; name?: string; replaced?: boolean;
+        exists?: boolean; currentVersion?: string | null; hint?: string;
+      }
+      if (res.status === 409) return data
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`)
       return data
     })
@@ -484,7 +489,11 @@ export const marketApi = {
     return res.json() as Promise<MarketIndex>
   },
   /** 让服务端代理下载并安装插件 ZIP */
-  async installFromUrl(url: string): Promise<{ ok: boolean; name: string }> {
+  async installFromUrl(url: string, force = false): Promise<{
+    ok?: boolean; name?: string; replaced?: boolean;
+    exists?: boolean; currentVersion?: string | null; hint?: string;
+    error?: string;
+  }> {
     const token = getToken()
     const res = await fetch(`${BASE_URL}/plugins/install-from-url`, {
       method: "POST",
@@ -492,18 +501,19 @@ export const marketApi = {
         "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: JSON.stringify({ url }),
+      body: JSON.stringify({ url, force }),
     })
     if (res.status === 401) {
       clearToken()
       window.location.reload()
       throw new Error("未登录或登录已过期")
     }
+    const data = await res.json().catch(() => ({ error: res.statusText }))
+    if (res.status === 409) return data as { exists: boolean; name: string; currentVersion: string | null }
     if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: res.statusText }))
-      throw new Error((err as { error?: string }).error ?? res.statusText)
+      throw new Error((data as { error?: string }).error ?? res.statusText)
     }
-    return res.json() as Promise<{ ok: boolean; name: string }>
+    return data as { ok: boolean; name: string; replaced?: boolean }
   },
 }
 

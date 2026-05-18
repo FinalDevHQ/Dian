@@ -42,6 +42,8 @@ function UploadDialog({
   const [dragging, setDragging] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null)
+  // 冲突状态：后端返回 409 时保存已有插件信息，等待用户确认覆盖
+  const [conflict, setConflict] = useState<{ name: string; currentVersion: string | null } | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const accept = (f: File) => {
@@ -51,6 +53,7 @@ function UploadDialog({
     }
     setFile(f)
     setResult(null)
+    setConflict(null)
   }
 
   const handleDrop = (e: React.DragEvent) => {
@@ -60,13 +63,20 @@ function UploadDialog({
     if (f) accept(f)
   }
 
-  const handleInstall = async () => {
+  const doUpload = async (force: boolean) => {
     if (!file) return
     setUploading(true)
     setResult(null)
     try {
-      await api.uploadPlugin(file.name, file)
-      setResult({ ok: true, msg: `插件 "${file.name.replace(/\.zip$/i, "")}" 安装成功，HTTP 路由重启后生效` })
+      const data = await api.uploadPlugin(file.name, file, force)
+      // 后端返回 409：插件已存在，等待用户确认
+      if (data.exists) {
+        setConflict({ name: data.name ?? file.name.replace(/\.zip$/i, ""), currentVersion: data.currentVersion ?? null })
+        return
+      }
+      const pluginName = data.name ?? file.name.replace(/\.zip$/i, "")
+      setResult({ ok: true, msg: `插件 "${pluginName}" ${data.replaced ? "覆盖更新" : "安装"}成功，已自动加载` })
+      setConflict(null)
       onSuccess()
     } catch (err) {
       setResult({ ok: false, msg: err instanceof Error ? err.message : String(err) })
@@ -74,6 +84,9 @@ function UploadDialog({
       setUploading(false)
     }
   }
+
+  const handleInstall = () => doUpload(false)
+  const handleForceInstall = () => doUpload(true)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
@@ -127,6 +140,40 @@ function UploadDialog({
             onChange={(e) => { const f = e.target.files?.[0]; if (f) accept(f) }}
           />
 
+          {/* 覆盖安装确认 */}
+          {conflict && (
+            <div className="flex flex-col gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2.5">
+              <div className="flex items-start gap-2 text-xs text-amber-700">
+                <AlertCircle className="mt-0.5 size-3.5 shrink-0" />
+                <span>
+                  插件 <strong>"{conflict.name}"</strong> 已安装
+                  {conflict.currentVersion ? ` (v${conflict.currentVersion})` : ""}
+                  ，继续将覆盖现有版本。
+                </span>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 text-xs"
+                  onClick={() => setConflict(null)}
+                  disabled={uploading}
+                >
+                  取消
+                </Button>
+                <Button
+                  size="sm"
+                  className="flex-1 bg-amber-500 text-xs text-white hover:bg-amber-600"
+                  onClick={handleForceInstall}
+                  disabled={uploading}
+                >
+                  {uploading ? <Loader2 className="mr-1 size-3 animate-spin" /> : null}
+                  覆盖安装
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* 结果提示 */}
           {result && (
             <div className={cn(
@@ -142,24 +189,25 @@ function UploadDialog({
             </div>
           )}
 
-          {/* 操作按钮 */}
-          <div className="flex gap-2">
-            <Button variant="outline" className="flex-1" onClick={onClose} disabled={uploading}>
-              关闭
-            </Button>
-            <Button
-              className="flex-1"
-              onClick={handleInstall}
-              disabled={!file || uploading || result?.ok === true}
-            >
-              {uploading ? <Loader2 className="mr-1.5 size-3.5 animate-spin" /> : <Upload className="mr-1.5 size-3.5" />}
-              {uploading ? "安装中…" : "安装"}
-            </Button>
-          </div>
+          {/* 操作按钮（冲突确认时隐藏，避免双排按钮） */}
+          {!conflict && (
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={onClose} disabled={uploading}>
+                关闭
+              </Button>
+              <Button
+                className="flex-1"
+                onClick={handleInstall}
+                disabled={!file || uploading || result?.ok === true}
+              >
+                {uploading ? <Loader2 className="mr-1.5 size-3.5 animate-spin" /> : <Upload className="mr-1.5 size-3.5" />}
+                {uploading ? "安装中…" : "安装"}
+              </Button>
+            </div>
+          )}
 
           <p className="text-[11px] text-muted-foreground">
-            ZIP 会解压到 <code className="font-mono">plugins/&lt;name&gt;/</code> 目录。
-            事件 handler / 指令热加载生效；HTTP API 路由需重启服务。
+            ZIP 会解压到 <code className="font-mono">plugins/&lt;name&gt;/</code> 目录并自动加载。
           </p>
         </div>
       </div>

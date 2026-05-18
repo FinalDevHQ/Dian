@@ -20,6 +20,7 @@ type InstallState =
   | { kind: "loading" }
   | { kind: "success" }
   | { kind: "error"; msg: string }
+  | { kind: "conflict"; currentVersion: string | null }
 
 // ── 标签语义配色 ─────────────────────────────────────────────────────────────
 
@@ -78,16 +79,33 @@ function PluginCard({
   const needsUpdate         = !!installed && !isInstalledUpToDate
   const showInstalled       = state.kind === "success" || isInstalledUpToDate
 
-  const handleInstall = useCallback(async () => {
+  const doInstall = useCallback(async (force: boolean) => {
     setState({ kind: "loading" })
     try {
-      await marketApi.installFromUrl(plugin.downloadUrl)
+      const data = await marketApi.installFromUrl(plugin.downloadUrl, force)
+      // 后端返回 409：插件已存在
+      if (data.exists) {
+        // 如果本来就是更新操作，直接以 force 重试
+        if (needsUpdate) {
+          const retry = await marketApi.installFromUrl(plugin.downloadUrl, true)
+          if (retry.exists) throw new Error("覆盖安装失败")
+          setState({ kind: "success" })
+          onInstalled()
+          return
+        }
+        // 首次安装但服务器上已有同名插件 → 让用户确认
+        setState({ kind: "conflict", currentVersion: data.currentVersion ?? null })
+        return
+      }
       setState({ kind: "success" })
       onInstalled()
     } catch (err) {
       setState({ kind: "error", msg: err instanceof Error ? err.message : String(err) })
     }
-  }, [plugin.downloadUrl, onInstalled])
+  }, [plugin.downloadUrl, needsUpdate, onInstalled])
+
+  const handleInstall = useCallback(() => doInstall(false), [doInstall])
+  const handleForceInstall = useCallback(() => doInstall(true), [doInstall])
 
   const icon        = plugin.icon
   const isEmojiIcon = icon && !/^https?:\/\//.test(icon) && !icon.startsWith("/")
@@ -184,6 +202,32 @@ function PluginCard({
           </div>
         )}
 
+        {/* 覆盖安装确认 */}
+        {state.kind === "conflict" && (
+          <div className="flex flex-col gap-2 rounded-lg border border-amber-400/30 bg-amber-50/80 px-3 py-2.5 dark:bg-amber-950/30">
+            <p className="text-[12px] leading-relaxed text-amber-700 dark:text-amber-400">
+              该插件已安装{state.currentVersion ? ` (v${state.currentVersion})` : ""}，是否覆盖为 v{plugin.version}？
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-6 flex-1 text-[11px]"
+                onClick={() => setState({ kind: "idle" })}
+              >
+                取消
+              </Button>
+              <Button
+                size="sm"
+                className="h-6 flex-1 bg-amber-500 text-[11px] text-white hover:bg-amber-600"
+                onClick={() => void handleForceInstall()}
+              >
+                覆盖安装
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* 底部操作栏 */}
         <div className="mt-auto flex items-center justify-between border-t border-border/60 pt-3.5">
           {/* 主页链接 */}
@@ -231,6 +275,8 @@ function PluginCard({
               <ArrowUpCircle className="size-3.5" />
               更新 → v{plugin.version}
             </Button>
+          ) : state.kind === "conflict" ? (
+            <span />
           ) : (
             <Button
               size="sm"

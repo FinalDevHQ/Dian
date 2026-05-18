@@ -156,11 +156,12 @@ export async function pluginRoutes(
 
   // ── POST /plugins/upload ─────────────────────────────────────────────────
   app.post<{
-    Querystring: { name?: string };
+    Querystring: { name?: string; force?: string };
     Body: Buffer;
   }>("/plugins/upload", async (req, reply) => {
     const rawName = req.query.name ?? "";
     const name = rawName.trim().replace(/\.zip$/i, "");
+    const force = req.query.force === "true";
 
     if (!name || !/^[\w-]+$/.test(name)) {
       return reply.code(400).send({ error: "missing or invalid ?name= (alphanumeric / dash / underscore only)" });
@@ -172,8 +173,38 @@ export async function pluginRoutes(
     }
 
     const destDir = join(pluginsDir, name);
+    const alreadyExists = existsSync(destDir) || existsSync(join(pluginsDir, `${name}.js`));
+
+    // 如果已存在且未传 force，返回 409 让前端确认
+    if (alreadyExists && !force) {
+      const loaded = pluginManager.plugins.find(
+        (p) => p.meta.name === name || resolve(p.filePath).startsWith(resolve(destDir) + sep) || resolve(p.filePath).startsWith(resolve(destDir) + "/")
+      );
+      return reply.code(409).send({
+        exists: true,
+        name,
+        currentVersion: loaded?.meta.version ?? null,
+        hint: "插件已存在，传 ?force=true 覆盖安装",
+      });
+    }
 
     try {
+      pluginManager.setInstallLock(true);
+
+      // 覆盖安装：卸载旧插件 + 清理旧文件
+      if (alreadyExists) {
+        pluginManager.unloadByDir(destDir);
+        // 也按名称卸载（目录名和 meta.name 可能不同）
+        pluginManager.unload(name);
+        if (existsSync(destDir)) {
+          await rm(destDir, { recursive: true, force: true });
+        }
+        const singleFile = join(pluginsDir, `${name}.js`);
+        if (existsSync(singleFile)) {
+          await unlink(singleFile);
+        }
+      }
+
       await mkdir(destDir, { recursive: true });
 
       // 使用 fflate 解压 ZIP（纯 JS，跨平台无需 PowerShell）
@@ -195,9 +226,18 @@ export async function pluginRoutes(
         });
       });
 
-      logger.info(`Plugin installed: ${name} -> ${destDir}`);
-      return reply.send({ ok: true, name, destDir });
+      // 自动加载新插件到内存
+      const indexFile = join(destDir, "index.js");
+      if (existsSync(indexFile)) {
+        await pluginManager.loadFromPath(indexFile);
+      }
+
+      pluginManager.setInstallLock(false);
+
+      logger.info(`Plugin ${alreadyExists ? "updated" : "installed"}: ${name} -> ${destDir}`);
+      return reply.send({ ok: true, name, destDir, replaced: alreadyExists });
     } catch (err) {
+      pluginManager.setInstallLock(false);
       logger.error(`Plugin install failed: ${name}`, { err: (err as Error).message });
       return reply.code(500).send({ error: (err as Error).message });
     }
@@ -206,9 +246,10 @@ export async function pluginRoutes(
   // ── POST /plugins/install-from-url ──────────────────────────────────────
   // 服务端下载 ZIP 并安装，避免浏览器直接请求 GitHub Release 时的 CORS / 重定向问题
   app.post<{
-    Body: { url?: unknown };
+    Body: { url?: unknown; force?: unknown };
   }>("/plugins/install-from-url", async (req, reply) => {
-    const { url } = (req.body ?? {}) as { url?: unknown };
+    const { url, force: rawForce } = (req.body ?? {}) as { url?: unknown; force?: unknown };
+    const force = rawForce === true || rawForce === "true";
     if (typeof url !== "string" || !url.startsWith("http")) {
       return reply.code(400).send({ error: "url must be a valid http/https string" });
     }
@@ -217,6 +258,22 @@ export async function pluginRoutes(
     const urlName = url.split("/").pop()?.replace(/\.zip$/i, "").trim() ?? "";
     if (!urlName || !/^[\w-]+$/.test(urlName)) {
       return reply.code(400).send({ error: "cannot infer plugin name from url" });
+    }
+
+    const destDir = join(pluginsDir, urlName);
+    const alreadyExists = existsSync(destDir) || existsSync(join(pluginsDir, `${urlName}.js`));
+
+    // 如果已存在且未传 force，返回 409 让前端确认
+    if (alreadyExists && !force) {
+      const loaded = pluginManager.plugins.find(
+        (p) => p.meta.name === urlName || resolve(p.filePath).startsWith(resolve(destDir) + sep) || resolve(p.filePath).startsWith(resolve(destDir) + "/")
+      );
+      return reply.code(409).send({
+        exists: true,
+        name: urlName,
+        currentVersion: loaded?.meta.version ?? null,
+        hint: "插件已存在，传 force: true 覆盖安装",
+      });
     }
 
     let zipData: Uint8Array;
@@ -231,8 +288,22 @@ export async function pluginRoutes(
       return reply.code(502).send({ error: `download failed: ${(err as Error).message}` });
     }
 
-    const destDir = join(pluginsDir, urlName);
     try {
+      pluginManager.setInstallLock(true);
+
+      // 覆盖安装：卸载旧插件 + 清理旧文件
+      if (alreadyExists) {
+        pluginManager.unloadByDir(destDir);
+        pluginManager.unload(urlName);
+        if (existsSync(destDir)) {
+          await rm(destDir, { recursive: true, force: true });
+        }
+        const singleFile = join(pluginsDir, `${urlName}.js`);
+        if (existsSync(singleFile)) {
+          await unlink(singleFile);
+        }
+      }
+
       await mkdir(destDir, { recursive: true });
 
       await new Promise<void>((res, rej) => {
@@ -252,9 +323,18 @@ export async function pluginRoutes(
         });
       });
 
-      logger.info(`Plugin installed from url: ${urlName} -> ${destDir}`);
-      return reply.send({ ok: true, name: urlName, destDir });
+      // 自动加载新插件到内存
+      const indexFile = join(destDir, "index.js");
+      if (existsSync(indexFile)) {
+        await pluginManager.loadFromPath(indexFile);
+      }
+
+      pluginManager.setInstallLock(false);
+
+      logger.info(`Plugin ${alreadyExists ? "updated" : "installed"} from url: ${urlName} -> ${destDir}`);
+      return reply.send({ ok: true, name: urlName, destDir, replaced: alreadyExists });
     } catch (err) {
+      pluginManager.setInstallLock(false);
       logger.error(`Plugin install-from-url failed: ${urlName}`, { err: (err as Error).message });
       return reply.code(500).send({ error: (err as Error).message });
     }
