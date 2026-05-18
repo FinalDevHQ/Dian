@@ -82,6 +82,7 @@ export async function createServer(opts: ServerOptions): Promise<{
     pluginsDir,
     knownBotIds: () => botManager.getBots().map((b) => b.botId),
     persistPluginScope,
+    botManager,
   });
   await app.register(botsRoutes, { logger, configDir });
   if (messageRepo) {

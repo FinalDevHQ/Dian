@@ -32,16 +32,16 @@ interface PluginRoutesOptions {
   logger: LogService;
   pluginsDir: string;
   /** 已知的 botId 列表，用于校验 PUT /plugins/:name/bots 提交的值 */
-  knownBotIds: () => string[];
-  /** 持久化插件 bot 白名单到磁盘 */
+  knownBotIds: () => readonly string[];
   persistPluginScope: () => Promise<void>;
+  botManager: import("../bot/bot-manager.js").BotManager;
 }
 
 export async function pluginRoutes(
   app: FastifyInstance,
   opts: PluginRoutesOptions
 ): Promise<void> {
-  const { logger, pluginsDir, knownBotIds, persistPluginScope } = opts;
+  const { logger, pluginsDir, knownBotIds, persistPluginScope, botManager } = opts;
 
   // ── GET /plugins ──────────────────────────────────────────────────────────
   app.get("/plugins", async (_req, reply) => {
@@ -343,6 +343,22 @@ export async function pluginRoutes(
   // ── 插件 API（catch-all，热插拔无需重启） ────────────────────────────────
   // 关键设计：不再为每个 plugin/route 单独 app.route()（那样卸载/重载会撞重复注册），
   // 而是注册一个通配 handler，根据请求 URL 在内存中查找当前已加载插件 + 路由实例。
+  // 支持路径参数 :param，匹配成功后会将参数注入 req.params。
+  function matchPluginRoute(routePath: string, actualPath: string): Record<string, string> | null {
+    const rp = routePath.split("/").filter(Boolean);
+    const ap = actualPath.split("/").filter(Boolean);
+    if (rp.length !== ap.length) return null;
+    const params: Record<string, string> = {};
+    for (let i = 0; i < rp.length; i++) {
+      if (rp[i].startsWith(":")) {
+        params[rp[i].slice(1)] = ap[i];
+      } else if (rp[i] !== ap[i]) {
+        return null;
+      }
+    }
+    return params;
+  }
+
   const apiHandler = async (req: import("fastify").FastifyRequest, reply: FastifyReply) => {
     const { name, '*': rest } = req.params as { name: string; "*": string };
     const subPath = `/${rest ?? ""}`.replace(/\/+$/, "") || "/";
@@ -351,12 +367,26 @@ export async function pluginRoutes(
     if (!plugin) {
       return reply.code(404).send({ error: `plugin "${name}" not loaded` });
     }
-    const route = plugin.routes.find(
-      (r) => r.method === req.method && (r.path === subPath || r.path === subPath + "/" || r.path + "/" === subPath)
-    );
+    const route = plugin.routes.find((r) => {
+      if (r.method !== req.method) return false;
+      // 先尝试精确匹配（无参数路由）
+      if (r.path === subPath || r.path === subPath + "/" || r.path + "/" === subPath) return true;
+      // 再尝试参数化匹配
+      const params = matchPluginRoute(r.path, subPath);
+      if (params) {
+        // 将解析出的参数注入 req.params，供 handler 使用
+        for (const [k, v] of Object.entries(params)) {
+          (req.params as Record<string, unknown>)[k] = v;
+        }
+        return true;
+      }
+      return false;
+    });
     if (!route) {
       return reply.code(404).send({ error: `no ${req.method} ${subPath} on plugin "${plugin.meta.name}"` });
     }
+    // 注入 botManager，供插件路由 handler 调用底层 API
+    ;(req as unknown as Record<string, unknown>).botManager = botManager;
     return route.handler(req, reply);
   };
 
