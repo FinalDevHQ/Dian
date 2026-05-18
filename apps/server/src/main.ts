@@ -51,15 +51,7 @@ async function main(): Promise<void> {
   }
 
   // ── 3. 加载插件 ───────────────────────────────────────────────────────────
-  logger.info(`Loading plugins from ${PLUGINS_DIR}`);
-  await pluginManager.loadAll(PLUGINS_DIR);
-  pluginManager.watch(); // 监听新安装的插件文件，自动热加载
-
-  // ── 3b. 加载插件 bot 白名单（必须在插件 load 之后；scope 与插件按 name 关联） ──
-  const pluginScopeIO = createPluginScopeIO(CONFIG_DIR, logger);
-  await pluginScopeIO.load();
-
-  // ── 4a. 数据库浏览器（按 settings.storage 注册数据源） ────────────────────
+  // 数据库浏览器必须在插件加载前创建，以便框架在 onPluginLoaded hook 中统一注册数据源
   const dbExplorer = new DatabaseExplorer(logger);
   if (configService.settings.storage?.sqlite) {
     const sqliteFile = resolve(
@@ -68,8 +60,23 @@ async function main(): Promise<void> {
     );
     dbExplorer.registerSqlite("default", sqliteFile);
   }
+  // 框架统一注册：每当插件加载（含热重载）完成，将其声明的 datasources 注册到 DatabaseExplorer
+  pluginManager.setOnPluginLoaded((plugin) => {
+    for (const ds of plugin.datasources) {
+      dbExplorer.registerSqlite(ds.name, ds.file);
+      logger.info(`Plugin datasource registered: ${ds.name} -> ${ds.file}`);
+    }
+  });
 
-  // ── 4b. 事件总线 + 分发器 & BotManager ────────────────────────────────────
+  logger.info(`Loading plugins from ${PLUGINS_DIR}`);
+  await pluginManager.loadAll(PLUGINS_DIR);
+  pluginManager.watch(); // 监听新安装的插件文件，自动热加载
+
+  // ── 3b. 加载插件 bot 白名单（必须在插件 load 之后；scope 与插件按 name 关联） ──
+  const pluginScopeIO = createPluginScopeIO(CONFIG_DIR, logger);
+  await pluginScopeIO.load();
+
+  // ── 4a. 事件总线 + 分发器 & BotManager ────────────────────────────────────
   const eventBus = new EventBus(200);
   const dispatcher = new EventDispatcher(logger);
 

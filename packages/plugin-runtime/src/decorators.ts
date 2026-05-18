@@ -141,6 +141,14 @@ export interface PluginSetupContext {
   command(entry: CommandEntry): void;
   /** 声明插件 Web UI */
   ui(decl: UIDeclaration): void;
+  /**
+   * 声明插件专属 SQLite 数据源。
+   * 框架会在插件加载完成后统一将其注册到 DatabaseExplorer，
+   * 使其在数据库查看器中以独立数据源展示。
+   * @param name  数据源名称（建议与插件名相同，如 "dian-dev-sync"）
+   * @param sqliteFile  SQLite 文件的绝对路径
+   */
+  datasource(name: string, sqliteFile: string): void;
 }
 
 // ---------------------------------------------------------------------------
@@ -200,6 +208,11 @@ export interface PluginInstance {
   commands: CommandEntry[];
   /** 通过 onSetup ctx.ui() 或 @Plugin meta.ui 声明的 UI */
   ui: UIDeclaration | null;
+  /**
+   * 通过 onSetup ctx.datasource() 声明的插件专属 SQLite 数据源列表。
+   * 框架在插件加载完成后统一注册到 DatabaseExplorer。
+   */
+  datasources: { name: string; file: string }[];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   instance: any;
   /** 插件源文件路径，用于热重载 */
