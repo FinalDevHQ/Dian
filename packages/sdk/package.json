@@ -19,9 +19,14 @@
   },
   "dependencies": {
     "@dian/shared": "*",
+    "chokidar": "^5.0.0",
+    "fflate": "^0.8.2",
     "ws": "^8.18.0"
   },
   "devDependencies": {
     "@types/ws": "^8.5.13"
+  },
+  "bin": {
+    "dian-dev": "./dist/dev/cli.js"
   }
 }

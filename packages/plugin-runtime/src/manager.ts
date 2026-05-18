@@ -37,6 +37,7 @@ export class PluginManager {
    */
   private readonly _botScope = new Map<string, Set<string>>();
   private _maintenanceMode = false;
+  private _installLock = false;
   private _watcher: FSWatcher | null = null;
   private _pluginsDir: string | null = null;
 
@@ -149,6 +150,41 @@ export class PluginManager {
     console.info(`[plugin-runtime] 插件 "${meta.name}" 已加载`);
   }
 
+  // ── 安装锁（防止 watcher 在解压期间触发不完整 reload） ────────────────────
+
+  setInstallLock(locked: boolean): void {
+    this._installLock = locked;
+  }
+
+  get installLock(): boolean {
+    return this._installLock;
+  }
+
+  // ── 公开加载 / 按目录卸载 ──────────────────────────────────────────────────
+
+  /**
+   * 公开方法：加载指定路径的插件文件（供安装路由显式调用）。
+   */
+  async loadFromPath(filePath: string): Promise<void> {
+    await this._loadFile(filePath);
+  }
+
+  /**
+   * 卸载 filePath 位于指定目录下的所有已加载插件。
+   * 返回被卸载的插件名列表。
+   */
+  unloadByDir(dir: string): string[] {
+    const normalizedDir = resolve(dir);
+    const unloaded: string[] = [];
+    for (const [name, plugin] of this._plugins) {
+      if (resolve(plugin.filePath).startsWith(normalizedDir + sep) || resolve(plugin.filePath).startsWith(normalizedDir + "/")) {
+        this.unload(name);
+        unloaded.push(name);
+      }
+    }
+    return unloaded;
+  }
+
   // ── 卸载 / 热重载 ─────────────────────────────────────────────────────────
 
   unload(name: string): void {
@@ -186,6 +222,7 @@ export class PluginManager {
     };
 
     this._watcher.on("change", (filePath: string) => {
+      if (this._installLock) return;
       if (!isPluginEntry(filePath)) return;
       // 找到对应插件并 reload
       for (const [name, plugin] of this._plugins) {
@@ -199,11 +236,13 @@ export class PluginManager {
     });
 
     this._watcher.on("add", (filePath: string) => {
+      if (this._installLock) return;
       if (!isPluginEntry(filePath)) return;
       this._loadFile(filePath).catch(console.error);
     });
 
     this._watcher.on("unlink", (filePath: string) => {
+      if (this._installLock) return;
       for (const [name, plugin] of this._plugins) {
         if (plugin.filePath === filePath) {
           this.unload(name);
@@ -430,7 +469,12 @@ export class PluginManager {
     return out;
   }
 
-  // ── 只读信息 ──────────────── 
+  // ── 只读信息 ────────────────
+
+  /** 插件扫描根目录（loadAll 时设置） */
+  get pluginsDir(): string | null {
+    return this._pluginsDir;
+  }
 
   get plugins(): PluginInstance[] {
     return [...this._plugins.values()];

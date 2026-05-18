@@ -286,10 +286,10 @@ function describeEvent(e: BotEvent): ReactNode {
 
   // ── 元事件（meta_event） ─────────────────────────────────────────────
   if (type === "meta_event") {
-    return `meta.${e.subtype}`
+    return e.subtype
   }
 
-  return `${type}.${e.subtype}`
+  return e.subtype
 }
 
 const BADGE_BASE = "h-5 px-1.5 py-0 text-[10px] leading-5"
