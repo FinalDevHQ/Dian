@@ -458,7 +458,7 @@ function PluginDetail({
             </CardDescription>
           </CardHeader>
           <CardContent className="px-4 pb-3">
-            <ul className="space-y-1.5">
+            <ul className="max-h-60 space-y-1.5 overflow-auto">
               {plugin.routes.map((r, i) => (
                 <li key={i} className="flex items-center gap-2 font-mono text-xs">
                   <MethodBadge method={r.method} />
@@ -473,7 +473,7 @@ function PluginDetail({
 
       {/* UI iframe */}
       {plugin.hasUI && plugin.uiUrl && (
-        <Card className="flex flex-1 flex-col overflow-hidden">
+        <Card className="flex min-h-[480px] flex-1 flex-col overflow-hidden">
           <CardHeader className="flex-row items-center justify-between gap-2 space-y-0 py-3">
             <CardTitle className="flex items-center gap-2 text-sm">
               <Globe className="size-4 text-muted-foreground" />
