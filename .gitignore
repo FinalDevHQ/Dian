@@ -46,3 +46,6 @@ plugin-template/
 # OS
 .DS_Store
 Thumbs.db
+
+.plugins/
+/plugins/
