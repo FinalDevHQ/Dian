@@ -345,6 +345,17 @@ export const api = {
   deletePlugin: (name: string) =>
     request<{ ok: boolean }>(`/plugins/${encodeURIComponent(name)}`, { method: "DELETE" }),
 
+  getDevStatus: () =>
+    request<{ ok: boolean; sessions: { pluginName: string; connectedAt: number; lastSyncAt?: number }[]; port?: number }>(
+      "/plugins/dian-dev-sync/api/status"
+    ).catch(() => ({ ok: false, sessions: [] as { pluginName: string; connectedAt: number; lastSyncAt?: number }[] })),
+
+  disconnectDev: (pluginName: string) =>
+    request<{ ok: boolean }>("/plugins/dian-dev-sync/api/disconnect", {
+      method: "POST",
+      body: JSON.stringify({ pluginName }),
+    }),
+
   uploadPlugin: (name: string, file: File, force = false) => {
     const safeName = name.replace(/\.zip$/i, "")
     const token = getToken()

@@ -469,7 +469,12 @@ export class PluginManager {
     return out;
   }
 
-  // ── 只读信息 ──────────────── 
+  // ── 只读信息 ────────────────
+
+  /** 插件扫描根目录（loadAll 时设置） */
+  get pluginsDir(): string | null {
+    return this._pluginsDir;
+  }
 
   get plugins(): PluginInstance[] {
     return [...this._plugins.values()];
