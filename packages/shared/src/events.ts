@@ -156,13 +156,13 @@ function buildEventId(botId: string, raw: OneBotRawEvent): string {
  * @param raw    从 WS 上报解析出的原始对象
  */
 export function mapOneBotEvent(botId: string, raw: OneBotRawEvent): BotEvent {
-  // 计算子类型，形如 message.group / notice.group_increase
-  const subParts: string[] = [];
+  // 计算子类型，形如 message.group / notice.group_admin
+  // sub_type（如 set/unset/approve/invite）不拼入 subtype，保留在 raw 中供需要时读取
+  const subParts: string[] = [raw.post_type];
   if (raw.message_type) subParts.push(raw.message_type);
   if (raw.notice_type) subParts.push(raw.notice_type);
   if (raw.request_type) subParts.push(raw.request_type);
   if (raw.meta_event_type) subParts.push(raw.meta_event_type);
-  if (raw.sub_type) subParts.push(raw.sub_type);
   const subtype = subParts.join(".");
 
   const payload: EventPayload = {
