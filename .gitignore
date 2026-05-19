@@ -43,6 +43,7 @@ Dian-plugin-template/
 Dian-plugin-dev-sync/
 Dian-plugins/
 plugin-template/
+my-plugin/
 
 # OS
 .DS_Store
