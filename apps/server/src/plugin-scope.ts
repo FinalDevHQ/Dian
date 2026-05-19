@@ -1,8 +1,8 @@
 import { existsSync } from "node:fs";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import { pluginManager } from "@dian/plugin-runtime";
-import type { LogService } from "@dian/logger";
+import { pluginManager } from "@myfinal/plugin-runtime";
+import type { LogService } from "@myfinal/logger";
 
 /**
  * 插件 → bot 白名单的持久化。

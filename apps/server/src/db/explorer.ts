@@ -1,7 +1,7 @@
 import Database from "better-sqlite3";
 import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
-import type { LogService } from "@dian/logger";
+import type { LogService } from "@myfinal/logger";
 
 export type DataSourceKind = "sqlite";
 

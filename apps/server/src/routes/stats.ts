@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import type { MessageRepository } from "@dian/storage";
+import type { MessageRepository } from "@myfinal/storage";
 import type { BotManager } from "../bot/bot-manager.js";
 
 interface StatsRoutesOptions {

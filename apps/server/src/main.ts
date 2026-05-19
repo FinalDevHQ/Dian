@@ -1,9 +1,9 @@
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { configService } from "@dian/config";
-import { logService } from "@dian/logger";
-import { pluginManager } from "@dian/plugin-runtime";
-import { storageService, SqlitePluginStore } from "@dian/storage";
+import { configService } from "@myfinal/config";
+import { logService } from "@myfinal/logger";
+import { pluginManager } from "@myfinal/plugin-runtime";
+import { storageService, SqlitePluginStore } from "@myfinal/storage";
 import { BotManager } from "./bot/bot-manager.js";
 import { EventBus } from "./event/event-bus.js";
 import { EventDispatcher } from "./event/event-dispatcher.js";

@@ -4,7 +4,7 @@ import { readdir } from "node:fs/promises";
 import { resolve, extname, relative, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import chokidar, { type FSWatcher } from "chokidar";
-import type { BotEvent, SendActionFn, ActionResult } from "@dian/shared";
+import type { BotEvent, SendActionFn, ActionResult } from "@myfinal/shared";
 import {
   PLUGIN_META_KEY,
   HANDLER_META_KEY,

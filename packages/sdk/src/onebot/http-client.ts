@@ -1,4 +1,4 @@
-import type { ActionResult } from "@dian/shared";
+import type { ActionResult } from "@myfinal/shared";
 import type { OneBotActionRequest, OneBotHttpConfig } from "./types.js";
 
 /**

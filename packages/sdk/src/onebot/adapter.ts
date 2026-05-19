@@ -1,4 +1,4 @@
-import type { ActionResult, BotEvent } from "@dian/shared";
+import type { ActionResult, BotEvent } from "@myfinal/shared";
 import { OneBotHttpClient } from "./http-client.js";
 import { OneBotWsClient } from "./ws-client.js";
 import type { OneBotActionRequest, OneBotAdapterConfig } from "./types.js";

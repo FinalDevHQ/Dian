@@ -1,7 +1,7 @@
 {
-  "name": "@dian/sdk",
+  "name": "@myfinal/sdk",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -18,7 +18,7 @@
     "dev": "tsc -b --watch"
   },
   "dependencies": {
-    "@dian/shared": "*",
+    "@myfinal/shared": "^0.1.0",
     "chokidar": "^5.0.0",
     "fflate": "^0.8.2",
     "ws": "^8.18.0"

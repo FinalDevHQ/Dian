@@ -1,8 +1,8 @@
 import type { FastifyInstance } from "fastify";
 import { readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { join, resolve, sep } from "node:path";
-import type { LogService } from "@dian/logger";
-import { parseYaml, dumpYaml } from "@dian/config";
+import type { LogService } from "@myfinal/logger";
+import { parseYaml, dumpYaml } from "@myfinal/config";
 
 const ALLOWED_FILE = /^[a-zA-Z0-9._-]+\.ya?ml$/;
 

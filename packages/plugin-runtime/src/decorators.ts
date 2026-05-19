@@ -1,4 +1,4 @@
-import type { BotEvent, SendActionFn, ActionResult } from "@dian/shared";
+import type { BotEvent, SendActionFn, ActionResult } from "@myfinal/shared";
 
 /**
  * 插件可用的存储接口

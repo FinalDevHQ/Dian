@@ -1,5 +1,5 @@
-import { ChildLogger, type LogService } from "@dian/logger";
-import type { LogEntry, LogRepository } from "@dian/storage";
+import { ChildLogger, type LogService } from "@myfinal/logger";
+import type { LogEntry, LogRepository } from "@myfinal/storage";
 
 type Level = LogEntry["level"];
 const LEVELS: Level[] = ["debug", "info", "warn", "error"];
@@ -24,7 +24,7 @@ function safeWrite(repo: LogRepository, entry: LogEntry): void {
  * 在原有控制台输出之外再镜像写入到 LogRepository（sqlite logs 表）。
  *
  * 设计取舍：
- * - 不改 @dian/logger 公共 API（向后兼容）
+ * - 不改 @myfinal/logger 公共 API（向后兼容）
  * - patch 实例 + 类原型，已创建和未来创建的 child logger 都生效
  * - 通过 meta.bot / meta.botId 字段提取 botId；缺省时为 "system"
  *

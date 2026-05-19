@@ -1,7 +1,7 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { randomBytes } from "node:crypto";
-import type { AuthConfig } from "@dian/config";
+import type { AuthConfig } from "@myfinal/config";
 
 export interface TokenPayload {
   role: "admin";

@@ -1,8 +1,8 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { FastifyInstance } from "fastify";
-import type { LogService } from "@dian/logger";
-import { BotsSchema, BotEntrySchema, parseYaml, writeYamlFile, type BotEntry } from "@dian/config";
+import type { LogService } from "@myfinal/logger";
+import { BotsSchema, BotEntrySchema, parseYaml, writeYamlFile, type BotEntry } from "@myfinal/config";
 
 interface BotsRoutesOptions {
   configDir: string;

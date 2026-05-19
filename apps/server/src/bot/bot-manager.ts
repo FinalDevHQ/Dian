@@ -1,6 +1,6 @@
-import type { LogService } from "@dian/logger";
-import type { ConfigService } from "@dian/config";
-import type { BotEvent } from "@dian/shared";
+import type { LogService } from "@myfinal/logger";
+import type { ConfigService } from "@myfinal/config";
+import type { BotEvent } from "@myfinal/shared";
 import { BotInstance } from "./bot-instance.js";
 
 /**

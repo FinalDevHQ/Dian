@@ -1,5 +1,5 @@
-import type { BotEvent } from "@dian/shared";
-import type { MessageRepository } from "@dian/storage";
+import type { BotEvent } from "@myfinal/shared";
+import type { MessageRepository } from "@myfinal/storage";
 
 /**
  * 把 BotEvent 中的 message 类型事件持久化到 messages 表。

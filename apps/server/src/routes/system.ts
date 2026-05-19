@@ -1,6 +1,6 @@
 import os from "node:os";
 import type { FastifyInstance } from "fastify";
-import type { LogService } from "@dian/logger";
+import type { LogService } from "@myfinal/logger";
 
 /**
  * GET /system —— 仪表盘的系统信息端点
