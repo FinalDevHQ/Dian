@@ -40,6 +40,7 @@ config/settings.yaml
 Dian-plugin-help/
 Dian-plugin-qq-manager/
 Dian-plugin-template/
+Dian-plugin-dev-sync/
 Dian-plugins/
 plugin-template/
 
