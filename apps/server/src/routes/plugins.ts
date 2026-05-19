@@ -3,8 +3,8 @@ import { mkdir, rm, unlink, writeFile } from "node:fs/promises";
 import { dirname, extname, join, normalize, resolve, sep } from "node:path";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { unzip } from "fflate";
-import { pluginManager } from "@dian/plugin-runtime";
-import type { LogService } from "@dian/logger";
+import { pluginManager } from "@myfinal/plugin-runtime";
+import type { LogService } from "@myfinal/logger";
 
 // 静态资源 MIME 类型表（够用即可，无需引入 mime 库）
 const MIME_TYPES: Record<string, string> = {

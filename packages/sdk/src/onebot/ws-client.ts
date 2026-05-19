@@ -1,6 +1,6 @@
 import { WebSocket } from "ws";
-import type { BotEvent, OneBotRawEvent } from "@dian/shared";
-import { mapOneBotEvent } from "@dian/shared";
+import type { BotEvent, OneBotRawEvent } from "@myfinal/shared";
+import { mapOneBotEvent } from "@myfinal/shared";
 import type { OneBotWsConfig } from "./types.js";
 
 /** WS 客户端的连接状态 */

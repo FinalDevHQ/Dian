@@ -1,7 +1,7 @@
 import Database from "better-sqlite3";
 import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
-import type { LogService } from "@dian/logger";
+import type { LogService } from "@myfinal/logger";
 
 export type DataSourceKind = "sqlite";
 
@@ -63,6 +63,12 @@ export class DatabaseExplorer {
   /** 注册一个 SQLite 数据源。失败时会记录但不抛出，避免阻塞启动 */
   registerSqlite(name: string, file: string): void {
     const abs = resolve(file);
+    // 若同名数据源已存在（如插件热重载），先关闭旧连接再重新打开
+    const existing = this.sources.get(name);
+    if (existing) {
+      try { existing.db.close(); } catch { /* noop */ }
+      this.sources.delete(name);
+    }
     try {
       // better-sqlite3 不会自动创建父目录；首次启动时 data/ 还不存在，先确保目录
       mkdirSync(dirname(abs), { recursive: true });

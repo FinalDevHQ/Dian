@@ -8,7 +8,7 @@
     "emitDecoratorMetadata": true,
     "types": ["node"],
     "paths": {
-      "@dian/shared": ["../shared/src/index.ts"]
+      "@myfinal/shared": ["../shared/src/index.ts"]
     }
   },
   "include": ["src/**/*.ts"],

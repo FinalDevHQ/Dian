@@ -1,4 +1,4 @@
-import type { ActionResult, BotEvent } from "@dian/shared";
+import type { ActionResult, BotEvent } from "@myfinal/shared";
 
 /**
  * 传输模式

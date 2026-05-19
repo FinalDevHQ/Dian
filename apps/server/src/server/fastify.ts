@@ -1,7 +1,7 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
-import type { LogService } from "@dian/logger";
-import type { MessageRepository } from "@dian/storage";
+import type { LogService } from "@myfinal/logger";
+import type { MessageRepository } from "@myfinal/storage";
 import type { BotManager } from "../bot/bot-manager.js";
 import type { EventBus } from "../event/event-bus.js";
 import type { DatabaseExplorer } from "../db/explorer.js";

@@ -1,0 +1,49 @@
+name: Publish to npm
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: https://registry.npmjs.org
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build -w packages
+
+      - name: Extract version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify all @myfinal/* packages match tag version
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          for pkg in shared plugin-runtime config logger module-runtime sdk storage; do
+            PKG_VER=$(node -p "require('./packages/$pkg/package.json').version")
+            if [ "$PKG_VER" != "$VERSION" ]; then
+              echo "::error::packages/$pkg version $PKG_VER != tag version $VERSION"
+              exit 1
+            fi
+            echo "  ✓ @myfinal/$pkg @ $PKG_VER"
+          done
+
+      - name: Publish to npm
+        run: |
+          for pkg in shared plugin-runtime config logger module-runtime sdk storage; do
+            echo "Publishing @myfinal/$pkg..."
+            npm publish -w packages/$pkg --access public --provenance
+          done
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

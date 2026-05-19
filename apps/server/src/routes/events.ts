@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
-import type { LogService } from "@dian/logger";
-import type { BotEvent } from "@dian/shared";
+import type { LogService } from "@myfinal/logger";
+import type { BotEvent } from "@myfinal/shared";
 import type { EventBus } from "../event/event-bus.js";
 
 interface EventRoutesOptions {

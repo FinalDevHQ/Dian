@@ -4,7 +4,7 @@ import { readdir } from "node:fs/promises";
 import { resolve, extname, relative, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import chokidar, { type FSWatcher } from "chokidar";
-import type { BotEvent, SendActionFn, ActionResult } from "@dian/shared";
+import type { BotEvent, SendActionFn, ActionResult } from "@myfinal/shared";
 import {
   PLUGIN_META_KEY,
   HANDLER_META_KEY,
@@ -30,6 +30,7 @@ import {
 export class PluginManager {
   private readonly _plugins = new Map<string, PluginInstance>();
   private readonly _blacklist = new Set<string>();
+  private _onPluginLoaded: ((plugin: PluginInstance) => void | Promise<void>) | null = null;
   /**
    * 插件 → 允许响应事件的 botId 白名单。
    * 语义：未在 map 中或集合为空 ⇒ 对**任何 bot 都不响应**（白名单默认拒绝）。
@@ -106,9 +107,10 @@ export class PluginManager {
     // 按 priority 升序排列
     interceptors.sort((a, b) => a.priority - b.priority);
 
-    // ── 收集 onSetup 注册的路由/指令/UI ───────────────────────────────────
+    // ── 收集 onSetup 注册的路由/指令/UI/数据源 ─────────────────────────────
     const routes: RouteEntry[] = [];
     const commands: CommandEntry[] = [];
+    const datasources: { name: string; file: string }[] = [];
     let ui: UIDeclaration | null = null;
 
     // 支持 @Plugin 元数据里内联声明 UI
@@ -128,6 +130,9 @@ export class PluginManager {
         ui(decl) {
           ui = decl;
         },
+        datasource(name, file) {
+          datasources.push({ name, file });
+        },
       };
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -143,11 +148,21 @@ export class PluginManager {
       interceptors,
       routes,
       commands,
+      datasources,
       ui,
       instance,
       filePath,
     });
     console.info(`[plugin-runtime] 插件 "${meta.name}" 已加载`);
+
+    // 通知框架层：插件已加载，可进行统一资源注册（如 datasource → DatabaseExplorer）
+    if (this._onPluginLoaded) {
+      try {
+        await this._onPluginLoaded(this._plugins.get(meta.name)!);
+      } catch (err) {
+        console.error(`[plugin-runtime] onPluginLoaded hook for "${meta.name}" 异常:`, err);
+      }
+    }
   }
 
   // ── 安装锁（防止 watcher 在解压期间触发不完整 reload） ────────────────────
@@ -158,6 +173,16 @@ export class PluginManager {
 
   get installLock(): boolean {
     return this._installLock;
+  }
+
+  /**
+   * 注册插件加载完成后的回调。
+   * 每次插件加载（首次或热重载）完成后都会调用，可在此统一处理框架级资源注册
+   * （如将插件声明的 datasources 注册到 DatabaseExplorer）。
+   * 应在 loadAll / loadFromPath 之前设置。
+   */
+  setOnPluginLoaded(fn: (plugin: PluginInstance) => void | Promise<void>): void {
+    this._onPluginLoaded = fn;
   }
 
   // ── 公开加载 / 按目录卸载 ──────────────────────────────────────────────────

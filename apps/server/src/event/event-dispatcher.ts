@@ -1,9 +1,9 @@
-import type { BotEvent } from "@dian/shared";
-import type { LogService } from "@dian/logger";
-import type { MessageRepository } from "@dian/storage";
-import { SqlitePluginStore } from "@dian/storage";
-import type { PluginStore } from "@dian/plugin-runtime";
-import { pluginManager } from "@dian/plugin-runtime";
+import type { BotEvent } from "@myfinal/shared";
+import type { LogService } from "@myfinal/logger";
+import type { MessageRepository } from "@myfinal/storage";
+import { SqlitePluginStore } from "@myfinal/storage";
+import type { PluginStore } from "@myfinal/plugin-runtime";
+import { pluginManager } from "@myfinal/plugin-runtime";
 import type { BotManager } from "../bot/bot-manager.js";
 
 /**

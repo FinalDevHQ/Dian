@@ -1,8 +1,8 @@
-import type { OneBotAdapter, OneBotActionRequest } from "@dian/sdk";
-import type { ActionResult, BotEvent } from "@dian/shared";
-import type { LogService } from "@dian/logger";
-import type { BotEntry } from "@dian/config";
-import { OneBotAdapter as Adapter } from "@dian/sdk";
+import type { OneBotAdapter, OneBotActionRequest } from "@myfinal/sdk";
+import type { ActionResult, BotEvent } from "@myfinal/shared";
+import type { LogService } from "@myfinal/logger";
+import type { BotEntry } from "@myfinal/config";
+import { OneBotAdapter as Adapter } from "@myfinal/sdk";
 
 /**
  * 单个 Bot 实例，持有独立的 Adapter 和日志上下文

@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import type { LogService } from "@dian/logger";
+import type { LogService } from "@myfinal/logger";
 import type { BotManager } from "../bot/bot-manager.js";
 
 /**

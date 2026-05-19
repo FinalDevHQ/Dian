@@ -1,4 +1,4 @@
-import type { BotEvent } from "@dian/shared";
+import type { BotEvent } from "@myfinal/shared";
 
 /**
  * EventBus — 进程内事件广播

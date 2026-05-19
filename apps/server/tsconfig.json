@@ -6,13 +6,13 @@
     "outDir": "dist",
     "types": ["node"],
     "paths": {
-      "@dian/shared": ["../../packages/shared/src/index.ts"],
-      "@dian/sdk": ["../../packages/sdk/src/index.ts"],
-      "@dian/config": ["../../packages/config/src/index.ts"],
-      "@dian/logger": ["../../packages/logger/src/index.ts"],
-      "@dian/module-runtime": ["../../packages/module-runtime/src/index.ts"],
-      "@dian/plugin-runtime": ["../../packages/plugin-runtime/src/index.ts"],
-      "@dian/storage": ["../../packages/storage/src/index.ts"]
+      "@myfinal/shared": ["../../packages/shared/src/index.ts"],
+      "@myfinal/sdk": ["../../packages/sdk/src/index.ts"],
+      "@myfinal/config": ["../../packages/config/src/index.ts"],
+      "@myfinal/logger": ["../../packages/logger/src/index.ts"],
+      "@myfinal/module-runtime": ["../../packages/module-runtime/src/index.ts"],
+      "@myfinal/plugin-runtime": ["../../packages/plugin-runtime/src/index.ts"],
+      "@myfinal/storage": ["../../packages/storage/src/index.ts"]
     }
   },
   "include": ["src/**/*.ts"],
