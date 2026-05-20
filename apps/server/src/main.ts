@@ -109,6 +109,8 @@ async function main(): Promise<void> {
   );
   // 将 botManager 注入 dispatcher，用于构建 reply 回调
   dispatcher.setBotManager(botManager);
+  // 将 botManager 注入 pluginManager，用于插件发送消息
+  pluginManager.setBotManager(botManager);
 
   // ── 5. 初始化认证服务 ─────────────────────────────────────────────────────
   const authService = new AuthService(configService.settings.auth ?? {});

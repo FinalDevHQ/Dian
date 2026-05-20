@@ -41,6 +41,8 @@ export class PluginManager {
   private _installLock = false;
   private _watcher: FSWatcher | null = null;
   private _pluginsDir: string | null = null;
+  /** BotManager 引用，用于插件发送消息 */
+  private _botManager: { getBots(): Array<{ botId: string; sendAction(request: { action: string; params?: Record<string, unknown> }): Promise<{ ok: boolean; status: string; message?: string; data?: unknown }> }> } | null = null;
 
   // ── 加载 ──────────────────────────────────────────────────────────────────
 
@@ -183,6 +185,30 @@ export class PluginManager {
    */
   setOnPluginLoaded(fn: (plugin: PluginInstance) => void | Promise<void>): void {
     this._onPluginLoaded = fn;
+  }
+
+  /**
+   * 设置 BotManager 引用，用于插件发送消息。
+   * 应在插件加载完成后调用。
+   */
+  setBotManager(botManager: { getBots(): Array<{ botId: string; sendAction(request: { action: string; params?: Record<string, unknown> }): Promise<{ ok: boolean; status: string; message?: string; data?: unknown }> }> }): void {
+    this._botManager = botManager;
+  }
+
+  /**
+   * 发送 Bot Action（供插件调用）。
+   * 默认使用第一个可用的 Bot。
+   */
+  async sendBotAction(action: string, params?: Record<string, unknown>): Promise<{ ok: boolean; status: string; message?: string; data?: unknown }> {
+    if (!this._botManager) {
+      return { ok: false, status: "failed", message: "BotManager not initialized" };
+    }
+    const bots = this._botManager.getBots();
+    if (bots.length === 0) {
+      return { ok: false, status: "failed", message: "No bots available" };
+    }
+    // 使用第一个可用的 Bot
+    return bots[0].sendAction({ action, params });
   }
 
   // ── 公开加载 / 按目录卸载 ──────────────────────────────────────────────────
