@@ -2,8 +2,10 @@ name: Publish to npm
 
 on:
   push:
-    tags:
-      - "v*"
+    branches:
+      - main
+    paths:
+      - "packages/*/package.json"
 
 jobs:
   publish:
@@ -23,27 +25,18 @@ jobs:
       - run: npm ci
       - run: npm run build -w packages
 
-      - name: Extract version from tag
-        id: version
-        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
-
-      - name: Verify all @myfinal/* packages match tag version
+      - name: Publish changed packages
         run: |
-          VERSION="${{ steps.version.outputs.VERSION }}"
           for pkg in shared plugin-runtime config logger module-runtime sdk storage; do
-            PKG_VER=$(node -p "require('./packages/$pkg/package.json').version")
-            if [ "$PKG_VER" != "$VERSION" ]; then
-              echo "::error::packages/$pkg version $PKG_VER != tag version $VERSION"
-              exit 1
+            PKG_NAME=$(node -p "require('./packages/$pkg/package.json').name")
+            LOCAL_VER=$(node -p "require('./packages/$pkg/package.json').version")
+            NPM_VER=$(npm view "$PKG_NAME" version 2>/dev/null || echo "none")
+            if [ "$LOCAL_VER" != "$NPM_VER" ]; then
+              echo "Publishing $PKG_NAME @ $LOCAL_VER (npm: $NPM_VER)..."
+              npm publish -w packages/$pkg --access public --provenance
+            else
+              echo "Skipping $PKG_NAME @ $LOCAL_VER (already published)"
             fi
-            echo "  ✓ @myfinal/$pkg @ $PKG_VER"
-          done
-
-      - name: Publish to npm
-        run: |
-          for pkg in shared plugin-runtime config logger module-runtime sdk storage; do
-            echo "Publishing @myfinal/$pkg..."
-            npm publish -w packages/$pkg --access public --provenance
           done
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

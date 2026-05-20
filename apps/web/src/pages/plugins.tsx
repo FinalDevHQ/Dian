@@ -657,7 +657,7 @@ export function PluginsPage({ onPluginsChange }: { onPluginsChange?: () => void 
   const [uploadOpen, setUploadOpen] = useState(false)
 
   return (
-    <div className="grid h-[calc(100vh-4rem)] grid-cols-[18rem_1fr] gap-5">
+    <div className="grid h-[calc(100vh-8rem)] min-h-0 grid-cols-[18rem_1fr] gap-5">
       {uploadOpen && (
         <UploadDialog
           onClose={() => setUploadOpen(false)}
@@ -666,7 +666,7 @@ export function PluginsPage({ onPluginsChange }: { onPluginsChange?: () => void 
       )}
 
       {/* ── 左侧插件列表 ── */}
-      <Card className="flex flex-col overflow-hidden">
+      <Card className="flex min-h-0 flex-col overflow-hidden">
         <div className="flex items-center justify-between border-b px-4 py-3">
           <span className="text-sm font-semibold">
             插件 <span className="ml-1 text-xs font-normal text-muted-foreground">({plugins?.length ?? 0})</span>
@@ -701,7 +701,7 @@ export function PluginsPage({ onPluginsChange }: { onPluginsChange?: () => void 
           </div>
         )}
 
-        <div className="flex flex-1 flex-col gap-0.5 overflow-auto p-2">
+        <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-auto p-2">
           {plugins === null ? (
             <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">
               <Loader2 className="mr-2 size-4 animate-spin" />
