@@ -14,7 +14,7 @@
     "@myfinal/config": "^0.1.0",
     "@myfinal/logger": "^0.1.0",
     "@myfinal/module-runtime": "^0.1.0",
-    "@myfinal/plugin-runtime": "^0.1.0",
+    "@myfinal/plugin-runtime": "^0.2.3",
     "@myfinal/sdk": "^0.1.0",
     "@myfinal/shared": "^0.1.0",
     "@myfinal/storage": "^0.1.0",
