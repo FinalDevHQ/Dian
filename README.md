@@ -129,9 +129,9 @@ npm run build -w packages && npm run build -w apps/server
 ### 4. 启动后端
 
 ```bash
-npm run start -w apps/server
+npm run start
 # 默认监听 http://localhost:3000
-# 自定义端口：PORT=4000 npm run start -w apps/server
+# 自定义端口：PORT=4000 npm run start
 ```
 
 成功日志关键字：
@@ -148,7 +148,7 @@ Bots startup complete: N registered, X initial failure(s)
 另开一个终端：
 
 ```bash
-npm run dev -w apps/web
+npm run dev:web
 # Vite 默认 http://localhost:5173；若端口被占会自动尝试 5174、5175...
 ```
 
@@ -162,7 +162,7 @@ npm run dev -w apps/web
 | 你改了什么 | 需要做什么 |
 |------------|------------|
 | `apps/web/**`（前端） | Vite HMR 自动刷新，无需重启 |
-| `apps/server/**` 或 `packages/**` | 重新 `npm run build`，然后重启 `npm run start -w apps/server` |
+| `apps/server/**` 或 `packages/**` | 重新 `npm run build`，然后重启 `npm run start` |
 | `plugins/**` | 自动热加载，无需任何操作 |
 | `config/**.yaml` | 自动热重载（bot.yaml、settings.yaml） |
 
@@ -173,6 +173,15 @@ npm run dev        # 同时监听 packages + apps/server（仅编译，不会重
 ```
 
 > 当前仓库没有内置 `nodemon`/`tsx watch`，server 代码改动后需要手动重启 `npm run start`。
+
+根目录可用脚本一览：
+
+| 命令 | 说明 |
+|------|------|
+| `npm run build` | 构建 packages + server |
+| `npm run start` | 启动后端 |
+| `npm run dev:web` | 启动前端开发服务器 |
+| `npm run dev` | 监听编译 packages + server（不重启 node） |
 
 ### 常见问题
 
