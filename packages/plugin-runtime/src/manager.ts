@@ -239,7 +239,17 @@ export class PluginManager {
   // ── 卸载 / 热重载 ─────────────────────────────────────────────────────────
 
   unload(name: string): void {
-    if (this._plugins.delete(name)) {
+    const plugin = this._plugins.get(name);
+    if (plugin) {
+      // 调用插件实例的 onStop 生命周期钩子（如有），清理定时器等资源
+      if (typeof (plugin.instance as Record<string, unknown>)["onStop"] === "function") {
+        try {
+          (plugin.instance as any).onStop();
+        } catch (err) {
+          console.error(`[plugin-runtime] 插件 "${name}" onStop 异常:`, err);
+        }
+      }
+      this._plugins.delete(name);
       console.info(`[plugin-runtime] 插件 "${name}" 已卸载`);
     }
   }
