@@ -12,6 +12,7 @@ import { dispatchEvent } from "./dispatch/PluginDispatcher.js";
 import { PluginRegistry } from "./registry/PluginRegistry.js";
 import { PluginLoader } from "./loader/PluginLoader.js";
 import { HotReloadWatcher } from "./loader/HotReloadWatcher.js";
+import { BotActionSender, type BotManager, type ActionResult } from "./bot-action/BotActionSender.js";
 import { BotScopeManager } from "./scope/BotScopeManager.js";
 
 // ---------------------------------------------------------------------------
@@ -23,11 +24,10 @@ export class PluginManager {
   private readonly _loader = new PluginLoader();
   private readonly _watcher = new HotReloadWatcher();
   private readonly _scope = new BotScopeManager();
+  private readonly _botAction = new BotActionSender();
   private _maintenanceMode = false;
   private _installLock = false;
   private _pluginsDir: string | null = null;
-  /** BotManager 引用，用于插件发送消息 */
-  private _botManager: { getBots(): Array<{ botId: string; sendAction(request: { action: string; params?: Record<string, unknown> }): Promise<{ ok: boolean; status: string; message?: string; data?: unknown }> }> } | null = null;
 
   // ── 加载 ──────────────────────────────────────────────────────────────────
 
@@ -69,28 +69,12 @@ export class PluginManager {
     this._loader.setOnPluginLoaded(fn);
   }
 
-  /**
-   * 设置 BotManager 引用，用于插件发送消息。
-   * 应在插件加载完成后调用。
-   */
-  setBotManager(botManager: { getBots(): Array<{ botId: string; sendAction(request: { action: string; params?: Record<string, unknown> }): Promise<{ ok: boolean; status: string; message?: string; data?: unknown }> }> }): void {
-    this._botManager = botManager;
+  setBotManager(botManager: BotManager): void {
+    this._botAction.setBotManager(botManager);
   }
 
-  /**
-   * 发送 Bot Action（供插件调用）。
-   * 默认使用第一个可用的 Bot。
-   */
-  async sendBotAction(action: string, params?: Record<string, unknown>): Promise<{ ok: boolean; status: string; message?: string; data?: unknown }> {
-    if (!this._botManager) {
-      return { ok: false, status: "failed", message: "BotManager not initialized" };
-    }
-    const bots = this._botManager.getBots();
-    if (bots.length === 0) {
-      return { ok: false, status: "failed", message: "No bots available" };
-    }
-    // 使用第一个可用的 Bot
-    return bots[0].sendAction({ action, params });
+  async sendBotAction(action: string, params?: Record<string, unknown>): Promise<ActionResult> {
+    return this._botAction.sendBotAction(action, params);
   }
 
   // ── 公开加载 / 按目录卸载 ──────────────────────────────────────────────────
@@ -112,20 +96,19 @@ export class PluginManager {
   // ── 卸载 / 热重载 ─────────────────────────────────────────────────────────
 
   unload(name: string): void {
-    if (this._registry.delete(name)) {
-    const plugin = this._plugins.get(name);
-    if (plugin) {
-      // 调用插件实例的 onStop 生命周期钩子（如有），清理定时器等资源
-      if (typeof (plugin.instance as Record<string, unknown>)["onStop"] === "function") {
-        try {
-          (plugin.instance as any).onStop();
-        } catch (err) {
-          console.error(`[plugin-runtime] 插件 "${name}" onStop 异常:`, err);
-        }
+    const plugin = this._registry.get(name);
+    if (!plugin) return;
+    // 调用插件实例的 onStop 生命周期钩子（如有），清理定时器等资源
+    if (typeof (plugin.instance as Record<string, unknown>)["onStop"] === "function") {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (plugin.instance as any).onStop();
+      } catch (err) {
+        console.error(`[plugin-runtime] 插件 "${name}" onStop 异常:`, err);
       }
-      this._plugins.delete(name);
-      console.info(`[plugin-runtime] 插件 "${name}" 已卸载`);
     }
+    this._registry.delete(name);
+    console.info(`[plugin-runtime] 插件 "${name}" 已卸载`);
   }
 
   async reload(name: string): Promise<void> {
