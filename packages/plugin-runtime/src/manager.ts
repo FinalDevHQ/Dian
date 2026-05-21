@@ -26,6 +26,8 @@ export class PluginManager {
   private _maintenanceMode = false;
   private _installLock = false;
   private _pluginsDir: string | null = null;
+  /** BotManager 引用，用于插件发送消息 */
+  private _botManager: { getBots(): Array<{ botId: string; sendAction(request: { action: string; params?: Record<string, unknown> }): Promise<{ ok: boolean; status: string; message?: string; data?: unknown }> }> } | null = null;
 
   // ── 加载 ──────────────────────────────────────────────────────────────────
 
@@ -67,6 +69,30 @@ export class PluginManager {
     this._loader.setOnPluginLoaded(fn);
   }
 
+  /**
+   * 设置 BotManager 引用，用于插件发送消息。
+   * 应在插件加载完成后调用。
+   */
+  setBotManager(botManager: { getBots(): Array<{ botId: string; sendAction(request: { action: string; params?: Record<string, unknown> }): Promise<{ ok: boolean; status: string; message?: string; data?: unknown }> }> }): void {
+    this._botManager = botManager;
+  }
+
+  /**
+   * 发送 Bot Action（供插件调用）。
+   * 默认使用第一个可用的 Bot。
+   */
+  async sendBotAction(action: string, params?: Record<string, unknown>): Promise<{ ok: boolean; status: string; message?: string; data?: unknown }> {
+    if (!this._botManager) {
+      return { ok: false, status: "failed", message: "BotManager not initialized" };
+    }
+    const bots = this._botManager.getBots();
+    if (bots.length === 0) {
+      return { ok: false, status: "failed", message: "No bots available" };
+    }
+    // 使用第一个可用的 Bot
+    return bots[0].sendAction({ action, params });
+  }
+
   // ── 公开加载 / 按目录卸载 ──────────────────────────────────────────────────
 
   /** 加载指定路径的插件文件（供安装路由显式调用）。 */
@@ -87,6 +113,17 @@ export class PluginManager {
 
   unload(name: string): void {
     if (this._registry.delete(name)) {
+    const plugin = this._plugins.get(name);
+    if (plugin) {
+      // 调用插件实例的 onStop 生命周期钩子（如有），清理定时器等资源
+      if (typeof (plugin.instance as Record<string, unknown>)["onStop"] === "function") {
+        try {
+          (plugin.instance as any).onStop();
+        } catch (err) {
+          console.error(`[plugin-runtime] 插件 "${name}" onStop 异常:`, err);
+        }
+      }
+      this._plugins.delete(name);
       console.info(`[plugin-runtime] 插件 "${name}" 已卸载`);
     }
   }

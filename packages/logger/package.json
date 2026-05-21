@@ -1,8 +1,9 @@
 {
   "name": "@myfinal/logger",
-  "version": "0.2.0",
+  "version": "0.2.3",
   "private": false,
-  "files": ["dist", "src"],
+  "repository": { "type": "git", "url": "https://github.com/FinalDevHQ/Dian" },
+  "files": ["dist", "README.md"],
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -13,7 +14,6 @@
   },
   "exports": {
     ".": {
-      "source": "./src/index.ts",
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
     }
