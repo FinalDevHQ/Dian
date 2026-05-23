@@ -76,11 +76,6 @@ function groupLabel(id: string, names: GroupNameMap): string {
   return names[id] ?? id
 }
 
-/** Y 轴标签裁剪：最多 maxLen 字符，超出截断 */
-function truncate(s: string, maxLen = 9): string {
-  return s.length <= maxLen ? s : `${s.slice(0, maxLen - 1)}…`
-}
-
 /** 支持换行的 Y 轴自定义 tick，每行最多 8 个字符 */
 function WrapTick(props: { x?: number; y?: number; payload?: { value: string } }) {
   const { x = 0, y = 0, payload } = props
@@ -494,9 +489,10 @@ export function AnalyticsPage() {
                       }}
                     />
                     <Bar dataKey="count" radius={[0, 3, 3, 0]} maxBarSize={22}
-                      onClick={(data: { id: string }) => {
-                        if (data?.id) {
-                          setDrillGroup((prev) => prev === data.id ? null : data.id)
+                      onClick={(data) => {
+                        const id = (data as { id?: string })?.id
+                        if (id) {
+                          setDrillGroup((prev) => prev === id ? null : id)
                         }
                       }}
                       style={{ cursor: "pointer" }}
