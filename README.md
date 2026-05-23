@@ -42,41 +42,6 @@ data/             # 运行时数据（dian.db / messages.db 等）
 
 - Docker & Docker Compose v2
 
-#### 安装 Docker
-
-**Windows / macOS**
-
-下载并安装 [Docker Desktop](https://www.docker.com/products/docker-desktop/)，安装后自带 Docker Compose。
-
-**Linux (Ubuntu / Debian)**
-
-```bash
-# 安装 Docker
-curl -fsSL https://get.docker.com | sh
-
-# 将当前用户加入 docker 组（免 sudo）
-sudo usermod -aG docker $USER
-newgrp docker
-
-# 验证安装
-docker --version
-```
-
-#### 安装 Docker Compose
-
-Docker Desktop 已内置 Compose。Linux 用户如需单独安装：
-
-```bash
-# 下载 Docker Compose 插件
-sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-sudo chmod +x /usr/local/bin/docker-compose
-
-# 验证安装
-docker compose version
-```
-
-> Docker Compose v2 使用 `docker compose`（空格）命令，v1 使用 `docker-compose`（横杠）。本项目使用 v2 语法。
-
 ### 1. 克隆仓库
 
 ```bash
@@ -114,8 +79,41 @@ bots:
 
 ### 3. 启动
 
+#### Docker Compose（推荐）
+
 ```bash
 docker compose up -d --build
+```
+
+Web 控制台：`http://<服务器IP>:18099`
+
+#### Docker 命令
+
+如果不想用 Docker Compose，也可以分别启动两个容器：
+
+```bash
+# 构建镜像
+docker build -f apps/server/Dockerfile -t dian-server .
+docker build -f apps/web/Dockerfile -t dian-web .
+
+# 创建网络
+docker network create dian
+
+# 启动 server
+docker run -d --name dian-server \
+  --network dian \
+  -v $(pwd)/config:/app/config \
+  -v $(pwd)/plugins:/app/plugins \
+  -v $(pwd)/data:/app/data \
+  --restart unless-stopped \
+  dian-server
+
+# 启动 web
+docker run -d --name dian-web \
+  --network dian \
+  -p 18099:80 \
+  --restart unless-stopped \
+  dian-web
 ```
 
 Web 控制台：`http://<服务器IP>:18099`
