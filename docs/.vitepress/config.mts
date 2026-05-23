@@ -1,7 +1,7 @@
 import { defineConfig } from 'vitepress'
 
 export default defineConfig({
-  base: '/dian/',
+  base: '/Dian/',
   title: "Dian",
   description: "Dian 插件开发文档",
   lang: 'zh-CN',
