@@ -53,7 +53,7 @@ export class CommandRegistry {
     this.unregisterPlugin(pluginId);
 
     for (const command of plugin.commands) {
-      this._registerNode(pluginId, command, [], null, new WeakSet<object>());
+      this._registerNode(pluginId, command, [], null, undefined, new WeakSet<object>());
     }
     this._version++;
   }
@@ -93,8 +93,11 @@ export class CommandRegistry {
       .sort(comparePublicCommands);
   }
 
-  countByPlugin(pluginId: PluginId, options: { includeHidden?: boolean } = {}): number {
-    return this.getByPlugin(pluginId, options).length;
+  countByPlugin(pluginId: PluginId, options: { includeHidden?: boolean; includeGroups?: boolean } = {}): number {
+    return this.getByPlugin(pluginId, options).filter((record) => {
+      if (options.includeGroups) return true;
+      return Boolean(record.pattern && record.handler);
+    }).length;
   }
 
   snapshot(options: { includeHidden?: boolean; pluginId?: PluginId } = {}): CommandPublicNode[] {
@@ -107,6 +110,7 @@ export class CommandRegistry {
     entry: CommandEntry,
     parentPath: string[],
     parentId: CommandId | null,
+    inheritedCategory: string | undefined,
     ancestors: WeakSet<object>,
   ): CommandId {
     if (ancestors.has(entry)) {
@@ -130,7 +134,7 @@ export class CommandRegistry {
       path,
       fullName,
       description: entry.description,
-      category: entry.category,
+      category: entry.category ?? inheritedCategory,
       aliases: entry.aliases ?? [],
       hidden: entry.hidden ?? false,
       order: entry.order ?? 0,
@@ -151,7 +155,7 @@ export class CommandRegistry {
     }
 
     for (const child of entry.children ?? []) {
-      this._registerNode(pluginId, child, path, id, ancestors);
+      this._registerNode(pluginId, child, path, id, record.category, ancestors);
     }
 
     ancestors.delete(entry);
