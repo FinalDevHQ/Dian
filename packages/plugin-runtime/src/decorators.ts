@@ -68,9 +68,15 @@ export type Pattern = RegExp | string | (() => RegExp | string);
 export interface CommandEntry {
   /** 指令名称，如 /help */
   name: string;
+  /** 稳定路径片段；不填时使用 name */
+  segment?: string;
   /** 匹配规则，同 @Handler pattern */
   pattern?: Pattern;
   description?: string;
+  /** 指令用法，如 "gh 仓库 订阅 <owner/repo> [branch]" */
+  usage?: string;
+  /** 示例输入 */
+  examples?: string[];
   handler?: (ctx: EventContext) => void | Promise<void>;
   /** 分类名，用于菜单分组展示，如 "基础群管" */
   category?: string;
@@ -103,6 +109,8 @@ export interface CommandPublicMeta {
   /** 当前 pattern 的字符串表示（函数 pattern 会被实时求值） */
   pattern: string;
   description?: string;
+  usage?: string;
+  examples?: string[];
   /** 分类名 */
   category?: string;
   /** 子命令（递归结构） */
@@ -143,16 +151,33 @@ export interface CommandTreePublicMeta {
   id: string;
   pluginId: string;
   name: string;
+  segment: string;
   path: string[];
+  fullPath: string;
   fullName: string;
+  parentId: string | null;
   pattern: string;
   description?: string;
+  usage?: string;
+  examples: string[];
   category?: string;
   aliases: string[];
   hidden: boolean;
   order: number;
   children: CommandTreePublicMeta[];
 }
+
+export interface CommandBreadcrumbItem {
+  id: string;
+  name: string;
+  fullPath: string;
+}
+
+export type CommandResolveResult =
+  | { type: "root"; children: CommandTreePublicMeta[] }
+  | { type: "command"; command: CommandTreePublicMeta; children: CommandTreePublicMeta[]; breadcrumb: CommandBreadcrumbItem[] }
+  | { type: "ambiguous"; candidates: CommandTreePublicMeta[] }
+  | { type: "not_found"; query: string; suggestions: CommandTreePublicMeta[] };
 
 export interface DianRuntimeView {
   plugins: {
@@ -161,6 +186,11 @@ export interface DianRuntimeView {
   commands: {
     version(): number;
     snapshot(options?: { includeHidden?: boolean; pluginId?: string }): CommandTreePublicMeta[];
+    roots(options?: { includeHidden?: boolean; pluginId?: string }): CommandTreePublicMeta[];
+    get(id: string, options?: { includeHidden?: boolean }): CommandTreePublicMeta | null;
+    children(id: string, options?: { includeHidden?: boolean }): CommandTreePublicMeta[];
+    breadcrumb(id: string): CommandBreadcrumbItem[];
+    resolveHelpPath(input?: string, options?: { includeHidden?: boolean; pluginId?: string }): CommandResolveResult;
   };
 }
 

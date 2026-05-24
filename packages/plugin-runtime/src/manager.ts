@@ -39,6 +39,11 @@ export class PluginManager {
       commands: {
         version: () => this._commands.version,
         snapshot: (options) => this._commands.snapshot(options),
+        roots: (options) => this._commands.roots(options),
+        get: (id, options) => this._commands.get(id, options),
+        children: (id, options) => this._commands.children(id, options),
+        breadcrumb: (id) => this._commands.breadcrumb(id),
+        resolveHelpPath: (input, options) => this._commands.resolveHelpPath(input, options),
       },
     });
   }
@@ -292,12 +297,14 @@ export class PluginManager {
         method: h.method,
         pattern: stringifyPattern(h.pattern),
       })),
-      commands: this._commands.getRootsByPlugin(p.meta.name).map((c) => ({
-        name: c.name,
-        pattern: c.pattern,
-        description: c.description,
-        category: c.category,
-        children: c.children.map(commandNodeToPublicMeta),
+        commands: this._commands.getRootsByPlugin(p.meta.name).map((c) => ({
+          name: c.name,
+          pattern: c.pattern,
+          description: c.description,
+          usage: c.usage,
+          examples: c.examples,
+          category: c.category,
+          children: c.children.map(commandNodeToPublicMeta),
       })),
       bots: this._scope.getPluginBots(p.meta.name),
       routes: p.routes.map((r) => ({ method: r.method, path: r.path })),
@@ -332,6 +339,8 @@ function commandNodeToPublicMeta(
     name: node.name,
     pattern: node.pattern,
     description: node.description,
+    usage: node.usage,
+    examples: node.examples,
     category: node.category,
     children: node.children.map(commandNodeToPublicMeta),
   };

@@ -9,9 +9,13 @@ export interface CommandRecord {
   id: CommandId;
   pluginId: PluginId;
   name: string;
+  segment: string;
   path: string[];
+  fullPath: string;
   fullName: string;
   description?: string;
+  usage?: string;
+  examples: string[];
   category?: string;
   aliases: string[];
   hidden: boolean;
@@ -26,9 +30,14 @@ export interface CommandPublicNode {
   id: CommandId;
   pluginId: PluginId;
   name: string;
+  segment: string;
   path: string[];
+  fullPath: string;
   fullName: string;
+  parentId: CommandId | null;
   description?: string;
+  usage?: string;
+  examples: string[];
   category?: string;
   pattern: string;
   aliases: string[];
@@ -36,6 +45,18 @@ export interface CommandPublicNode {
   order: number;
   children: CommandPublicNode[];
 }
+
+export interface CommandBreadcrumbItem {
+  id: CommandId;
+  name: string;
+  fullPath: string;
+}
+
+export type CommandResolveResult =
+  | { type: "root"; children: CommandPublicNode[] }
+  | { type: "command"; command: CommandPublicNode; children: CommandPublicNode[]; breadcrumb: CommandBreadcrumbItem[] }
+  | { type: "ambiguous"; candidates: CommandPublicNode[] }
+  | { type: "not_found"; query: string; suggestions: CommandPublicNode[] };
 
 export class CommandRegistry {
   private readonly _byId = new Map<CommandId, CommandRecord>();
@@ -105,6 +126,56 @@ export class CommandRegistry {
     return pluginIds.flatMap((pluginId) => this.getRootsByPlugin(pluginId, options));
   }
 
+  roots(options: { includeHidden?: boolean; pluginId?: PluginId } = {}): CommandPublicNode[] {
+    return this.snapshot(options);
+  }
+
+  get(id: CommandId, options: { includeHidden?: boolean } = {}): CommandPublicNode | null {
+    return this._toPublicNode(id, options);
+  }
+
+  children(id: CommandId, options: { includeHidden?: boolean } = {}): CommandPublicNode[] {
+    const record = this._byId.get(id);
+    if (!record) return [];
+    return record.childIds
+      .map((childId) => this._toPublicNode(childId, options))
+      .filter((node): node is CommandPublicNode => Boolean(node))
+      .sort(comparePublicCommands);
+  }
+
+  breadcrumb(id: CommandId): CommandBreadcrumbItem[] {
+    const items: CommandBreadcrumbItem[] = [];
+    let current = this._byId.get(id);
+    while (current) {
+      items.push({ id: current.id, name: current.name, fullPath: current.fullPath });
+      current = current.parentId ? this._byId.get(current.parentId) : undefined;
+    }
+    return items.reverse();
+  }
+
+  resolveHelpPath(input = "", options: { includeHidden?: boolean; pluginId?: PluginId } = {}): CommandResolveResult {
+    const query = input.trim();
+    const roots = this.roots(options);
+    if (!query) return { type: "root", children: roots };
+
+    const tokens = tokenizeHelpPath(query);
+    if (tokens.length === 0) return { type: "root", children: roots };
+
+    const candidates = this._resolveFromRoots(tokens, options);
+    if (candidates.length === 1) {
+      const command = candidates[0];
+      return {
+        type: "command",
+        command,
+        children: this.children(command.id, options),
+        breadcrumb: this.breadcrumb(command.id),
+      };
+    }
+    if (candidates.length > 1) return { type: "ambiguous", candidates };
+
+    return { type: "not_found", query, suggestions: this._suggest(tokens.join(" "), options) };
+  }
+
   private _registerNode(
     pluginId: PluginId,
     entry: CommandEntry,
@@ -118,8 +189,11 @@ export class CommandRegistry {
     }
 
     ancestors.add(entry);
-    const path = [...parentPath, entry.name];
+    const segment = entry.segment ?? entry.name;
+    const path = [...parentPath, segment];
+    const displayPath = parentId ? [...(this._byId.get(parentId)?.fullName.split(" ") ?? []), entry.name] : [entry.name];
     const fullName = path.join(" ");
+    const fullPath = path.join(".");
     const id = this._commandId(pluginId, path);
     const key = this._fullNameKey(pluginId, fullName);
 
@@ -131,9 +205,13 @@ export class CommandRegistry {
       id,
       pluginId,
       name: entry.name,
+      segment,
       path,
-      fullName,
+      fullPath,
+      fullName: displayPath.join(" "),
       description: entry.description,
+      usage: entry.usage,
+      examples: entry.examples ?? [],
       category: entry.category ?? inheritedCategory,
       aliases: entry.aliases ?? [],
       hidden: entry.hidden ?? false,
@@ -171,9 +249,14 @@ export class CommandRegistry {
       id: record.id,
       pluginId: record.pluginId,
       name: record.name,
+      segment: record.segment,
       path: [...record.path],
+      fullPath: record.fullPath,
       fullName: record.fullName,
+      parentId: record.parentId,
       description: record.description,
+      usage: record.usage,
+      examples: [...record.examples],
       category: record.category,
       pattern: stringifyPattern(record.pattern),
       aliases: [...record.aliases],
@@ -202,6 +285,26 @@ export class CommandRegistry {
   private _fullNameKey(pluginId: PluginId, fullName: string): string {
     return `${pluginId}:${fullName}`;
   }
+
+  private _resolveFromRoots(tokens: string[], options: { includeHidden?: boolean; pluginId?: PluginId }): CommandPublicNode[] {
+    const pluginIds = options.pluginId ? [options.pluginId] : [...this._rootsByPlugin.keys()];
+    const matches: CommandPublicNode[] = [];
+    for (const pluginId of pluginIds) {
+      const roots = this.getRootsByPlugin(pluginId, options);
+      const resolved = resolvePathInNodes(roots, tokens);
+      matches.push(...resolved);
+    }
+    return matches;
+  }
+
+  private _suggest(query: string, options: { includeHidden?: boolean; pluginId?: PluginId }): CommandPublicNode[] {
+    const normalized = normalizeHelpToken(query);
+    if (!normalized) return [];
+    const all = flattenPublicNodes(this.roots(options));
+    return all
+      .filter((node) => labelsForNode(node).some((label) => normalizeHelpToken(label).includes(normalized)))
+      .slice(0, 5);
+  }
 }
 
 function compareCommands(a: CommandRecord, b: CommandRecord): number {
@@ -210,4 +313,35 @@ function compareCommands(a: CommandRecord, b: CommandRecord): number {
 
 function comparePublicCommands(a: CommandPublicNode, b: CommandPublicNode): number {
   return a.order - b.order || a.fullName.localeCompare(b.fullName, "zh-Hans-CN");
+}
+
+function tokenizeHelpPath(input: string): string[] {
+  return input
+    .trim()
+    .split(/[.\s]+/)
+    .map(normalizeHelpToken)
+    .filter(Boolean);
+}
+
+function normalizeHelpToken(input: string): string {
+  return input.trim().toLowerCase().replace(/[\s/_-]+/g, " ");
+}
+
+function labelsForNode(node: CommandPublicNode): string[] {
+  return [node.name, node.segment, node.fullPath, node.fullName, ...node.aliases].filter(Boolean);
+}
+
+function matchesNode(node: CommandPublicNode, token: string): boolean {
+  return labelsForNode(node).some((label) => normalizeHelpToken(label) === token);
+}
+
+function resolvePathInNodes(nodes: CommandPublicNode[], tokens: string[]): CommandPublicNode[] {
+  const [token, ...rest] = tokens;
+  const currentMatches = nodes.filter((node) => matchesNode(node, token));
+  if (rest.length === 0) return currentMatches;
+  return currentMatches.flatMap((node) => resolvePathInNodes(node.children, rest));
+}
+
+function flattenPublicNodes(nodes: CommandPublicNode[]): CommandPublicNode[] {
+  return nodes.flatMap((node) => [node, ...flattenPublicNodes(node.children)]);
 }

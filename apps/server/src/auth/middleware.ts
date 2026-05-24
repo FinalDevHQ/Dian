@@ -9,10 +9,15 @@ const PUBLIC_PREFIXES = [
   "/status",
 ];
 
+const PUBLIC_PLUGIN_API_PATHS = [
+  /^\/plugins\/puppeteer\/api\/(?:info|status|render|screenshot)$/,
+];
+
 function isPublicPath(url: string): boolean {
   // 去掉查询参数，只检查路径部分
   const path = url.split("?")[0];
   if (/^\/plugins\/[^/]+\/ui(?:\/|$)/.test(path)) return true;
+  if (PUBLIC_PLUGIN_API_PATHS.some((pattern) => pattern.test(path))) return true;
   return PUBLIC_PREFIXES.some((p) => path.startsWith(p));
 }
 
