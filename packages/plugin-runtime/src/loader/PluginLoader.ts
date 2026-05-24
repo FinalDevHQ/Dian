@@ -10,6 +10,7 @@ import {
   type CommandEntry,
   type HandlerMeta,
   type InterceptorMeta,
+  type DianRuntimeView,
   type PluginInstance,
   type PluginMeta,
   type PluginSetupContext,
@@ -23,10 +24,15 @@ import {
  */
 export class PluginLoader {
   private _onPluginLoaded: ((plugin: PluginInstance) => void | Promise<void>) | null = null;
+  private _runtimeView: DianRuntimeView | null = null;
 
   /** 注册插件加载完成后的回调。 */
   setOnPluginLoaded(fn: (plugin: PluginInstance) => void | Promise<void>): void {
     this._onPluginLoaded = fn;
+  }
+
+  setRuntimeView(view: DianRuntimeView): void {
+    this._runtimeView = view;
   }
 
   /**
@@ -103,7 +109,11 @@ export class PluginLoader {
     }
 
     if (typeof (instance as Record<string, unknown>)["onSetup"] === "function") {
+      if (!this._runtimeView) {
+        throw new Error("[plugin-runtime] PluginLoader runtime view is not configured");
+      }
       const ctx: PluginSetupContext = {
+        dian: this._runtimeView,
         route(method, path, handler) {
           routes.push({ method, path, handler });
         },

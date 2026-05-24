@@ -16,7 +16,8 @@ export function matchPattern(pattern: Pattern, text: string): boolean {
  * - RegExp  : .toString()（如 "/^!echo (.+)$/"）
  * - function: 调用并递归 stringify，异常时返回 "<dynamic>"
  */
-export function stringifyPattern(pattern: Pattern): string {
+export function stringifyPattern(pattern: Pattern | undefined): string {
+  if (!pattern) return "";
   try {
     const resolved = typeof pattern === "function" ? pattern() : pattern;
     if (resolved instanceof RegExp) return resolved.toString();

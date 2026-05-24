@@ -69,11 +69,17 @@ export interface CommandEntry {
   /** 指令名称，如 /help */
   name: string;
   /** 匹配规则，同 @Handler pattern */
-  pattern: Pattern;
+  pattern?: Pattern;
   description?: string;
-  handler: (ctx: EventContext) => void | Promise<void>;
+  handler?: (ctx: EventContext) => void | Promise<void>;
   /** 分类名，用于菜单分组展示，如 "基础群管" */
   category?: string;
+  /** 别名，仅用于展示和未来匹配扩展 */
+  aliases?: string[];
+  /** 隐藏指令：不在 help 中展示，但仍可用于内部注册 */
+  hidden?: boolean;
+  /** 同级排序，数字越小越靠前 */
+  order?: number;
   /** 子命令列表，用于树状菜单展示 */
   children?: CommandEntry[];
 }
@@ -133,8 +139,35 @@ export interface PluginPublicMeta {
   uiUrl: string | null;
 }
 
+export interface CommandTreePublicMeta {
+  id: string;
+  pluginId: string;
+  name: string;
+  path: string[];
+  fullName: string;
+  pattern: string;
+  description?: string;
+  category?: string;
+  aliases: string[];
+  hidden: boolean;
+  order: number;
+  children: CommandTreePublicMeta[];
+}
+
+export interface DianRuntimeView {
+  plugins: {
+    list(): PluginPublicMeta[];
+  };
+  commands: {
+    version(): number;
+    snapshot(options?: { includeHidden?: boolean; pluginId?: string }): CommandTreePublicMeta[];
+  };
+}
+
 /** 插件 onSetup 接收的上下文，用于注册路由/指令/UI */
 export interface PluginSetupContext {
+  /** 框架只读运行时视图，用于 help 等插件读取插件/指令快照 */
+  dian: DianRuntimeView;
   /** 注册 HTTP API 路由，路径自动带 /plugins/:name/api 前缀 */
   route(method: HttpMethod, path: string, handler: RouteHandler): void;
   /** 注册指令（等同于命令式版本的 @Handler） */

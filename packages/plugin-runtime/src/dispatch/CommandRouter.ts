@@ -1,4 +1,5 @@
 import type { EventContext, PluginInstance } from "../decorators.js";
+import type { CommandRecord } from "../registry/CommandRegistry.js";
 import { matchPattern } from "../utils/pattern.js";
 
 /**
@@ -9,6 +10,7 @@ export async function routeToHandlers(
   plugins: PluginInstance[],
   blacklist: Set<string>,
   isPluginEnabledForBot: (name: string, botId: string) => boolean,
+  getCommandsForPlugin: (pluginId: string) => CommandRecord[],
   messageText: string,
   ctx: EventContext,
 ): Promise<boolean> {
@@ -37,8 +39,9 @@ export async function routeToHandlers(
       }
     }
 
-    for (const cmd of plugin.commands) {
+    for (const cmd of getCommandsForPlugin(plugin.meta.name)) {
       if (stopped) break;
+      if (!cmd.pattern || !cmd.handler) continue;
       if (!matchPattern(cmd.pattern, messageText)) continue;
       try {
         await cmd.handler(wrappedCtx);

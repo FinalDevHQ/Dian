@@ -11,6 +11,8 @@ export type {
   PluginMeta,
   PluginPublicMeta,
   CommandPublicMeta,
+  CommandTreePublicMeta,
+  DianRuntimeView,
   HandlerPublicMeta,
   HandlerMeta,
   InterceptorMeta,
@@ -28,3 +30,11 @@ export type {
 
 // Manager
 export { PluginManager, pluginManager } from "./manager.js";
+export { CommandRegistry } from "./registry/CommandRegistry.js";
+export type {
+  CommandHandler,
+  CommandId,
+  CommandPublicNode,
+  CommandRecord,
+  PluginId,
+} from "./registry/CommandRegistry.js";

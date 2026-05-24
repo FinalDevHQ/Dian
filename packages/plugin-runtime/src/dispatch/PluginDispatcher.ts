@@ -1,7 +1,12 @@
 import type { BotEvent, SendActionFn } from "@myfinal/shared";
 import type { EventContext, PluginInstance, PluginStore } from "../decorators.js";
+import type { CommandRecord } from "../registry/CommandRegistry.js";
 import { extractMessageText } from "../utils/message.js";
-import { generateHelpText, generatePluginHelpText } from "../help/HelpGenerator.js";
+import {
+  generateHelpTextFromViews,
+  generatePluginHelpTextFromViews,
+  type HelpPluginView,
+} from "../help/HelpGenerator.js";
 import { runInterceptors } from "./InterceptorPipeline.js";
 import { routeToHandlers } from "./CommandRouter.js";
 
@@ -15,6 +20,8 @@ export async function dispatchEvent(
   plugins: PluginInstance[],
   blacklist: Set<string>,
   isPluginEnabledForBot: (name: string, botId: string) => boolean,
+  getCommandsForPlugin: (pluginId: string) => CommandRecord[],
+  getHelpPlugins: (botId: string) => HelpPluginView[],
   event: BotEvent,
   reply: (text: string) => Promise<void>,
   sendAction: SendActionFn,
@@ -37,7 +44,7 @@ export async function dispatchEvent(
   const trimmedText = messageText.trim();
   if (HELP_PATTERN.test(trimmedText)) {
     try {
-      await reply(generateHelpText(plugins, blacklist));
+      await reply(generateHelpTextFromViews(getHelpPlugins(event.botId)));
     } catch (err) {
       console.error(`[plugin-runtime] 生成帮助菜单异常:`, err);
     }
@@ -45,7 +52,7 @@ export async function dispatchEvent(
   }
 
   // 3. 二级菜单：用户发送插件名，展开该插件的命令列表
-  const pluginHelp = generatePluginHelpText(plugins, blacklist, trimmedText);
+  const pluginHelp = generatePluginHelpTextFromViews(getHelpPlugins(event.botId), trimmedText);
   if (pluginHelp) {
     try {
       await reply(pluginHelp);
@@ -56,5 +63,5 @@ export async function dispatchEvent(
   }
 
   // 4. handlers + commands
-  await routeToHandlers(plugins, blacklist, isPluginEnabledForBot, messageText, ctx);
+  await routeToHandlers(plugins, blacklist, isPluginEnabledForBot, getCommandsForPlugin, messageText, ctx);
 }

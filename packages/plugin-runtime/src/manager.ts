@@ -1,5 +1,5 @@
 import "reflect-metadata";
-import { sep } from "node:path";
+import { resolve, sep } from "node:path";
 import type { BotEvent, SendActionFn } from "@myfinal/shared";
 import type {
   PluginInstance,
@@ -7,9 +7,10 @@ import type {
   PluginStore,
 } from "./decorators.js";
 import { stringifyPattern } from "./utils/pattern.js";
-import { generateHelpText, mapCommandChildren } from "./help/HelpGenerator.js";
+import { generateHelpTextFromViews, type HelpPluginView } from "./help/HelpGenerator.js";
 import { dispatchEvent } from "./dispatch/PluginDispatcher.js";
 import { PluginRegistry } from "./registry/PluginRegistry.js";
+import { CommandRegistry } from "./registry/CommandRegistry.js";
 import { PluginLoader } from "./loader/PluginLoader.js";
 import { HotReloadWatcher } from "./loader/HotReloadWatcher.js";
 import { BotActionSender, type BotManager, type ActionResult } from "./bot-action/BotActionSender.js";
@@ -21,6 +22,7 @@ import { BotScopeManager } from "./scope/BotScopeManager.js";
 
 export class PluginManager {
   private readonly _registry = new PluginRegistry();
+  private readonly _commands = new CommandRegistry();
   private readonly _loader = new PluginLoader();
   private readonly _watcher = new HotReloadWatcher();
   private readonly _scope = new BotScopeManager();
@@ -28,6 +30,18 @@ export class PluginManager {
   private _maintenanceMode = false;
   private _installLock = false;
   private _pluginsDir: string | null = null;
+
+  constructor() {
+    this._loader.setRuntimeView({
+      plugins: {
+        list: () => this.listPluginsMeta(),
+      },
+      commands: {
+        version: () => this._commands.version,
+        snapshot: (options) => this._commands.snapshot(options),
+      },
+    });
+  }
 
   // ── 加载 ──────────────────────────────────────────────────────────────────
 
@@ -46,7 +60,17 @@ export class PluginManager {
   private async _loadFile(filePath: string): Promise<void> {
     const instance = await this._loader.loadFile(filePath);
     if (instance) {
+      this._registerInstance(instance);
+    }
+  }
+
+  private _registerInstance(instance: PluginInstance): void {
+    try {
+      this._commands.registerPlugin(instance);
       this._registry.set(instance.meta.name, instance);
+    } catch (err) {
+      this._commands.unregisterPlugin(instance.meta.name);
+      console.error(`[plugin-runtime] 插件 "${instance.meta.name}" 指令注册失败:`, err);
     }
   }
 
@@ -86,11 +110,16 @@ export class PluginManager {
 
   /** 卸载 filePath 位于指定目录下的所有已加载插件。返回被卸载的插件名列表。 */
   unloadByDir(dir: string): string[] {
-    const unloaded = this._registry.unloadByDir(dir, sep);
-    for (const name of unloaded) {
-      console.info(`[plugin-runtime] 插件 "${name}" 已卸载`);
+    const normalizedDir = resolve(dir);
+    const names: string[] = [];
+    for (const [name, plugin] of this._registry.entries()) {
+      const fp = resolve(plugin.filePath);
+      if (fp.startsWith(normalizedDir + sep) || fp.startsWith(normalizedDir + "/")) {
+        names.push(name);
+      }
     }
-    return unloaded;
+    for (const name of names) this.unload(name);
+    return names;
   }
 
   // ── 卸载 / 热重载 ─────────────────────────────────────────────────────────
@@ -107,6 +136,7 @@ export class PluginManager {
         console.error(`[plugin-runtime] 插件 "${name}" onStop 异常:`, err);
       }
     }
+    this._commands.unregisterPlugin(name);
     this._registry.delete(name);
     console.info(`[plugin-runtime] 插件 "${name}" 已卸载`);
   }
@@ -117,8 +147,13 @@ export class PluginManager {
       console.warn(`[plugin-runtime] 找不到插件 "${name}"，无法 reload`);
       return;
     }
+    const next = await this._loader.loadFile(plugin.filePath);
+    if (!next) {
+      console.warn(`[plugin-runtime] 插件 "${name}" reload 失败，已保留旧实例`);
+      return;
+    }
     this.unload(name);
-    await this._loadFile(plugin.filePath);
+    this._registerInstance(next);
   }
 
   // ── 文件监听热重载 ────────────────────────────────────────────────────────
@@ -155,7 +190,7 @@ export class PluginManager {
 
   /** 生成树状帮助菜单文本 */
   generateHelpText(): string {
-    return generateHelpText(this._registry.all(), this._registry.blacklist as Set<string>);
+    return generateHelpTextFromViews(this._getHelpPluginViews());
   }
 
   /**
@@ -174,6 +209,8 @@ export class PluginManager {
       this._registry.all(),
       this._registry.blacklist as Set<string>,
       (name, botId) => this._scope.isEnabledForBot(name, botId),
+      (pluginId) => this._commands.getByPlugin(pluginId, { includeHidden: true }),
+      (botId) => this._getHelpPluginViews(botId),
       event,
       reply,
       sendAction,
@@ -227,6 +264,10 @@ export class PluginManager {
     return this._registry.all();
   }
 
+  get commands(): CommandRegistry {
+    return this._commands;
+  }
+
   get maintenanceMode(): boolean {
     return this._maintenanceMode;
   }
@@ -244,17 +285,17 @@ export class PluginManager {
       icon: p.meta.icon,
       enabled: !this._registry.isBlacklisted(p.meta.name),
       handlerCount: p.handlers.length,
-      commandCount: p.commands.length,
+      commandCount: this._commands.countByPlugin(p.meta.name),
       handlers: p.handlers.map((h) => ({
         method: h.method,
         pattern: stringifyPattern(h.pattern),
       })),
-      commands: p.commands.map((c) => ({
+      commands: this._commands.getRootsByPlugin(p.meta.name).map((c) => ({
         name: c.name,
-        pattern: stringifyPattern(c.pattern),
+        pattern: c.pattern,
         description: c.description,
         category: c.category,
-        children: c.children ? mapCommandChildren(c.children) : undefined,
+        children: c.children.map(commandNodeToPublicMeta),
       })),
       bots: this._scope.getPluginBots(p.meta.name),
       routes: p.routes.map((r) => ({ method: r.method, path: r.path })),
@@ -266,6 +307,32 @@ export class PluginManager {
           : null,
     }));
   }
+
+  private _getHelpPluginViews(botId?: string): HelpPluginView[] {
+    return this._registry
+      .all()
+      .filter((p) => !this._registry.isBlacklisted(p.meta.name))
+      .filter((p) => !botId || this._scope.isEnabledForBot(p.meta.name, botId))
+      .map((p) => ({
+        name: p.meta.name,
+        description: p.meta.description,
+        icon: p.meta.icon,
+        commands: this._commands.getRootsByPlugin(p.meta.name),
+        commandCount: this._commands.countByPlugin(p.meta.name),
+      }));
+  }
+}
+
+function commandNodeToPublicMeta(
+  node: ReturnType<CommandRegistry["getRootsByPlugin"]>[number],
+): PluginPublicMeta["commands"][number] {
+  return {
+    name: node.name,
+    pattern: node.pattern,
+    description: node.description,
+    category: node.category,
+    children: node.children.map(commandNodeToPublicMeta),
+  };
 }
 
 // ---------------------------------------------------------------------------
