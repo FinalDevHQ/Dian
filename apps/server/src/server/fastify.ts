@@ -1,7 +1,7 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import type { LogService } from "@myfinal/logger";
-import type { MessageRepository } from "@myfinal/storage";
+import type { MessageRepository, SqlitePluginStore } from "@myfinal/storage";
 import type { BotManager } from "../bot/bot-manager.js";
 import type { EventBus } from "../event/event-bus.js";
 import type { DatabaseExplorer } from "../db/explorer.js";
@@ -27,6 +27,7 @@ export interface ServerOptions {
   eventBus: EventBus;
   dbExplorer: DatabaseExplorer;
   messageRepo?: MessageRepository;
+  pluginStore?: SqlitePluginStore;
   /** 插件 bot 白名单持久化（已在 main.ts 中创建） */
   persistPluginScope: () => Promise<void>;
   /** 认证服务 */
@@ -50,6 +51,7 @@ export async function createServer(opts: ServerOptions): Promise<{
     eventBus,
     dbExplorer,
     messageRepo,
+    pluginStore,
     persistPluginScope,
     authService,
   } = opts;
@@ -83,6 +85,7 @@ export async function createServer(opts: ServerOptions): Promise<{
     knownBotIds: () => botManager.getBots().map((b) => b.botId),
     persistPluginScope,
     botManager,
+    pluginStore,
   });
   await app.register(botsRoutes, { logger, configDir });
   if (messageRepo) {

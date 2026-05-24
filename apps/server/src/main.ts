@@ -91,9 +91,10 @@ async function main(): Promise<void> {
   }
 
   // 创建插件存储实例
+  let pluginStore: SqlitePluginStore | undefined;
   if (configService.settings.storage?.sqlite) {
     const sqliteFile = resolve(ROOT_DIR, configService.settings.storage.sqlite);
-    const pluginStore = new SqlitePluginStore(sqliteFile);
+    pluginStore = new SqlitePluginStore(sqliteFile);
     dispatcher.setStore(pluginStore);
     logger.info("Plugin store enabled (SQLite)");
   }
@@ -130,6 +131,7 @@ async function main(): Promise<void> {
     eventBus,
     dbExplorer,
     messageRepo: storageService.hasMessage ? storageService.message : undefined,
+    pluginStore,
     persistPluginScope: () => pluginScopeIO.save(),
     authService,
   });

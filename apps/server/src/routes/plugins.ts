@@ -5,6 +5,7 @@ import type { FastifyInstance, FastifyReply } from "fastify";
 import { unzip } from "fflate";
 import { pluginManager } from "@myfinal/plugin-runtime";
 import type { LogService } from "@myfinal/logger";
+import type { SqlitePluginStore } from "@myfinal/storage";
 
 // 静态资源 MIME 类型表（够用即可，无需引入 mime 库）
 const MIME_TYPES: Record<string, string> = {
@@ -35,13 +36,14 @@ interface PluginRoutesOptions {
   knownBotIds: () => readonly string[];
   persistPluginScope: () => Promise<void>;
   botManager: import("../bot/bot-manager.js").BotManager;
+  pluginStore?: SqlitePluginStore;
 }
 
 export async function pluginRoutes(
   app: FastifyInstance,
   opts: PluginRoutesOptions
 ): Promise<void> {
-  const { logger, pluginsDir, knownBotIds, persistPluginScope, botManager } = opts;
+  const { logger, pluginsDir, knownBotIds, persistPluginScope, botManager, pluginStore } = opts;
 
   // ── GET /plugins ──────────────────────────────────────────────────────────
   app.get("/plugins", async (_req, reply) => {
@@ -387,6 +389,18 @@ export async function pluginRoutes(
     }
     // 注入 botManager，供插件路由 handler 调用底层 API
     ;(req as unknown as Record<string, unknown>).botManager = botManager;
+    if (pluginStore) {
+      ;(req as unknown as Record<string, unknown>).pluginStore = {
+        createTable: (tableName: string, columns: string[]) => pluginStore.createTable(tableName, columns),
+        insert: (tableName: string, data: Record<string, unknown>) => pluginStore.insert(tableName, data),
+        query: (
+          tableName: string,
+          params?: Record<string, unknown>,
+          options?: { limit?: number; orderBy?: string; order?: "ASC" | "DESC" },
+        ) => pluginStore.query(tableName, params, options),
+        delete: (tableName: string, params?: Record<string, unknown>) => pluginStore.delete(tableName, params),
+      };
+    }
     return route.handler(req, reply);
   };
 

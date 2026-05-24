@@ -5,7 +5,8 @@
   "workspaces": [
     "packages/*",
     "apps/*",
-    "plugin-template"
+    "plugin-template",
+    "my-plugin/*"
   ],
   "scripts": {
     "build": "npm run build -w packages && npm run build -w apps/server",

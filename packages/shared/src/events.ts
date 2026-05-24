@@ -127,14 +127,20 @@ export interface OneBotMessageSegment {
 /**
  * 从 OneBot 原始事件提取纯文本消息
  * - 字符串格式：直接返回
- * - 消息段数组：提取所有 type=text 的段拼接
+ * - 消息段数组：提取所有 type=text、type=at、type=reply 的段拼接
+ *   - type=at 转换为 CQ 码格式 [CQ:at,qq=XXX]
+ *   - type=reply 转换为 CQ 码格式 [CQ:reply,id=XXX]
  */
 function extractText(message: OneBotRawEvent["message"]): string {
   if (!message) return "";
   if (typeof message === "string") return message;
   return message
-    .filter((seg) => seg.type === "text")
-    .map((seg) => seg.data["text"] ?? "")
+    .map((seg) => {
+      if (seg.type === "text") return seg.data["text"] ?? "";
+      if (seg.type === "at" && seg.data["qq"]) return `[CQ:at,qq=${seg.data["qq"]}]`;
+      if (seg.type === "reply" && seg.data["id"]) return `[CQ:reply,id=${seg.data["id"]}]`;
+      return "";
+    })
     .join("");
 }
 

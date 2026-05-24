@@ -8,8 +8,8 @@ interface CommandNode {
 }
 
 /**
- * 生成树状帮助菜单文本。
- * 纯函数，不依赖任何外部状态。
+ * 生成一级帮助菜单文本。
+ * 默认只展示分类，避免群里刷出完整指令清单。
  */
 export function generateHelpText(plugins: PluginInstance[], blacklist: Set<string>): string {
   const lines: string[] = ["📋 可用命令："];
@@ -33,39 +33,18 @@ export function generateHelpText(plugins: PluginInstance[], blacklist: Set<strin
     }
   }
 
-  let categoryIndex = 0;
-  for (const [category, commands] of categorized) {
-    categoryIndex++;
-    const isLastCategory = categoryIndex === categorized.size && uncategorized.length === 0;
-    lines.push(`${isLastCategory ? "└" : "├"}─ ${category}`);
-
-    for (let i = 0; i < commands.length; i++) {
-      const cmd = commands[i];
-      const isLast = i === commands.length - 1;
-      const prefix = isLastCategory ? "   " : "│  ";
-      const branch = isLast ? "└" : "├";
-      const desc = cmd.description ? ` - ${cmd.description}` : "";
-      lines.push(`${prefix}${branch} ${cmd.name}${desc}`);
-
-      if (cmd.children && cmd.children.length > 0) {
-        const childPrefix = isLastCategory ? "   " : "│  ";
-        renderChildren(cmd.children, lines, `${childPrefix}${isLast ? "   " : "│  "}`);
-      }
-    }
+  const categoryEntries = Array.from(categorized.entries());
+  for (let i = 0; i < categoryEntries.length; i++) {
+    const [category, commands] = categoryEntries[i];
+    const isLastCategory = i === categoryEntries.length - 1 && uncategorized.length === 0;
+    lines.push(`${isLastCategory ? "└" : "├"}─ ${category} (${commands.length}条)`);
   }
 
-  for (let i = 0; i < uncategorized.length; i++) {
-    const cmd = uncategorized[i];
-    const isLast = i === uncategorized.length - 1;
-    const branch = isLast ? "└" : "├";
-    const desc = cmd.description ? ` - ${cmd.description}` : "";
-    lines.push(`${branch} ${cmd.name}${desc}`);
-
-    if (cmd.children && cmd.children.length > 0) {
-      renderChildren(cmd.children, lines, isLast ? "   " : "│  ");
-    }
+  if (uncategorized.length > 0) {
+    lines.push(`└─ 其他 (${uncategorized.length}条)`);
   }
 
+  lines.push("发送具体指令名查看或直接使用对应命令。");
   return lines.join("\n");
 }
 
