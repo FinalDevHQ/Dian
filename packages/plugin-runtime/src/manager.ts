@@ -188,7 +188,10 @@ export class PluginManager {
 
   // ── 事件分发 ──────────────────────────────────────────────────────────────
 
-  /** 生成树状帮助菜单文本 */
+  /**
+   * @deprecated Help 展示应由 Dian-plugin-help 通过 ctx.dian 只读视图实现。
+   * 该方法仅保留给旧调用方做过渡，不再参与消息分发。
+   */
   generateHelpText(): string {
     return generateHelpTextFromViews(this._getHelpPluginViews());
   }
@@ -210,7 +213,6 @@ export class PluginManager {
       this._registry.blacklist as Set<string>,
       (name, botId) => this._scope.isEnabledForBot(name, botId),
       (pluginId) => this._commands.getByPlugin(pluginId, { includeHidden: true }),
-      (botId) => this._getHelpPluginViews(botId),
       event,
       reply,
       sendAction,
