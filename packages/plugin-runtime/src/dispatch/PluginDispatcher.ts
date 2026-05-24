@@ -1,7 +1,7 @@
 import type { BotEvent, SendActionFn } from "@myfinal/shared";
 import type { EventContext, PluginInstance, PluginStore } from "../decorators.js";
 import { extractMessageText } from "../utils/message.js";
-import { generateHelpText } from "../help/HelpGenerator.js";
+import { generateHelpText, generatePluginHelpText } from "../help/HelpGenerator.js";
 import { runInterceptors } from "./InterceptorPipeline.js";
 import { routeToHandlers } from "./CommandRouter.js";
 
@@ -34,7 +34,8 @@ export async function dispatchEvent(
 
   // 2. 内置帮助命令
   const messageText = extractMessageText(event);
-  if (HELP_PATTERN.test(messageText.trim())) {
+  const trimmedText = messageText.trim();
+  if (HELP_PATTERN.test(trimmedText)) {
     try {
       await reply(generateHelpText(plugins, blacklist));
     } catch (err) {
@@ -43,6 +44,17 @@ export async function dispatchEvent(
     return;
   }
 
-  // 3. handlers + commands
+  // 3. 二级菜单：用户发送插件名，展开该插件的命令列表
+  const pluginHelp = generatePluginHelpText(plugins, blacklist, trimmedText);
+  if (pluginHelp) {
+    try {
+      await reply(pluginHelp);
+    } catch (err) {
+      console.error(`[plugin-runtime] 生成插件帮助异常:`, err);
+    }
+    return;
+  }
+
+  // 4. handlers + commands
   await routeToHandlers(plugins, blacklist, isPluginEnabledForBot, messageText, ctx);
 }

@@ -1,50 +1,86 @@
 import type { CommandEntry, PluginInstance } from "../decorators.js";
 import { stringifyPattern } from "../utils/pattern.js";
 
-interface CommandNode {
-  name: string;
-  description?: string;
-  children?: CommandEntry[];
-}
-
 /**
  * 生成一级帮助菜单文本。
- * 默认只展示分类，避免群里刷出完整指令清单。
+ * 默认按插件展示，避免不同插件的分类混在一起。
  */
 export function generateHelpText(plugins: PluginInstance[], blacklist: Set<string>): string {
   const lines: string[] = ["📋 可用命令："];
+  const enabledPlugins = plugins.filter((plugin) => !blacklist.has(plugin.meta.name) && plugin.commands.length > 0);
 
-  const categorized = new Map<string, CommandNode[]>();
-  const uncategorized: CommandNode[] = [];
+  for (let i = 0; i < enabledPlugins.length; i++) {
+    const plugin = enabledPlugins[i];
+    const isLast = i === enabledPlugins.length - 1;
+    const displayName = plugin.meta.description || plugin.meta.name;
+    const icon = plugin.meta.icon ? `${plugin.meta.icon} ` : "";
+    lines.push(`${isLast ? "└" : "├"}─ ${icon}${displayName} (${plugin.commands.length}条)`);
+  }
 
-  for (const plugin of plugins) {
-    if (blacklist.has(plugin.meta.name)) continue;
+  lines.push("发送插件名或指令名查看详细命令。");
+  return lines.join("\n");
+}
 
-    for (const cmd of plugin.commands) {
-      const entry: CommandNode = { name: cmd.name, description: cmd.description, children: cmd.children };
-      if (cmd.category) {
-        if (!categorized.has(cmd.category)) {
-          categorized.set(cmd.category, []);
-        }
-        categorized.get(cmd.category)!.push(entry);
-      } else {
-        uncategorized.push(entry);
-      }
+/**
+ * 生成某个插件的详细命令列表。
+ * 匹配逻辑：输入文本与插件名或插件描述模糊匹配。
+ */
+export function generatePluginHelpText(plugins: PluginInstance[], blacklist: Set<string>, text: string): string | null {
+  const query = text.trim().toLowerCase();
+  const enabledPlugins = plugins.filter((plugin) => !blacklist.has(plugin.meta.name) && plugin.commands.length > 0);
+
+  // 精确匹配插件名
+  let matched = enabledPlugins.find((p) => p.meta.name.toLowerCase() === query);
+  // 模糊匹配插件描述
+  if (!matched) {
+    matched = enabledPlugins.find((p) => {
+      const desc = (p.meta.description || "").toLowerCase();
+      return desc.includes(query) || query.includes(desc);
+    });
+  }
+  // 模糊匹配插件名
+  if (!matched) {
+    matched = enabledPlugins.find((p) => p.meta.name.toLowerCase().includes(query) || query.includes(p.meta.name.toLowerCase()));
+  }
+
+  if (!matched) return null;
+
+  const displayName = matched.meta.description || matched.meta.name;
+  const icon = matched.meta.icon ? `${matched.meta.icon} ` : "";
+  const lines: string[] = [`${icon}${displayName} 命令列表：`];
+
+  const categorized = new Map<string, CommandEntry[]>();
+  const uncategorized: CommandEntry[] = [];
+
+  for (const cmd of matched.commands) {
+    if (cmd.category) {
+      if (!categorized.has(cmd.category)) categorized.set(cmd.category, []);
+      categorized.get(cmd.category)!.push(cmd);
+    } else {
+      uncategorized.push(cmd);
     }
   }
 
-  const categoryEntries = Array.from(categorized.entries());
-  for (let i = 0; i < categoryEntries.length; i++) {
-    const [category, commands] = categoryEntries[i];
-    const isLastCategory = i === categoryEntries.length - 1 && uncategorized.length === 0;
-    lines.push(`${isLastCategory ? "└" : "├"}─ ${category} (${commands.length}条)`);
+  for (const [category, cmds] of categorized) {
+    lines.push(`├─ ${category}`);
+    for (let i = 0; i < cmds.length; i++) {
+      const cmd = cmds[i];
+      const isLast = i === cmds.length - 1;
+      const branch = isLast ? "└" : "├";
+      const desc = cmd.description ? ` - ${cmd.description}` : "";
+      lines.push(`│  ${branch} ${cmd.name}${desc}`);
+    }
   }
 
-  if (uncategorized.length > 0) {
-    lines.push(`└─ 其他 (${uncategorized.length}条)`);
+  for (let i = 0; i < uncategorized.length; i++) {
+    const cmd = uncategorized[i];
+    const isLast = i === uncategorized.length - 1;
+    const branch = isLast ? "└" : "├";
+    const desc = cmd.description ? ` - ${cmd.description}` : "";
+    lines.push(`${branch} ${cmd.name}${desc}`);
   }
 
-  lines.push("发送具体指令名查看或直接使用对应命令。");
+  lines.push(`共 ${matched.commands.length} 条指令`);
   return lines.join("\n");
 }
 
