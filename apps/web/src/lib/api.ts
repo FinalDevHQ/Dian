@@ -342,8 +342,15 @@ export const api = {
       `/plugins/${encodeURIComponent(name)}/bots`,
       { method: "PUT", body: JSON.stringify({ bots }) }
     ),
-  deletePlugin: (name: string) =>
-    request<{ ok: boolean }>(`/plugins/${encodeURIComponent(name)}`, { method: "DELETE" }),
+  deletePlugin: (name: string, deleteData = false) =>
+    request<{ ok: boolean }>(
+      `/plugins/${encodeURIComponent(name)}?deleteData=${deleteData}`,
+      { method: "DELETE" }
+    ),
+  getPluginTables: (name: string) =>
+    request<{ tables: string[] }>(
+      `/plugins/${encodeURIComponent(name)}/tables`
+    ),
 
   getDevStatus: () =>
     request<{ ok: boolean; sessions: { pluginName: string; connectedAt: number; lastSyncAt?: number }[]; port?: number }>(

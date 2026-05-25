@@ -101,63 +101,99 @@ export async function pluginRoutes(
     return reply.send({ ok: true, bots: accepted, rejected });
   });
 
-  // ── DELETE /plugins/:name ──────────────────────────────────────────────────
-  app.delete<{ Params: { name: string } }>("/plugins/:name", async (req, reply) => {
+  // ── GET /plugins/:name/tables ─────────────────────────────────────────────
+  // 获取插件创建的表列表
+  app.get<{ Params: { name: string } }>("/plugins/:name/tables", async (req, reply) => {
     const { name } = req.params;
     if (!name || !/^[\w-]+$/.test(name)) {
       return reply.code(400).send({ error: "invalid plugin name" });
     }
 
-    // 必须在 unload 之前先拿到 filePath，
-    // 否则 plugins.find 会返回 undefined；且 meta.name 与目录名常不一致。
-    const loadedPlugin = pluginManager.plugins.find((p) => p.meta.name === name);
-    const loadedFilePath = loadedPlugin?.filePath;
-
-    // 从内存卸载
-    pluginManager.unload(name);
-    // 同步清掉黑名单状态，避免重装后仍处于禁用
-    pluginManager.removeFromBlacklist(name);
-    // 清除 bot 作用域并持久化，避免 plugin-scope.json 残留已删除插件的条目
-    pluginManager.setPluginBots(name, []);
-    await persistPluginScope();
-
-    // 计算真实目标：优先用已加载插件的实际路径
-    const targetDir  = loadedFilePath ? dirname(loadedFilePath) : join(pluginsDir, name);
-    const targetFile = loadedFilePath && loadedFilePath.endsWith(".js")
-      ? loadedFilePath
-      : join(pluginsDir, `${name}.js`);
+    if (!pluginStore) {
+      return reply.send({ tables: [] });
+    }
 
     try {
-      let removed = false;
-      // 单文件插件（plugins/foo.js）：父目录就是 pluginsDir，只删文件
-      if (targetDir === resolve(pluginsDir)) {
-        if (existsSync(targetFile)) {
-          await unlink(targetFile);
-          removed = true;
-        }
-      } else if (existsSync(targetDir)) {
-        await rm(targetDir, { recursive: true, force: true });
-        removed = true;
-      } else if (existsSync(targetFile)) {
-        await unlink(targetFile);
-        removed = true;
-      }
-
-      if (!removed) {
-        logger.warn(`Plugin "${name}" unloaded from memory, but no files were found to delete (targetDir=${targetDir})`);
-        return reply.code(404).send({
-          error: `plugin "${name}" not found on disk`,
-          hint: "插件已从内存卸载，但磁盘上未找到对应目录或文件",
-        });
-      }
-
-      logger.info(`Plugin uninstalled: ${name}`);
-      return reply.send({ ok: true });
+      const tables = await pluginStore.getPluginTables(name);
+      return reply.send({ tables });
     } catch (err) {
-      logger.error(`Failed to uninstall plugin: ${name}`, { err: (err as Error).message });
+      logger.error(`Failed to get plugin tables: ${name}`, { err: (err as Error).message });
       return reply.code(500).send({ error: (err as Error).message });
     }
   });
+
+  // ── DELETE /plugins/:name ──────────────────────────────────────────────────
+  app.delete<{ Params: { name: string }; Querystring: { deleteData?: string } }>(
+    "/plugins/:name",
+    async (req, reply) => {
+      const { name } = req.params;
+      const deleteData = req.query.deleteData === "true";
+
+      if (!name || !/^[\w-]+$/.test(name)) {
+        return reply.code(400).send({ error: "invalid plugin name" });
+      }
+
+      // 必须在 unload 之前先拿到 filePath，
+      // 否则 plugins.find 会返回 undefined；且 meta.name 与目录名常不一致。
+      const loadedPlugin = pluginManager.plugins.find((p) => p.meta.name === name);
+      const loadedFilePath = loadedPlugin?.filePath;
+
+      // 从内存卸载
+      pluginManager.unload(name);
+      // 同步清掉黑名单状态，避免重装后仍处于禁用
+      pluginManager.removeFromBlacklist(name);
+      // 清除 bot 作用域并持久化，避免 plugin-scope.json 残留已删除插件的条目
+      pluginManager.setPluginBots(name, []);
+      await persistPluginScope();
+
+      // 删除插件数据（如果用户选择）
+      if (deleteData && pluginStore) {
+        try {
+          await pluginStore.dropPluginTables(name);
+          logger.info(`Plugin "${name}" data tables dropped`);
+        } catch (err) {
+          logger.error(`Failed to drop plugin data tables: ${name}`, { err: (err as Error).message });
+        }
+      }
+
+      // 计算真实目标：优先用已加载插件的实际路径
+      const targetDir  = loadedFilePath ? dirname(loadedFilePath) : join(pluginsDir, name);
+      const targetFile = loadedFilePath && loadedFilePath.endsWith(".js")
+        ? loadedFilePath
+        : join(pluginsDir, `${name}.js`);
+
+      try {
+        let removed = false;
+        // 单文件插件（plugins/foo.js）：父目录就是 pluginsDir，只删文件
+        if (targetDir === resolve(pluginsDir)) {
+          if (existsSync(targetFile)) {
+            await unlink(targetFile);
+            removed = true;
+          }
+        } else if (existsSync(targetDir)) {
+          await rm(targetDir, { recursive: true, force: true });
+          removed = true;
+        } else if (existsSync(targetFile)) {
+          await unlink(targetFile);
+          removed = true;
+        }
+
+        if (!removed) {
+          logger.warn(`Plugin "${name}" unloaded from memory, but no files were found to delete (targetDir=${targetDir})`);
+          return reply.code(404).send({
+            error: `plugin "${name}" not found on disk`,
+            hint: "插件已从内存卸载，但磁盘上未找到对应目录或文件",
+          });
+        }
+
+        logger.info(`Plugin uninstalled: ${name}`);
+        return reply.send({ ok: true });
+      } catch (err) {
+        logger.error(`Failed to uninstall plugin: ${name}`, { err: (err as Error).message });
+        return reply.code(500).send({ error: (err as Error).message });
+      }
+    }
+  );
 
   // ── POST /plugins/upload ─────────────────────────────────────────────────
   app.post<{

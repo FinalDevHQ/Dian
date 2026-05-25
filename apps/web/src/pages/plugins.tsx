@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
 import { cn } from "@/lib/utils"
+import { UninstallDialog } from "@/components/uninstall-dialog"
 
 // ── 上传插件弹窗 ────────────────────────────────────────────────────────────
 
@@ -271,7 +272,6 @@ function PluginDetail({
   onDisconnectDev?: (name: string) => Promise<void>
 }) {
   const [toggling, setToggling] = useState(false)
-  const [confirm, setConfirm] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [savingBots, setSavingBots] = useState(false)
   const [disconnecting, setDisconnecting] = useState(false)
@@ -296,9 +296,8 @@ function PluginDetail({
   }
 
   const handleDelete = async () => {
-    if (!confirm) { setConfirm(true); setTimeout(() => setConfirm(false), 4000); return }
     setDeleting(true)
-    try { await onDelete(plugin.name) } finally { setDeleting(false); setConfirm(false) }
+    try { await onDelete(plugin.name) } finally { setDeleting(false) }
   }
 
   return (
@@ -344,7 +343,7 @@ function PluginDetail({
             )}
           </label>
           <Button
-            variant={confirm ? "destructive" : "ghost"}
+            variant="ghost"
             size="sm"
             className="size-8 p-0"
             onClick={handleDelete}
@@ -354,7 +353,6 @@ function PluginDetail({
             {deleting
               ? <Loader2 className="size-3.5 animate-spin" />
               : <Trash2 className="size-3.5" />}
-            {confirm && <span className="ml-1 text-xs">确认?</span>}
           </Button>
         </div>
       </div>
@@ -569,6 +567,12 @@ export function PluginsPage({ onPluginsChange }: { onPluginsChange?: () => void 
   const [devSessions, setDevSessions] = useState<Map<string, { connectedAt: number; lastSyncAt?: number }>>(new Map())
   const loadRef = useRef(0)
 
+  // 卸载弹窗状态
+  const [uninstallPlugin, setUninstallPlugin] = useState<string | null>(null)
+  const [uninstallTables, setUninstallTables] = useState<string[]>([])
+  const [uninstallLoading, setUninstallLoading] = useState(false)
+  const [uninstallTablesLoading, setUninstallTablesLoading] = useState(false)
+
   const loadPlugins = useCallback(async () => {
     const id = ++loadRef.current
     setLoading(true)
@@ -624,18 +628,46 @@ export function PluginsPage({ onPluginsChange }: { onPluginsChange?: () => void 
 
   const handleDelete = useCallback(
     async (name: string) => {
+      // 打开卸载弹窗并加载表列表
+      setUninstallPlugin(name)
+      setUninstallTablesLoading(true)
       try {
-        await api.deletePlugin(name)
-        setPlugins((prev) => prev?.filter((p) => p.name !== name) ?? prev)
-        setSelected((prev) => (prev === name ? null : prev))
+        const { tables } = await api.getPluginTables(name)
+        setUninstallTables(tables)
+      } catch {
+        setUninstallTables([])
+      } finally {
+        setUninstallTablesLoading(false)
+      }
+    },
+    []
+  )
+
+  const handleUninstallConfirm = useCallback(
+    async (deleteData: boolean) => {
+      if (!uninstallPlugin) return
+      setUninstallLoading(true)
+      try {
+        await api.deletePlugin(uninstallPlugin, deleteData)
+        setPlugins((prev) => prev?.filter((p) => p.name !== uninstallPlugin) ?? prev)
+        setSelected((prev) => (prev === uninstallPlugin ? null : prev))
+        setUninstallPlugin(null)
+        setUninstallTables([])
         // 删除后从导航栏移除
         onPluginsChange?.()
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err))
+      } finally {
+        setUninstallLoading(false)
       }
     },
-    [onPluginsChange]
+    [uninstallPlugin, onPluginsChange]
   )
+
+  const handleUninstallCancel = useCallback(() => {
+    setUninstallPlugin(null)
+    setUninstallTables([])
+  }, [])
 
   const handleBotsChange = useCallback(
     async (name: string, bots: string[]) => {
@@ -664,6 +696,17 @@ export function PluginsPage({ onPluginsChange }: { onPluginsChange?: () => void 
           onSuccess={() => { setTimeout(() => { loadPlugins() }, 800) }}
         />
       )}
+
+      {/* 卸载确认弹窗 */}
+      <UninstallDialog
+        open={!!uninstallPlugin}
+        onOpenChange={(open) => !open && handleUninstallCancel()}
+        pluginName={uninstallPlugin ?? ""}
+        tables={uninstallTables}
+        loading={uninstallLoading || uninstallTablesLoading}
+        onConfirm={handleUninstallConfirm}
+        onCancel={handleUninstallCancel}
+      />
 
       {/* ── 左侧插件列表 ── */}
       <Card className="flex min-h-0 flex-col overflow-hidden">

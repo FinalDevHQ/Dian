@@ -14,20 +14,76 @@ export class SqlitePluginStore {
     mkdirSync(dirname(absPath), { recursive: true });
     this.db = new Database(absPath);
     this.db.pragma("journal_mode = WAL");
+    this._initMetaTable();
+  }
+
+  /**
+   * 初始化元数据表，用于跟踪插件和表的关联关系
+   */
+  private _initMetaTable(): void {
+    this.db.exec(`CREATE TABLE IF NOT EXISTS _plugin_tables (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      plugin_name TEXT NOT NULL,
+      table_name TEXT NOT NULL UNIQUE,
+      created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%S','now'))
+    )`);
+    // 为 plugin_name 创建索引，加速查询
+    this.db.exec(`CREATE INDEX IF NOT EXISTS idx_plugin_tables_plugin_name ON _plugin_tables(plugin_name)`);
   }
 
   /**
    * 创建插件专属表
    * @param tableName 完整表名
    * @param columns 列定义
+   * @param pluginName 插件名称（用于元数据跟踪）
    */
-  async createTable(tableName: string, columns: string[]): Promise<void> {
+  async createTable(tableName: string, columns: string[], pluginName?: string): Promise<void> {
     const columnsDef = columns.join(", ");
     this.db.exec(`CREATE TABLE IF NOT EXISTS ${tableName} (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       ${columnsDef},
       created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%S','now'))
     )`);
+
+    // 记录插件和表的关联关系
+    if (pluginName) {
+      this._trackTable(pluginName, tableName);
+    }
+  }
+
+  /**
+   * 记录插件创建的表
+   */
+  private _trackTable(pluginName: string, tableName: string): void {
+    try {
+      this.db.prepare(
+        `INSERT OR IGNORE INTO _plugin_tables (plugin_name, table_name) VALUES (?, ?)`
+      ).run(pluginName, tableName);
+    } catch {
+      // 忽略重复插入错误
+    }
+  }
+
+  /**
+   * 获取某个插件创建的所有表名
+   */
+  async getPluginTables(pluginName: string): Promise<string[]> {
+    const rows = this.db.prepare(
+      `SELECT table_name FROM _plugin_tables WHERE plugin_name = ?`
+    ).all(pluginName) as { table_name: string }[];
+    return rows.map(r => r.table_name);
+  }
+
+  /**
+   * 删除某个插件创建的所有表
+   */
+  async dropPluginTables(pluginName: string): Promise<void> {
+    const tables = await this.getPluginTables(pluginName);
+    for (const table of tables) {
+      this.db.exec(`DROP TABLE IF EXISTS ${table}`);
+    }
+    // 清理元数据
+    this.db.prepare(`DELETE FROM _plugin_tables WHERE plugin_name = ?`).run(pluginName);
   }
 
   /**
