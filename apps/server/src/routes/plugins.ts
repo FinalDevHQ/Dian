@@ -429,8 +429,9 @@ export async function pluginRoutes(
     // 注入 botManager，供插件路由 handler 调用底层 API
     ;(req as unknown as Record<string, unknown>).botManager = botManager;
     if (pluginStore) {
+      const pluginName = plugin.meta.name;
       ;(req as unknown as Record<string, unknown>).pluginStore = {
-        createTable: (tableName: string, columns: string[]) => pluginStore.createTable(tableName, columns),
+        createTable: (tableName: string, columns: string[]) => pluginStore.createTable(tableName, columns, pluginName),
         insert: (tableName: string, data: Record<string, unknown>) => pluginStore.insert(tableName, data),
         query: (
           tableName: string,
