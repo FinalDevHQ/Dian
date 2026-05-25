@@ -117,6 +117,9 @@ export async function pluginRoutes(
     pluginManager.unload(name);
     // 同步清掉黑名单状态，避免重装后仍处于禁用
     pluginManager.removeFromBlacklist(name);
+    // 清除 bot 作用域并持久化，避免 plugin-scope.json 残留已删除插件的条目
+    pluginManager.setPluginBots(name, []);
+    await persistPluginScope();
 
     // 计算真实目标：优先用已加载插件的实际路径
     const targetDir  = loadedFilePath ? dirname(loadedFilePath) : join(pluginsDir, name);
