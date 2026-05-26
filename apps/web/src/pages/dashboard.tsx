@@ -2,7 +2,6 @@ import { type ReactNode, useCallback, useEffect, useState } from "react"
 import { Activity, Blocks, Bot, Cpu, MemoryStick, RefreshCw, Server, XCircle } from "lucide-react"
 import { api, type BotInfo, type BotStatus, type HealthResponse, type PluginPublicMeta, type SystemInfo } from "@/lib/api"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import {
   Card,
   CardContent,
@@ -11,6 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
+import { cn } from "@/lib/utils"
 
 const POLL_INTERVAL = 5000
 
@@ -64,7 +64,6 @@ export function DashboardPage() {
 
   const online = health?.status === "ok"
 
-  // 概览统计
   const botTotal = bots?.length ?? 0
   const botOnline = bots?.filter((b) => b.status === "connected" || b.status === "no-ws").length ?? 0
   const pluginTotal = plugins?.length ?? 0
@@ -74,13 +73,13 @@ export function DashboardPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
-          连接到 <code className="font-mono">/api</code>（dev 代理 →
-          <span className="ml-1 font-mono">localhost:3000</span>）
+        <p className="text-[12px] text-gray-400">
+          连接到 <code className="font-mono text-gray-500">/api</code>（dev 代理 →
+          <span className="ml-1 font-mono text-gray-500">localhost:3000</span>）
         </p>
         <div className="flex items-center gap-3">
           {lastUpdated && (
-            <span className="text-xs text-muted-foreground">
+            <span className="text-[11px] text-gray-400">
               更新于 {formatTs(lastUpdated)}
             </span>
           )}
@@ -89,9 +88,10 @@ export function DashboardPage() {
             size="sm"
             onClick={refresh}
             disabled={loading}
+            className="h-7 rounded-full border-gray-200 bg-white/60 px-3 text-[11px] text-gray-500 backdrop-blur-sm hover:bg-white hover:text-gray-700"
           >
             <RefreshCw
-              className={loading ? "animate-spin" : undefined}
+              className={cn("size-3", loading && "animate-spin")}
               aria-hidden
             />
             刷新
@@ -100,14 +100,14 @@ export function DashboardPage() {
       </div>
 
       {error && (
-        <Card className="border-destructive/40 bg-destructive/5">
-          <CardHeader className="flex-row items-center gap-2 space-y-0">
-            <XCircle className="size-4 text-destructive" aria-hidden />
-            <CardTitle className="text-destructive">无法连接到服务器</CardTitle>
+        <Card className="overflow-hidden border-red-200/60 bg-red-50/60 backdrop-blur-sm">
+          <CardHeader className="flex-row items-center gap-2 space-y-0 pb-2">
+            <XCircle className="size-4 text-red-400" aria-hidden />
+            <CardTitle className="text-[13px] text-red-600">无法连接到服务器</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground">{error}</p>
-            <p className="mt-2 text-xs text-muted-foreground">
+            <p className="text-[12px] text-red-500/80">{error}</p>
+            <p className="mt-1.5 text-[11px] text-red-400/70">
               请确认 <code className="font-mono">apps/server</code> 已启动
               （默认监听 <code className="font-mono">:3000</code>）。
             </p>
@@ -116,70 +116,74 @@ export function DashboardPage() {
       )}
 
       {/* ── 顶部概览卡片 ─────────────────────────────────── */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         <OverviewStat
-          icon={<Activity className="size-4" />}
+          icon={<Activity className="size-4" strokeWidth={1.5} />}
           label="服务器"
           value={health ? (online ? "在线" : "异常") : "离线"}
           sub={system ? `运行 ${formatDuration(system.node.uptimeSec)}` : undefined}
-          color={online ? "emerald" : "rose"}
+          glowColor={online ? "green" : "red"}
           loading={loading && !health}
         />
         <OverviewStat
-          icon={<Bot className="size-4" />}
+          icon={<Bot className="size-4" strokeWidth={1.5} />}
           label="Bot"
           value={`${botOnline} / ${botTotal}`}
           sub="在线 / 总数"
-          color={botOnline > 0 ? "emerald" : "muted"}
+          glowColor={botOnline > 0 ? "purple" : "gray"}
           loading={loading && !bots}
         />
         <OverviewStat
-          icon={<Blocks className="size-4" />}
+          icon={<Blocks className="size-4" strokeWidth={1.5} />}
           label="插件"
           value={`${pluginEnabled} / ${pluginTotal}`}
           sub={`${totalCommands} 条命令`}
-          color={pluginEnabled > 0 ? "sky" : "muted"}
+          glowColor={pluginEnabled > 0 ? "blue" : "gray"}
           loading={loading && !plugins}
         />
       </div>
 
       {/* ── 插件概览 + Bot 概况 ─────────────────────────────────── */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-1">
-          <CardHeader>
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card className="overflow-hidden rounded-2xl border-gray-200/50 bg-white/60 backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-gray-200/40 lg:col-span-1">
+          <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Blocks className="size-4 text-muted-foreground" aria-hidden />
-                <CardTitle>插件概览</CardTitle>
+                <div className="flex size-7 items-center justify-center rounded-lg bg-violet-50">
+                  <Blocks className="size-3.5 text-violet-500" strokeWidth={1.5} />
+                </div>
+                <CardTitle className="text-[13px] font-semibold text-gray-700">插件概览</CardTitle>
               </div>
               {plugins && (
-                <Badge variant="secondary">{pluginEnabled}/{pluginTotal}</Badge>
+                <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500">
+                  {pluginEnabled}/{pluginTotal}
+                </span>
               )}
             </div>
-            <CardDescription>已启用插件 · 共 {totalCommands} 条命令</CardDescription>
+            <CardDescription className="text-[11px]">已启用插件 · 共 {totalCommands} 条命令</CardDescription>
           </CardHeader>
           <CardContent>
             {plugins ? (
               plugins.length === 0 ? (
-                <p className="text-sm text-muted-foreground">暂无插件</p>
+                <p className="text-[12px] text-gray-400">暂无插件</p>
               ) : (
-                <ul className="space-y-1.5">
+                <ul className="space-y-1">
                   {plugins
                     .filter((p) => p.enabled)
                     .slice(0, 6)
                     .map((p) => (
                       <li
                         key={p.name}
-                        className="flex items-center justify-between rounded-md border px-2.5 py-1.5 text-sm"
+                        className="flex items-center justify-between rounded-xl border border-gray-100 bg-white/50 px-3 py-2 text-[12px] transition-colors hover:bg-white/80"
                       >
-                        <span className="truncate font-medium">{p.name}</span>
-                        <span className="shrink-0 text-xs text-muted-foreground">
+                        <span className="truncate font-medium text-gray-700">{p.name}</span>
+                        <span className="shrink-0 text-[10px] text-gray-400">
                           {p.commandCount} 命令
                         </span>
                       </li>
                     ))}
                   {plugins.filter((p) => p.enabled).length > 6 && (
-                    <li className="text-center text-xs text-muted-foreground">
+                    <li className="pt-1 text-center text-[10px] text-gray-400">
                       …等共 {plugins.filter((p) => p.enabled).length} 个插件
                     </li>
                   )}
@@ -187,56 +191,62 @@ export function DashboardPage() {
               )
             ) : loading ? (
               <div className="space-y-2">
-                <Skeleton className="h-8 w-full" />
-                <Skeleton className="h-8 w-full" />
-                <Skeleton className="h-8 w-full" />
+                <Skeleton className="h-9 w-full rounded-xl" />
+                <Skeleton className="h-9 w-full rounded-xl" />
+                <Skeleton className="h-9 w-full rounded-xl" />
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">暂无数据</p>
+              <p className="text-[12px] text-gray-400">暂无数据</p>
             )}
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-2">
-          <CardHeader>
+        <Card className="overflow-hidden rounded-2xl border-gray-200/50 bg-white/60 backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-gray-200/40 lg:col-span-2">
+          <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
-              <Bot className="size-4 text-muted-foreground" aria-hidden />
-              <CardTitle>Bot 概况</CardTitle>
-              {bots && <Badge variant="secondary">{bots.length}</Badge>}
+              <div className="flex size-7 items-center justify-center rounded-lg bg-sky-50">
+                <Bot className="size-3.5 text-sky-500" strokeWidth={1.5} />
+              </div>
+              <CardTitle className="text-[13px] font-semibold text-gray-700">Bot 概况</CardTitle>
+              {bots && (
+                <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500">
+                  {bots.length}
+                </span>
+              )}
             </div>
-            <CardDescription>各 Bot 当前连接状态</CardDescription>
+            <CardDescription className="text-[11px]">各 Bot 当前连接状态</CardDescription>
           </CardHeader>
           <CardContent>
             {bots ? (
               bots.length === 0 ? (
-                <p className="text-sm text-muted-foreground">暂无 Bot，前往「Bot 管理」页面添加。</p>
+                <p className="text-[12px] text-gray-400">暂无 Bot，前往「Bot 管理」页面添加。</p>
               ) : (
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid gap-2 sm:grid-cols-2">
                   {bots.map((b) => (
                     <BotMiniCard key={b.botId} bot={b} />
                   ))}
                 </div>
               )
             ) : loading ? (
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Skeleton className="h-14 w-full" />
-                <Skeleton className="h-14 w-full" />
+              <div className="grid gap-2 sm:grid-cols-2">
+                <Skeleton className="h-12 w-full rounded-xl" />
+                <Skeleton className="h-12 w-full rounded-xl" />
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">暂无数据</p>
+              <p className="text-[12px] text-gray-400">暂无数据</p>
             )}
           </CardContent>
         </Card>
       </div>
 
       {/* ── 系统信息 / CPU / 内存 ─────────────────────────────────── */}
-      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <SystemCard system={system} loading={loading} />
         <CpuCard system={system} loading={loading} />
         <MemoryCard system={system} loading={loading} />
       </div>
 
-      <p className="text-center text-xs text-muted-foreground">
+      <p className="text-center text-[10px] text-gray-400">
         每 {POLL_INTERVAL / 1000}s 自动刷新
       </p>
     </div>
@@ -247,11 +257,40 @@ export function DashboardPage() {
 // 概览统计卡片
 // ────────────────────────────────────────────────────────────────────────────
 
-const COLOR_MAP: Record<string, string> = {
-  emerald: "text-emerald-600",
-  rose: "text-rose-600",
-  sky: "text-sky-600",
-  muted: "text-muted-foreground",
+const GLOW_MAP: Record<string, { bg: string; ring: string; shadow: string }> = {
+  green: {
+    bg: "bg-emerald-50",
+    ring: "ring-emerald-100",
+    shadow: "shadow-emerald-100/50",
+  },
+  purple: {
+    bg: "bg-violet-50",
+    ring: "ring-violet-100",
+    shadow: "shadow-violet-100/50",
+  },
+  blue: {
+    bg: "bg-sky-50",
+    ring: "ring-sky-100",
+    shadow: "shadow-sky-100/50",
+  },
+  red: {
+    bg: "bg-red-50",
+    ring: "ring-red-100",
+    shadow: "shadow-red-100/50",
+  },
+  gray: {
+    bg: "bg-gray-50",
+    ring: "ring-gray-100",
+    shadow: "shadow-gray-100/50",
+  },
+}
+
+const VALUE_COLOR: Record<string, string> = {
+  green: "text-emerald-600",
+  purple: "text-violet-600",
+  blue: "text-sky-600",
+  red: "text-red-500",
+  gray: "text-gray-400",
 }
 
 function OverviewStat({
@@ -259,32 +298,40 @@ function OverviewStat({
   label,
   value,
   sub,
-  color = "muted",
+  glowColor = "gray",
   loading: isLoading,
 }: {
   icon: ReactNode
   label: string
   value: string
   sub?: string
-  color?: string
+  glowColor?: string
   loading?: boolean
 }) {
+  const glow = GLOW_MAP[glowColor] ?? GLOW_MAP.gray
   return (
-    <Card>
-      <CardContent className="flex items-center gap-4 p-4">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+    <Card className="overflow-hidden rounded-2xl border-gray-200/50 bg-white/60 backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-gray-200/40">
+      <CardContent className="flex items-center gap-3.5 p-4">
+        <div
+          className={cn(
+            "flex size-10 shrink-0 items-center justify-center rounded-xl ring-1 shadow-sm",
+            glow.bg,
+            glow.ring,
+            glow.shadow,
+          )}
+        >
           {icon}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-xs text-muted-foreground">{label}</p>
+          <p className="text-[11px] font-medium tracking-wide text-gray-400">{label}</p>
           {isLoading ? (
-            <Skeleton className="mt-1 h-5 w-16" />
+            <Skeleton className="mt-1 h-5 w-16 rounded-lg" />
           ) : (
-            <p className={`text-lg font-semibold tabular-nums ${COLOR_MAP[color] ?? ""}`}>
+            <p className={cn("text-[18px] font-bold tabular-nums tracking-tight", VALUE_COLOR[glowColor] ?? "text-gray-700")}>
               {value}
             </p>
           )}
-          {sub && <p className="truncate text-[11px] text-muted-foreground">{sub}</p>}
+          {sub && <p className="truncate text-[10px] text-gray-400/80">{sub}</p>}
         </div>
       </CardContent>
     </Card>
@@ -292,60 +339,62 @@ function OverviewStat({
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// Bot 迷你卡（仪表盘概览用，只读）
+// Bot 迷你卡
 // ────────────────────────────────────────────────────────────────────────────
 
 const BOT_STATUS_META: Record<
   BotStatus,
-  { label: string; className: string; dot: string }
+  { label: string; dot: string; text: string }
 > = {
   connected: {
     label: "在线",
-    className: "border-emerald-500/40 text-emerald-700",
-    dot: "bg-emerald-500",
+    dot: "bg-emerald-400 shadow-emerald-200",
+    text: "text-emerald-600",
   },
   connecting: {
     label: "连接中",
-    className: "border-amber-500/40 text-amber-700",
-    dot: "bg-amber-500 animate-pulse",
+    dot: "bg-amber-400 shadow-amber-200 animate-pulse",
+    text: "text-amber-600",
   },
   reconnecting: {
     label: "重连中",
-    className: "border-rose-500/40 text-rose-700",
-    dot: "bg-rose-500 animate-pulse",
+    dot: "bg-rose-400 shadow-rose-200 animate-pulse",
+    text: "text-rose-600",
   },
   closed: {
     label: "已停止",
-    className: "border-rose-500/40 text-rose-700",
-    dot: "bg-rose-500",
+    dot: "bg-rose-400 shadow-rose-200",
+    text: "text-rose-600",
   },
   idle: {
     label: "未启动",
-    className: "border-muted-foreground/30 text-muted-foreground",
-    dot: "bg-muted-foreground",
+    dot: "bg-gray-300 shadow-gray-100",
+    text: "text-gray-400",
   },
   "no-ws": {
     label: "仅 HTTP",
-    className: "border-sky-500/40 text-sky-700",
-    dot: "bg-sky-500",
+    dot: "bg-sky-400 shadow-sky-200",
+    text: "text-sky-600",
   },
   disabled: {
     label: "已禁用",
-    className: "border-muted-foreground/30 text-muted-foreground",
-    dot: "bg-muted-foreground/60",
+    dot: "bg-gray-300/60 shadow-gray-100",
+    text: "text-gray-400",
   },
 }
 
 function BotMiniCard({ bot }: { bot: BotInfo }) {
   const meta = BOT_STATUS_META[bot.status] ?? BOT_STATUS_META.idle
   return (
-    <div className="flex items-center gap-3 rounded-lg border p-3">
-      <Bot className="size-4 shrink-0 text-muted-foreground" />
-      <span className="min-w-0 flex-1 truncate font-mono text-sm">{bot.botId}</span>
-      <Badge variant="outline" className={`shrink-0 gap-1.5 text-[11px] ${meta.className}`}>
-        <span className={`size-1.5 rounded-full ${meta.dot}`} />
+    <div className="flex items-center gap-2.5 rounded-xl border border-gray-100 bg-white/50 px-3 py-2.5 transition-colors hover:bg-white/80">
+      <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-gray-50">
+        <Bot className="size-3.5 text-gray-400" strokeWidth={1.5} />
+      </div>
+      <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-gray-600">{bot.botId}</span>
+      <span className={cn("flex items-center gap-1.5 text-[10px] font-medium", meta.text)}>
+        <span className={cn("size-1.5 rounded-full shadow-sm", meta.dot)} />
         {meta.label}
-      </Badge>
+      </span>
     </div>
   )
 }
@@ -356,36 +405,38 @@ function BotMiniCard({ bot }: { bot: BotInfo }) {
 
 function SystemCard({ system, loading }: { system: SystemInfo | null; loading: boolean }) {
   return (
-    <Card>
-      <CardHeader>
+    <Card className="overflow-hidden rounded-2xl border-gray-200/50 bg-white/60 backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-gray-200/40">
+      <CardHeader className="pb-3">
         <div className="flex items-center gap-2">
-          <Server className="size-4 text-muted-foreground" aria-hidden />
-          <CardTitle>系统信息</CardTitle>
+          <div className="flex size-7 items-center justify-center rounded-lg bg-indigo-50">
+            <Server className="size-3.5 text-indigo-500" strokeWidth={1.5} />
+          </div>
+          <CardTitle className="text-[13px] font-semibold text-gray-700">系统信息</CardTitle>
         </div>
-        <CardDescription>GET /system · 操作系统与 Node 进程</CardDescription>
+        <CardDescription className="text-[11px]">操作系统与 Node 进程</CardDescription>
       </CardHeader>
       <CardContent>
         {system ? (
-          <dl className="grid grid-cols-[7rem_1fr] gap-y-2 text-sm">
-            <dt className="text-muted-foreground">主机</dt>
-            <dd className="font-mono truncate">{system.os.hostname}</dd>
-            <dt className="text-muted-foreground">平台</dt>
-            <dd className="font-mono">
-              {system.os.platform} ({system.os.arch}) · {system.os.release}
-            </dd>
-            <dt className="text-muted-foreground">系统运行</dt>
-            <dd className="font-mono">{formatDuration(system.os.uptimeSec)}</dd>
-            <dt className="text-muted-foreground">Node</dt>
-            <dd className="font-mono">{system.node.version} · pid {system.node.pid}</dd>
-            <dt className="text-muted-foreground">进程运行</dt>
-            <dd className="font-mono">{formatDuration(system.node.uptimeSec)}</dd>
-            <dt className="text-muted-foreground">cwd</dt>
-            <dd className="font-mono truncate" title={system.node.cwd}>{system.node.cwd}</dd>
+          <dl className="flex flex-col gap-2.5 text-[12px]">
+            <SystemRow label="主机" value={system.os.hostname} mono />
+            <SystemRow label="平台" value={`${system.os.platform} (${system.os.arch}) · ${system.os.release}`} mono />
+            <SystemRow label="系统运行" value={formatDuration(system.os.uptimeSec)} />
+            <SystemRow label="Node" value={`${system.node.version} · pid ${system.node.pid}`} mono />
+            <SystemRow label="进程运行" value={formatDuration(system.node.uptimeSec)} />
+            <div className="flex items-start gap-3">
+              <dt className="shrink-0 pt-0.5 text-[11px] text-gray-400">cwd</dt>
+              <dd
+                className="min-w-0 flex-1 truncate rounded-lg bg-gray-50/80 px-2 py-1 font-mono text-[11px] text-gray-500 ring-1 ring-gray-100"
+                title={system.node.cwd}
+              >
+                {system.node.cwd}
+              </dd>
+            </div>
           </dl>
         ) : loading ? (
           <CardSkeleton lines={5} />
         ) : (
-          <p className="text-sm text-muted-foreground">暂无数据</p>
+          <p className="text-[12px] text-gray-400">暂无数据</p>
         )}
       </CardContent>
     </Card>
@@ -394,18 +445,22 @@ function SystemCard({ system, loading }: { system: SystemInfo | null; loading: b
 
 function CpuCard({ system, loading }: { system: SystemInfo | null; loading: boolean }) {
   return (
-    <Card>
-      <CardHeader>
+    <Card className="overflow-hidden rounded-2xl border-gray-200/50 bg-white/60 backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-gray-200/40">
+      <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Cpu className="size-4 text-muted-foreground" aria-hidden />
-            <CardTitle>CPU</CardTitle>
+            <div className="flex size-7 items-center justify-center rounded-lg bg-violet-50">
+              <Cpu className="size-3.5 text-violet-500" strokeWidth={1.5} />
+            </div>
+            <CardTitle className="text-[13px] font-semibold text-gray-700">CPU</CardTitle>
           </div>
           {system && (
-            <Badge variant="secondary">{system.cpu.cores} 核</Badge>
+            <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500">
+              {system.cpu.cores} 核
+            </span>
           )}
         </div>
-        <CardDescription className="truncate" title={system?.cpu.model}>
+        <CardDescription className="truncate text-[11px]" title={system?.cpu.model}>
           {system?.cpu.model ?? "—"}
         </CardDescription>
       </CardHeader>
@@ -413,20 +468,23 @@ function CpuCard({ system, loading }: { system: SystemInfo | null; loading: bool
         {system ? (
           <div className="flex flex-col gap-3">
             <UsageBar label="使用率" value={system.cpu.usagePercent} />
-            <dl className="grid grid-cols-[6rem_1fr] gap-y-2 text-sm">
-              <dt className="text-muted-foreground">主频</dt>
-              <dd className="font-mono">{(system.cpu.speedMHz / 1000).toFixed(2)} GHz</dd>
-              <dt className="text-muted-foreground">负载</dt>
-              <dd className="font-mono">
-                {system.cpu.loadAvg.map((n) => n.toFixed(2)).join(" / ")}
-                <span className="ml-2 text-xs text-muted-foreground">1m / 5m / 15m</span>
-              </dd>
+            <dl className="flex flex-col gap-2 text-[12px]">
+              <SystemRow label="主频" value={`${(system.cpu.speedMHz / 1000).toFixed(2)} GHz`} />
+              <div className="flex items-start gap-3">
+                <dt className="shrink-0 text-[11px] text-gray-400">负载</dt>
+                <dd className="min-w-0 flex-1">
+                  <span className="font-mono text-[12px] font-medium text-gray-700">
+                    {system.cpu.loadAvg.map((n) => n.toFixed(2)).join(" / ")}
+                  </span>
+                  <span className="ml-1.5 text-[10px] text-gray-400">1m / 5m / 15m</span>
+                </dd>
+              </div>
             </dl>
           </div>
         ) : loading ? (
           <CardSkeleton lines={3} />
         ) : (
-          <p className="text-sm text-muted-foreground">暂无数据</p>
+          <p className="text-[12px] text-gray-400">暂无数据</p>
         )}
       </CardContent>
     </Card>
@@ -435,13 +493,15 @@ function CpuCard({ system, loading }: { system: SystemInfo | null; loading: bool
 
 function MemoryCard({ system, loading }: { system: SystemInfo | null; loading: boolean }) {
   return (
-    <Card>
-      <CardHeader>
+    <Card className="overflow-hidden rounded-2xl border-gray-200/50 bg-white/60 backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-gray-200/40">
+      <CardHeader className="pb-3">
         <div className="flex items-center gap-2">
-          <MemoryStick className="size-4 text-muted-foreground" aria-hidden />
-          <CardTitle>内存</CardTitle>
+          <div className="flex size-7 items-center justify-center rounded-lg bg-sky-50">
+            <MemoryStick className="size-3.5 text-sky-500" strokeWidth={1.5} />
+          </div>
+          <CardTitle className="text-[13px] font-semibold text-gray-700">内存</CardTitle>
         </div>
-        <CardDescription>系统总内存与 Node 进程占用</CardDescription>
+        <CardDescription className="text-[11px]">系统总内存与 Node 进程占用</CardDescription>
       </CardHeader>
       <CardContent>
         {system ? (
@@ -460,17 +520,15 @@ function MemoryCard({ system, loading }: { system: SystemInfo | null; loading: b
               }
               caption={`${formatBytes(system.memory.process.heapUsedBytes)} / ${formatBytes(system.memory.process.heapTotalBytes)}`}
             />
-            <dl className="grid grid-cols-[6rem_1fr] gap-y-2 text-sm">
-              <dt className="text-muted-foreground">RSS</dt>
-              <dd className="font-mono">{formatBytes(system.memory.process.rssBytes)}</dd>
-              <dt className="text-muted-foreground">External</dt>
-              <dd className="font-mono">{formatBytes(system.memory.process.externalBytes)}</dd>
+            <dl className="flex flex-col gap-2 text-[12px]">
+              <SystemRow label="RSS" value={formatBytes(system.memory.process.rssBytes)} />
+              <SystemRow label="External" value={formatBytes(system.memory.process.externalBytes)} />
             </dl>
           </div>
         ) : loading ? (
           <CardSkeleton lines={4} />
         ) : (
-          <p className="text-sm text-muted-foreground">暂无数据</p>
+          <p className="text-[12px] text-gray-400">暂无数据</p>
         )}
       </CardContent>
     </Card>
@@ -481,23 +539,37 @@ function MemoryCard({ system, loading }: { system: SystemInfo | null; loading: b
 // 小工具
 // ────────────────────────────────────────────────────────────────────────────
 
+function SystemRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div className="flex items-baseline gap-3">
+      <dt className="shrink-0 text-[11px] text-gray-400">{label}</dt>
+      <dd className={cn("min-w-0 flex-1 truncate text-[12px] font-medium text-gray-700", mono && "font-mono")}>
+        {value}
+      </dd>
+    </div>
+  )
+}
+
 function UsageBar({ label, value, caption }: { label: string; value: number; caption?: string }) {
   const v = Math.max(0, Math.min(100, value))
-  // 颜色阈值：<60 绿，<85 黄，>=85 红
-  const color =
-    v >= 85 ? "bg-destructive" : v >= 60 ? "bg-amber-500" : "bg-emerald-500"
+  const gradient =
+    v >= 85
+      ? "from-rose-400 to-pink-500"
+      : v >= 60
+        ? "from-amber-400 to-orange-400"
+        : "from-emerald-400 to-teal-400"
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="flex items-baseline justify-between text-xs">
-        <span className="text-muted-foreground">{label}</span>
-        <span className="font-mono tabular-nums">
+      <div className="flex items-baseline justify-between text-[11px]">
+        <span className="text-gray-400">{label}</span>
+        <span className="font-mono tabular-nums font-medium text-gray-600">
           {v.toFixed(1)}%
-          {caption && <span className="ml-2 text-muted-foreground">{caption}</span>}
+          {caption && <span className="ml-1.5 text-[10px] font-normal text-gray-400">{caption}</span>}
         </span>
       </div>
-      <div className="h-2 overflow-hidden rounded-full bg-muted">
+      <div className="h-1.5 overflow-hidden rounded-full bg-gray-100">
         <div
-          className={`h-full transition-[width] duration-300 ${color}`}
+          className={cn("h-full rounded-full bg-gradient-to-r transition-[width] duration-500 ease-out", gradient)}
           style={{ width: `${v}%` }}
         />
       </div>
@@ -509,7 +581,7 @@ function CardSkeleton({ lines }: { lines: number }) {
   return (
     <div className="space-y-2">
       {Array.from({ length: lines }).map((_, i) => (
-        <Skeleton key={i} className="h-4 w-full" />
+        <Skeleton key={i} className="h-4 w-full rounded-lg" />
       ))}
     </div>
   )
