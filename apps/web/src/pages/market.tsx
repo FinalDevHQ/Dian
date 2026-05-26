@@ -11,6 +11,7 @@ import {
 } from "lucide-react"
 import { api, marketApi, type MarketPlugin, type PluginPublicMeta } from "@/lib/api"
 import { Button } from "@/components/ui/button"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 
 // ── 安装状态 ─────────────────────────────────────────────────────────────────
@@ -25,19 +26,23 @@ type InstallState =
 // ── 标签语义配色 ─────────────────────────────────────────────────────────────
 
 const TAG_COLORS: Record<string, string> = {
-  UI:    "bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-950 dark:text-violet-300 dark:border-violet-800",
-  工具:  "bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-950 dark:text-sky-300 dark:border-sky-800",
-  示例:  "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800",
-  娱乐:  "bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-950 dark:text-rose-300 dark:border-rose-800",
-  管理:  "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800",
+  UI:    "bg-violet-100/60 text-violet-600/80 border-violet-300/30",
+  工具:  "bg-sky-100/60 text-sky-600/80 border-sky-300/30",
+  示例:  "bg-amber-100/60 text-amber-600/80 border-amber-300/30",
+  娱乐:  "bg-rose-100/60 text-rose-600/80 border-rose-300/30",
+  管理:  "bg-emerald-100/60 text-emerald-600/80 border-emerald-300/30",
+  系统:  "bg-slate-100/60 text-slate-600/80 border-slate-300/30",
+  通知:  "bg-orange-100/60 text-orange-600/80 border-orange-300/30",
+  游戏:  "bg-fuchsia-100/60 text-fuchsia-600/80 border-fuchsia-300/30",
+  权限:  "bg-teal-100/60 text-teal-600/80 border-teal-300/30",
 }
 
 // 未知标签 fallback 调色板（按字符码取模）
 const FALLBACK_PALETTES = [
-  "bg-fuchsia-100 text-fuchsia-700 border-fuchsia-200 dark:bg-fuchsia-950 dark:text-fuchsia-300 dark:border-fuchsia-800",
-  "bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-950 dark:text-teal-300 dark:border-teal-800",
-  "bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-800",
-  "bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-950 dark:text-indigo-300 dark:border-indigo-800",
+  "bg-fuchsia-100/60 text-fuchsia-600/80 border-fuchsia-300/30",
+  "bg-teal-100/60 text-teal-600/80 border-teal-300/30",
+  "bg-orange-100/60 text-orange-600/80 border-orange-300/30",
+  "bg-indigo-100/60 text-indigo-600/80 border-indigo-300/30",
 ]
 
 function tagColor(tag: string): string {
@@ -114,25 +119,25 @@ function PluginCard({
   return (
     <div
       className={cn(
-        "group relative flex flex-col overflow-hidden rounded-2xl border bg-card/80",
-        "shadow-sm backdrop-blur-sm",
-        "transition-all duration-200 ease-out",
-        "hover:-translate-y-1 hover:shadow-xl hover:border-foreground/20",
+        "group relative flex flex-col overflow-hidden rounded-2xl border border-gray-200/60 bg-white/80",
+        "shadow-sm backdrop-blur-md",
+        "transition-all duration-300 ease-out",
+        "hover:-translate-y-1 hover:shadow-lg hover:shadow-gray-200/50 hover:border-gray-300/80",
       )}
     >
       {/* 顶部渐变装饰条 */}
-      <div className={cn("h-1 w-full bg-gradient-to-r opacity-80", accent)} />
+      <div className={cn("h-0.5 w-full bg-gradient-to-r opacity-50 group-hover:opacity-80 transition-opacity duration-300", accent)} />
 
       {/* 卡片主体 */}
-      <div className="flex flex-1 flex-col gap-4 p-5">
+      <div className="flex flex-1 flex-col gap-3 p-4">
 
         {/* 图标 + 名称 + 徽章行 */}
-        <div className="flex items-start gap-3.5">
+        <div className="flex items-start gap-2.5">
           {/* 图标 */}
           <div
             className={cn(
-              "flex size-11 shrink-0 items-center justify-center rounded-xl text-2xl",
-              "bg-gradient-to-br from-muted to-muted/60 shadow-inner ring-1 ring-border/60",
+              "flex size-9 shrink-0 items-center justify-center rounded-lg text-xl",
+              "bg-gradient-to-br from-gray-50 to-gray-100 ring-1 ring-gray-200/60",
             )}
           >
             {icon ? (
@@ -149,23 +154,23 @@ function PluginCard({
           {/* 文字区 */}
           <div className="min-w-0 flex-1 pt-0.5">
             {/* 名称 + 版本 */}
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="truncate text-[15px] font-semibold leading-tight tracking-tight">
+            <div className="flex flex-wrap items-baseline gap-2">
+              <span className="truncate text-[14px] font-bold leading-tight tracking-tight">
                 {plugin.displayName}
               </span>
-              {/* 精致版本号 — 深色小胶囊 */}
-              <span className="shrink-0 rounded-md bg-foreground/8 px-1.5 py-0.5 font-mono text-[10px] font-medium text-foreground/60 ring-1 ring-border/50">
+              {/* 版本号 — 轻盈小字 */}
+              <span className="shrink-0 font-mono text-[11px] text-muted-foreground/50">
                 v{plugin.version}
               </span>
             </div>
 
             {/* 作者 + 运行时要求 */}
-            <p className="mt-1 flex items-center gap-1 truncate text-[12px] text-muted-foreground">
+            <p className="mt-1 flex items-center gap-1 truncate text-[12px] text-muted-foreground/70">
               <span>by {plugin.author}</span>
               {plugin.minRuntimeVersion && (
                 <>
-                  <span className="opacity-40">·</span>
-                  <span className="opacity-60">需要 Dian ≥ {plugin.minRuntimeVersion}</span>
+                  <span className="opacity-30">·</span>
+                  <span className="text-[11px] opacity-50">需要 Dian ≥ {plugin.minRuntimeVersion}</span>
                 </>
               )}
             </p>
@@ -173,9 +178,18 @@ function PluginCard({
         </div>
 
         {/* 描述 */}
-        <p className="line-clamp-2 text-[13px] leading-relaxed text-muted-foreground">
-          {plugin.description}
-        </p>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <p className="line-clamp-2 text-[13px] leading-relaxed text-muted-foreground cursor-default">
+                {plugin.description}
+              </p>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-xs">
+              <p>{plugin.description}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
 
         {/* 标签 */}
         {plugin.tags && plugin.tags.length > 0 && (
@@ -184,7 +198,7 @@ function PluginCard({
               <span
                 key={tag}
                 className={cn(
-                  "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium",
+                  "inline-flex items-center rounded-full border px-2 py-[1px] text-[10px] font-medium tracking-wide",
                   tagColor(tag),
                 )}
               >
@@ -196,7 +210,7 @@ function PluginCard({
 
         {/* 错误提示 */}
         {state.kind === "error" && (
-          <div className="flex items-start gap-1.5 rounded-lg border border-destructive/25 bg-destructive/5 px-3 py-2 text-[12px] text-destructive">
+          <div className="flex items-start gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-600">
             <AlertCircle className="mt-0.5 size-3.5 shrink-0" />
             <span className="leading-relaxed">{state.msg}</span>
           </div>
@@ -204,22 +218,22 @@ function PluginCard({
 
         {/* 覆盖安装确认 */}
         {state.kind === "conflict" && (
-          <div className="flex flex-col gap-2 rounded-lg border border-amber-400/30 bg-amber-50/80 px-3 py-2.5 dark:bg-amber-950/30">
-            <p className="text-[12px] leading-relaxed text-amber-700 dark:text-amber-400">
+          <div className="flex flex-col gap-2 rounded-lg border border-amber-200 bg-amber-50/80 px-3 py-2.5">
+            <p className="text-[12px] leading-relaxed text-amber-700">
               该插件已安装{state.currentVersion ? ` (v${state.currentVersion})` : ""}，是否覆盖为 v{plugin.version}？
             </p>
             <div className="flex gap-2">
               <Button
                 variant="outline"
                 size="sm"
-                className="h-6 flex-1 text-[11px]"
+                className="h-6 flex-1 rounded-full border-gray-200 text-[11px]"
                 onClick={() => setState({ kind: "idle" })}
               >
                 取消
               </Button>
               <Button
                 size="sm"
-                className="h-6 flex-1 bg-amber-500 text-[11px] text-white hover:bg-amber-600"
+                className="h-6 flex-1 rounded-full bg-amber-400 text-[11px] text-white hover:bg-amber-500"
                 onClick={() => void handleForceInstall()}
               >
                 覆盖安装
@@ -229,7 +243,7 @@ function PluginCard({
         )}
 
         {/* 底部操作栏 */}
-        <div className="mt-auto flex items-center justify-between border-t border-border/60 pt-3.5">
+        <div className="mt-auto flex items-center justify-between border-t border-gray-100 pt-3.5">
           {/* 主页链接 */}
           {plugin.homepage ? (
             <a
@@ -237,8 +251,8 @@ function PluginCard({
               target="_blank"
               rel="noopener noreferrer"
               className={cn(
-                "flex items-center gap-1.5 text-[12px] text-muted-foreground/70",
-                "transition-colors hover:text-foreground",
+                "flex items-center gap-1.5 text-[12px] text-gray-400",
+                "transition-colors hover:text-gray-700",
               )}
             >
               <ExternalLink className="size-3.5" />
@@ -250,17 +264,16 @@ function PluginCard({
 
           {/* 安装 / 状态按钮 */}
           {state.kind === "loading" ? (
-            <Button size="sm" disabled className="h-7 gap-1.5 px-3 text-xs">
+            <Button size="sm" disabled className="h-7 gap-1.5 rounded-full bg-gray-100 px-4 text-xs text-gray-400">
               <Loader2 className="size-3.5 animate-spin" />
               安装中…
             </Button>
           ) : showInstalled ? (
-            // 已安装 — 绿色标识，更突出
+            // 已安装 — 内敛低调
             <span
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-medium",
-                "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200",
-                "dark:bg-emerald-950 dark:text-emerald-400 dark:ring-emerald-800",
+                "text-emerald-500/60",
               )}
             >
               <CheckCircle2 className="size-3.5" />
@@ -269,7 +282,7 @@ function PluginCard({
           ) : needsUpdate ? (
             <Button
               size="sm"
-              className="h-7 gap-1.5 bg-amber-500 px-3 text-xs text-white hover:bg-amber-600"
+              className="h-7 gap-1.5 rounded-full bg-gradient-to-r from-pink-400 to-violet-400 px-4 text-xs text-white hover:from-pink-500 hover:to-violet-500"
               onClick={() => void handleInstall()}
             >
               <ArrowUpCircle className="size-3.5" />
@@ -283,8 +296,10 @@ function PluginCard({
               onClick={() => void handleInstall()}
               variant={state.kind === "error" ? "outline" : "default"}
               className={cn(
-                "h-7 px-4 text-xs",
-                state.kind === "error" && "border-destructive/40 text-destructive hover:bg-destructive/5",
+                "h-7 rounded-full px-4 text-xs",
+                state.kind === "error"
+                  ? "border-red-300 text-red-500 hover:bg-red-50"
+                  : "bg-gray-900 text-white hover:bg-gray-800",
               )}
             >
               {state.kind === "error" ? "重试" : "安装"}
@@ -311,6 +326,7 @@ export function MarketPage({ onPluginsChange }: MarketPageProps) {
   const [search, setSearch]               = useState("")
   const [activeTag, setActiveTag]         = useState<string | null>(null)
   const searchRef = useRef<HTMLInputElement>(null)
+  const initialLoadDone = useRef(false)
 
   // ── Ctrl+K / ⌘K 聚焦搜索框 ────────────────────────────────────────────
   useEffect(() => {
@@ -343,7 +359,11 @@ export function MarketPage({ onPluginsChange }: MarketPageProps) {
     }
   }, [])
 
-  useEffect(() => { void load() }, [load])
+  useEffect(() => {
+    if (initialLoadDone.current) return
+    initialLoadDone.current = true
+    void load()
+  }, [load])
 
   // ── 安装成功后刷新已安装列表 + 触发侧边栏更新 ────────────────────────
   const handleInstalled = useCallback(async () => {
@@ -415,7 +435,7 @@ export function MarketPage({ onPluginsChange }: MarketPageProps) {
       <div className="flex items-center gap-3">
         {/* 搜索框 */}
         <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-gray-400" />
           <input
             ref={searchRef}
             type="text"
@@ -423,17 +443,17 @@ export function MarketPage({ onPluginsChange }: MarketPageProps) {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className={cn(
-              "h-9 w-full rounded-lg border border-input bg-background pr-16 pl-9",
-              "text-sm outline-none ring-offset-background placeholder:text-muted-foreground",
-              "focus:ring-2 focus:ring-ring focus:ring-offset-2 transition-shadow",
+              "h-9 w-full rounded-lg border border-gray-200 bg-white pr-16 pl-9",
+              "text-sm outline-none placeholder:text-gray-400",
+              "focus:border-violet-300 focus:ring-2 focus:ring-violet-200/50 transition-all duration-200",
             )}
           />
           {/* Ctrl+K 提示 */}
           <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-0.5">
-            <kbd className="inline-flex h-5 items-center rounded border bg-muted px-1 font-mono text-[10px] text-muted-foreground">
+            <kbd className="inline-flex h-5 items-center rounded border border-gray-200 bg-gray-50 px-1 font-mono text-[10px] text-gray-400">
               Ctrl
             </kbd>
-            <kbd className="inline-flex h-5 items-center rounded border bg-muted px-1 font-mono text-[10px] text-muted-foreground">
+            <kbd className="inline-flex h-5 items-center rounded border border-gray-200 bg-gray-50 px-1 font-mono text-[10px] text-gray-400">
               K
             </kbd>
           </div>
@@ -449,7 +469,7 @@ export function MarketPage({ onPluginsChange }: MarketPageProps) {
           <button
             onClick={() => void load()}
             title="刷新"
-            className="flex size-9 items-center justify-center rounded-lg border border-input bg-background text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
+            className="flex size-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-400 transition-all duration-200 hover:border-gray-300 hover:text-gray-600 hover:bg-gray-50"
           >
             <RefreshCw className="size-4" />
           </button>
@@ -463,10 +483,10 @@ export function MarketPage({ onPluginsChange }: MarketPageProps) {
           <button
             onClick={() => setActiveTag(null)}
             className={cn(
-              "rounded-full border px-3.5 py-1 text-[12px] font-medium transition-all duration-150",
+              "rounded-full border px-3 py-1 text-[11px] font-medium tracking-wide transition-all duration-200",
               activeTag === null
-                ? "border-violet-400 bg-violet-500 text-white shadow-sm shadow-violet-200 dark:shadow-violet-900"
-                : "border-border bg-background text-muted-foreground hover:border-foreground/30 hover:text-foreground",
+                ? "border-violet-300/50 bg-violet-100/80 text-violet-700 shadow-sm shadow-violet-200/50"
+                : "border-gray-200/80 bg-white/50 text-gray-500 hover:border-gray-300 hover:text-gray-700",
             )}
           >
             全部
@@ -476,10 +496,10 @@ export function MarketPage({ onPluginsChange }: MarketPageProps) {
               key={tag}
               onClick={() => setActiveTag(activeTag === tag ? null : tag)}
               className={cn(
-                "rounded-full border px-3.5 py-1 text-[12px] font-medium transition-all duration-150",
+                "rounded-full border px-3 py-1 text-[11px] font-medium tracking-wide transition-all duration-200",
                 activeTag === tag
-                  ? "border-violet-400 bg-violet-500 text-white shadow-sm shadow-violet-200 dark:shadow-violet-900"
-                  : "border-border bg-background text-muted-foreground hover:border-foreground/30 hover:text-foreground",
+                  ? "border-violet-300/50 bg-violet-100/80 text-violet-700 shadow-sm shadow-violet-200/50"
+                  : "border-gray-200/80 bg-white/50 text-gray-500 hover:border-gray-300 hover:text-gray-700",
               )}
             >
               {tag}
@@ -501,7 +521,7 @@ export function MarketPage({ onPluginsChange }: MarketPageProps) {
           <p className="text-sm">没有找到匹配的插件</p>
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
           {filtered.map((plugin) => (
             <PluginCard
               key={plugin.name}
