@@ -116,24 +116,24 @@ async blockUser(ctx: EventContext): Promise<void> {
 
 ### ctx.store
 
-插件专属的 SQLite 存储（需要在 `onSetup` 中声明数据源）。
+插件专属的 SQLite 存储。所有插件共享同一个数据库文件，通过 `_plugin_tables` 跟踪每个插件的表。
 
 ```typescript
-// 创建表
-await ctx.store?.createTable("messages", [
+// 创建表（第三个参数传插件名，启用 _plugin_tables 跟踪）
+await ctx.store?.createTable("my_messages", [
   "id INTEGER PRIMARY KEY AUTOINCREMENT",
   "user_id TEXT",
   "content TEXT",
-]);
+], "my-plugin");
 
 // 插入数据
-await ctx.store?.insert("messages", {
+await ctx.store?.insert("my_messages", {
   user_id: "123456",
   content: "Hello!",
 });
 
 // 查询数据
-const messages = await ctx.store?.query("messages", 
+const messages = await ctx.store?.query("my_messages",
   { user_id: "123456" },
   { limit: 10 }
 );

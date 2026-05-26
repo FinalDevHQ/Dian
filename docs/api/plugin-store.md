@@ -1,34 +1,30 @@
 # PluginStore
 
-PluginStore 是插件专属的 SQLite 存储，每个插件都有自己的数据库，互不干扰。
+PluginStore 是插件专属的 SQLite 存储。所有插件共享同一个数据库文件，但通过 `_plugin_tables` 元数据表跟踪每个插件拥有的表，卸载时可一键清理。
 
 ## 快速上手
 
 ```typescript
 @Plugin({ name: "my-plugin" })
 export default class MyPlugin {
-  // 在 onSetup 里声明数据源（可选，会在数据库管理界面显示）
-  onSetup(ctx: PluginSetupContext): void {
-    ctx.datasource("my-plugin", "/path/to/data.sqlite");
-  }
-
   @Handler("签到")
   async onSignIn(ctx: EventContext): Promise<void> {
-    // 第一次使用时创建表
-    await ctx.store?.createTable("sign_ins", [
-      "id INTEGER PRIMARY KEY AUTOINCREMENT",
-      "user_id TEXT",
-      "timestamp INTEGER",
-    ]);
+    if (!ctx.store) return;
+
+    // 第一次使用时创建表（第三个参数传插件名，启用 _plugin_tables 跟踪）
+    await ctx.store.createTable("my_sign_ins", [
+      "user_id TEXT NOT NULL",
+      "timestamp INTEGER NOT NULL",
+    ], "my-plugin");
 
     // 插入数据
-    await ctx.store?.insert("sign_ins", {
+    await ctx.store.insert("my_sign_ins", {
       user_id: ctx.event.payload.userId,
       timestamp: Date.now(),
     });
 
     // 查询数据
-    const records = await ctx.store?.query("sign_ins", {
+    const records = await ctx.store.query("my_sign_ins", {
       user_id: ctx.event.payload.userId,
     });
 
@@ -44,21 +40,24 @@ export default class MyPlugin {
 创建数据表。
 
 ```typescript
-await ctx.store?.createTable("users", [
-  "id INTEGER PRIMARY KEY AUTOINCREMENT",  // 自增主键
-  "user_id TEXT NOT NULL",                 // 用户 ID，不能为空
-  "name TEXT",                             // 名字，可为空
-  "points INTEGER DEFAULT 0",             // 积分，默认 0
-  "created_at INTEGER",                   // 创建时间
-]);
+await ctx.store.createTable("my_users", [
+  "id INTEGER PRIMARY KEY AUTOINCREMENT",
+  "user_id TEXT NOT NULL",
+  "name TEXT",
+  "points INTEGER DEFAULT 0",
+  "created_at INTEGER",
+], "my-plugin");  // ← 第三个参数：插件名，用于 _plugin_tables 跟踪
 ```
 
 **参数：**
 
-| 参数 | 类型 | 说明 |
-|------|------|------|
-| `tableName` | `string` | 表名 |
-| `columns` | `string[]` | 列定义数组 |
+| 参数 | 类型 | 必需 | 说明 |
+|------|------|------|------|
+| `tableName` | `string` | ✅ | 表名 |
+| `columns` | `string[]` | ✅ | 列定义数组 |
+| `pluginName` | `string` | ✅ | 插件名（即 `@Plugin` 的 `name`） |
+
+**重要**：务必传入第三个参数 `pluginName`，框架会自动在 `_plugin_tables` 元数据表中注册该表。卸载插件时，管理界面会列出所有关联表供用户选择是否删除。
 
 **列定义格式：**
 - `"列名 类型 约束"`
@@ -74,7 +73,7 @@ await ctx.store?.createTable("users", [
 插入一条数据。
 
 ```typescript
-await ctx.store?.insert("users", {
+await ctx.store.insert("my_users", {
   user_id: "123456",
   name: "张三",
   points: 100,
@@ -95,18 +94,18 @@ await ctx.store?.insert("users", {
 
 ```typescript
 // 查询所有用户
-const allUsers = await ctx.store?.query("users");
+const allUsers = await ctx.store.query("my_users");
 
 // 条件查询
-const user = await ctx.store?.query("users", { user_id: "123456" });
+const user = await ctx.store.query("my_users", { user_id: "123456" });
 
 // 分页查询（最近 10 条）
-const recentUsers = await ctx.store?.query("users", 
+const recentUsers = await ctx.store.query("my_users",
   {},  // 空对象表示查询所有
-  { 
-    limit: 10, 
-    orderBy: "created_at", 
-    order: "DESC" 
+  {
+    limit: 10,
+    orderBy: "created_at",
+    order: "DESC"
   }
 );
 ```
@@ -127,10 +126,10 @@ const recentUsers = await ctx.store?.query("users",
 
 ```typescript
 // 删除指定用户
-await ctx.store?.delete("users", { user_id: "123456" });
+await ctx.store.delete("my_users", { user_id: "123456" });
 
 // 删除所有数据
-await ctx.store?.delete("users");
+await ctx.store.delete("my_users");
 ```
 
 **参数：**
@@ -142,6 +141,23 @@ await ctx.store?.delete("users");
 
 **返回值：** 删除的行数
 
+### getPluginTables()
+
+获取插件拥有的所有表名（从 `_plugin_tables` 元数据表查询）。
+
+```typescript
+const tables = await ctx.store.getPluginTables("my-plugin");
+console.log(tables); // ["my_users", "my_sign_ins", ...]
+```
+
+### dropPluginTables()
+
+删除插件拥有的所有表（包括元数据记录）。卸载插件时由框架自动调用。
+
+```typescript
+await ctx.store.dropPluginTables("my-plugin");
+```
+
 ## 实战示例
 
 ### 示例 1：积分系统
@@ -149,24 +165,28 @@ await ctx.store?.delete("users");
 ```typescript
 @Plugin({ name: "points" })
 export default class PointsPlugin {
-  onSetup(ctx: PluginSetupContext): void {
-    ctx.datasource("points", "/path/to/points.sqlite");
+  private tableReady = false;
+
+  private async ensureTable(store: PluginStore): Promise<void> {
+    if (this.tableReady) return;
+    await store.createTable("points_data", [
+      "user_id TEXT PRIMARY KEY",
+      "points INTEGER DEFAULT 0",
+      "last_sign INTEGER",
+    ], "points");
+    this.tableReady = true;
   }
 
   @Handler("签到")
   async onSignIn(ctx: EventContext): Promise<void> {
-    // 确保表存在
-    await ctx.store?.createTable("points", [
-      "user_id TEXT PRIMARY KEY",
-      "points INTEGER DEFAULT 0",
-      "last_sign INTEGER",
-    ]);
+    if (!ctx.store) return;
+    await this.ensureTable(ctx.store);
 
     const userId = ctx.event.payload.userId!;
     const now = Date.now();
 
     // 查询用户
-    const [user] = await ctx.store?.query("points", { user_id: userId }) ?? [];
+    const [user] = await ctx.store.query("points_data", { user_id: userId });
 
     if (user) {
       // 检查今天是否已签到
@@ -179,14 +199,15 @@ export default class PointsPlugin {
       }
 
       // 更新积分
-      await ctx.store?.insert("points", {
+      await ctx.store.delete("points_data", { user_id: userId });
+      await ctx.store.insert("points_data", {
         user_id: userId,
         points: (user.points as number) + 10,
         last_sign: now,
       });
     } else {
       // 新用户签到
-      await ctx.store?.insert("points", {
+      await ctx.store.insert("points_data", {
         user_id: userId,
         points: 10,
         last_sign: now,
@@ -198,8 +219,11 @@ export default class PointsPlugin {
 
   @Handler("查积分")
   async onCheckPoints(ctx: EventContext): Promise<void> {
+    if (!ctx.store) return;
+    await this.ensureTable(ctx.store);
+
     const userId = ctx.event.payload.userId!;
-    const [user] = await ctx.store?.query("points", { user_id: userId }) ?? [];
+    const [user] = await ctx.store.query("points_data", { user_id: userId });
 
     const points = (user?.points as number) ?? 0;
     await ctx.reply(`你当前有 ${points} 积分`);
@@ -207,62 +231,52 @@ export default class PointsPlugin {
 }
 ```
 
-### 示例 2：消息记录
+### 示例 2：HTTP 路由中使用
+
+在 `ctx.route()` 注册的路由中，通过 `req.pluginStore` 访问：
 
 ```typescript
-@Plugin({ name: "message-log" })
-export default class MessageLogPlugin {
-  private initialized = false;
-
-  @Interceptor(1)
-  async logMessage(ctx: EventContext): Promise<void> {
-    // 第一条消息时创建表
-    if (!this.initialized && ctx.store) {
-      await ctx.store.createTable("messages", [
-        "id INTEGER PRIMARY KEY AUTOINCREMENT",
-        "user_id TEXT",
-        "group_id TEXT",
-        "content TEXT",
-        "timestamp INTEGER",
-      ]);
-      this.initialized = true;
-    }
-
-    // 记录消息
-    if (ctx.store && ctx.event.type === "message") {
-      await ctx.store.insert("messages", {
-        user_id: ctx.event.payload.userId,
-        group_id: ctx.event.payload.groupId,
-        content: ctx.event.payload.text,
-        timestamp: ctx.event.timestamp,
-      });
-    }
-  }
-
-  @Handler("查记录")
-  async onCheckLog(ctx: EventContext): Promise<void> {
-    const messages = await ctx.store?.query("messages",
-      { user_id: ctx.event.payload.userId },
-      { limit: 5, orderBy: "timestamp", order: "DESC" }
-    );
-
-    if (!messages?.length) {
-      await ctx.reply("没有你的消息记录");
+onSetup(ctx: PluginSetupContext): void {
+  ctx.route("GET", "/notes", async (req, reply) => {
+    const store = (req as unknown as Record<string, unknown>).pluginStore as PluginStore | undefined;
+    if (!store) {
+      reply.send({ ok: true, notes: [] });
       return;
     }
-
-    const text = messages
-      .map(m => `${new Date(m.timestamp as number).toLocaleString()}: ${m.content}`)
-      .join("\n");
-
-    await ctx.reply(`最近 5 条消息:\n${text}`);
-  }
+    await store.createTable("my_notes", [
+      "content TEXT NOT NULL",
+      "user_id TEXT NOT NULL",
+      "created_at INTEGER NOT NULL",
+    ], "my-plugin");
+    const rows = await store.query("my_notes", {}, { limit: 20, orderBy: "id", order: "DESC" });
+    reply.send({ ok: true, notes: rows });
+  });
 }
 ```
+
+::: tip 路由中的 pluginStore
+`req.pluginStore` 是框架在路由处理时自动注入的，已绑定当前插件的 `pluginName`，`createTable` 时可以不传第三个参数。
+:::
+
+## _plugin_tables 机制
+
+框架通过 `_plugin_tables` 元数据表跟踪每个插件拥有的表：
+
+```
+_plugin_tables
+├── id (自增主键)
+├── plugin_name (插件名)
+├── table_name (表名)
+└── created_at (创建时间)
+```
+
+- `createTable()` 带第三个参数时自动注册
+- 卸载插件时，管理界面列出所有关联表供用户选择是否删除
+- `dropPluginTables()` 一键删除插件所有表
 
 ## 注意事项
 
 1. **表名唯一** — 同一个插件内的表名不能重复
-2. **类型安全** — 查询结果是 `Record<string, unknown>[]`，需要自己转换类型
-3. **性能** — SQLite 适合中小数据量，不要存太多数据
-4. **备份** — 数据库文件在 `plugins/你的插件/data/` 目录下，记得备份
+2. **务必传 pluginName** — 不传则表不会被跟踪，卸载时无法自动清理
+3. **类型安全** — 查询结果是 `Record<string, unknown>[]`，需要自己转换类型
+4. **性能** — SQLite 适合中小数据量，不要存太多数据

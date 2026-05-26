@@ -133,20 +133,18 @@ ctx.ui({
 `staticDir` 和 `externalUrl` 不能同时使用。
 :::
 
-### ctx.datasource()
+### ~~ctx.datasource()~~ {#ctx-datasource}
 
-声明插件的 SQLite 数据源，会在数据库管理界面显示。
+::: warning 已废弃
+`ctx.datasource()` 已废弃，请直接使用 `ctx.store`（事件处理器）或 `req.pluginStore`（HTTP 路由）访问插件数据库。详见 [PluginStore](/api/plugin-store)。
+:::
+
+~~声明插件的 SQLite 数据源，会在数据库管理界面显示。~~
 
 ```typescript
+// 已废弃，不再推荐使用
 ctx.datasource("my-plugin", "/path/to/data.sqlite");
 ```
-
-**参数：**
-
-| 参数 | 类型 | 说明 |
-|------|------|------|
-| `name` | `string` | 数据源名称 |
-| `sqliteFile` | `string` | SQLite 文件的绝对路径 |
 
 ## 完整示例
 
@@ -224,9 +222,6 @@ export default class MyPlugin {
 
     // 声明 Web UI
     ctx.ui({ staticDir: "./public" });
-
-    // 声明数据源
-    ctx.datasource("my-plugin", "/path/to/data.sqlite");
   }
 
   @Handler("帮助")

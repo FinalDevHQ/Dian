@@ -198,6 +198,40 @@ Hello World!
 
 如果插件有 `public` 目录，可以通过 Web 控制台访问插件 UI。
 
+## 数据库存储
+
+插件可以使用 `ctx.store` 访问 SQLite 数据库。以下是一个简单的笔记功能示例：
+
+```typescript
+// 在 onSetup 中注册带数据库的指令
+ctx.command({
+  name: "note",
+  pattern: "!note",
+  description: "保存一条笔记",
+  handler: async (c: EventContext) => {
+    if (!c.store) return;
+
+    // 创建表（第三个参数传插件名，启用 _plugin_tables 跟踪）
+    await c.store.createTable("hello_notes", [
+      "content TEXT NOT NULL",
+      "user_id TEXT NOT NULL",
+      "created_at INTEGER NOT NULL",
+    ], "hello-world");
+
+    // 保存笔记
+    await c.store.insert("hello_notes", {
+      content: "Hello!",
+      user_id: c.event.payload.userId ?? "",
+      created_at: Date.now(),
+    });
+
+    await c.reply("已保存！");
+  },
+});
+```
+
+详见 [PluginStore](/api/plugin-store)。
+
 ## 下一步
 
 现在你已经看完了完整示例，可以继续学习：

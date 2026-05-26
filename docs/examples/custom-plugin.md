@@ -21,11 +21,18 @@ cd weather-bot
 
 ## 步骤 2：初始化项目
 
+推荐基于模板创建：
+
 ```bash
-npm init -y
+# 复制模板
+cp -r my-plugin/Dian-plugin-template plugins/weather-bot
+cd plugins/weather-bot
+
+# 修改 package.json 中的 name
+# 修改 src/index.ts 中的 @Plugin name
 ```
 
-然后编辑 `package.json`，添加依赖：
+或者手动初始化 `package.json`：
 
 ```json
 {
@@ -37,7 +44,7 @@ npm init -y
     "dev:plugin": "tsup --watch"
   },
   "dependencies": {
-    "@myfinal/plugin-runtime": "^0.2.5",
+    "@myfinal/plugin-runtime": "^0.2.7",
     "@myfinal/shared": "^0.2.3",
     "reflect-metadata": "^0.2.2"
   },
@@ -61,7 +68,8 @@ export default defineConfig({
   target: "node20",
   outDir: "dist",
   clean: true,
-  noExternal: ["@myfinal/plugin-runtime", "reflect-metadata"],
+  external: ["@myfinal/plugin-runtime"],
+  noExternal: ["reflect-metadata"],
 });
 ```
 

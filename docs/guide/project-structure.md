@@ -99,7 +99,7 @@ async onHello(ctx: EventContext): Promise<void> {
 - 注册指令（`ctx.command`）
 - 注册 HTTP API（`ctx.route`）
 - 声明 Web UI（`ctx.ui`）
-- 声明数据库（`ctx.datasource`）
+- 使用 `ctx.store` 访问插件数据库
 
 ## package.json 说明
 
