@@ -1,10 +1,10 @@
 import type { FastifyInstance } from "fastify";
 import type { MessageRepository } from "@myfinal/storage";
-import type { BotManager } from "../bot/bot-manager.js";
+import type { BotService } from "../bot/bot-service.js";
 
 interface StatsRoutesOptions {
   messageRepo: MessageRepository;
-  botManager: BotManager;
+  botService: BotService;
 }
 
 function parseFilter(query: Record<string, string | undefined>) {
@@ -20,7 +20,7 @@ export async function statsRoutes(
   app: FastifyInstance,
   opts: StatsRoutesOptions
 ): Promise<void> {
-  const { messageRepo, botManager } = opts;
+  const { messageRepo, botService } = opts;
 
   type Q = { botId?: string; groupId?: string; from?: string; to?: string; limit?: string };
 
@@ -72,31 +72,29 @@ export async function statsRoutes(
   );
 
   // ── POST /stats/group-names/sync ──────────────────────────────────────────
-  // 向所有活跃 bot 请求 get_group_list，将结果写入 group_names 缓存
+  // 向活跃 bot 请求 get_group_list，将结果写入 group_names 缓存
   app.post("/stats/group-names/sync", async (_req, reply) => {
-    const bots = botManager.getBots();
+    const bot = botService.getBot();
     let synced = 0;
 
-    await Promise.allSettled(
-      bots.map(async (bot) => {
-        try {
-          const result = await bot.sendAction<
-            { group_id: number; group_name: string }[]
-          >({ action: "get_group_list", params: {} });
+    if (bot) {
+      try {
+        const result = await bot.sendAction<
+          { group_id: number; group_name: string }[]
+        >({ action: "get_group_list", params: {} });
 
-          if (result.status === "ok" && Array.isArray(result.data)) {
-            const entries = result.data.map((g) => ({
-              groupId: String(g.group_id),
-              name:    g.group_name ?? String(g.group_id),
-            }));
-            await messageRepo.upsertGroupNames(entries);
-            synced += entries.length;
-          }
-        } catch {
-          // 单个 bot 失败不影响其他 bot
+        if (result.status === "ok" && Array.isArray(result.data)) {
+          const entries = result.data.map((g) => ({
+            groupId: String(g.group_id),
+            name:    g.group_name ?? String(g.group_id),
+          }));
+          await messageRepo.upsertGroupNames(entries);
+          synced += entries.length;
         }
-      })
-    );
+      } catch {
+        // 忽略错误
+      }
+    }
 
     return reply.send({ ok: true, synced });
   });

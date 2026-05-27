@@ -1,4 +1,4 @@
-import { Check, ChevronsUpDown, Puzzle, RefreshCw } from "lucide-react"
+import { Puzzle } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,
@@ -12,15 +12,6 @@ import {
   SidebarRail,
   SidebarFooter,
 } from "@/components/ui/sidebar"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { useBotScope } from "@/contexts/bot-scope-context"
 import { cn } from "@/lib/utils"
 import { navGroups } from "./nav-config"
 import type { PluginNavItem } from "@/pages/plugin-ui"
@@ -29,86 +20,6 @@ interface AppSidebarProps {
   active: string
   onNavigate: (key: string) => void
   pluginNavItems?: PluginNavItem[]
-}
-
-function BotScopeSwitcher() {
-  const { scope, setScope, bots, loadingBots, botsError, refreshBots } =
-    useBotScope()
-
-  const label = scope === "all" ? "全部机器人" : scope
-  const dotColor = botsError ? "bg-red-400" : "bg-emerald-400"
-
-  return (
-    <DropdownMenu onOpenChange={(open) => open && refreshBots()}>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          className="flex w-full items-center gap-2 rounded-xl border border-white/60 bg-white/40 px-3 py-1.5 text-left text-[12px] backdrop-blur-sm transition-all duration-200 hover:border-violet-200/60 hover:bg-white/60 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-violet-200/40 group-data-[collapsible=icon]:hidden"
-        >
-          <span className={`size-1.5 shrink-0 rounded-full ${dotColor}`} aria-hidden />
-          <span className="flex-1 truncate font-medium text-gray-600">{label}</span>
-          <ChevronsUpDown className="size-3.5 shrink-0 text-gray-400" />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
-        align="start"
-        className="w-[var(--radix-dropdown-menu-trigger-width)] min-w-56 rounded-xl border-white/60 bg-white/80 backdrop-blur-xl"
-      >
-        <DropdownMenuLabel className="flex items-center justify-between text-[11px] tracking-wide text-gray-400">
-          <span>选择作用域</span>
-          <button
-            type="button"
-            className="rounded-md p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 disabled:opacity-40"
-            onClick={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
-              refreshBots()
-            }}
-            disabled={loadingBots}
-            aria-label="刷新机器人列表"
-          >
-            <RefreshCw className={`size-3 ${loadingBots ? "animate-spin" : ""}`} />
-          </button>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator className="bg-gray-200/50" />
-        <DropdownMenuItem
-          onClick={() => setScope("all")}
-          className="rounded-lg text-[12px] focus:bg-violet-50 focus:text-violet-700"
-        >
-          <Check className={`size-3.5 ${scope === "all" ? "text-violet-500 opacity-100" : "opacity-0"}`} />
-          <span className="flex-1">全部机器人</span>
-          <span className="text-[11px] text-gray-400">{bots.length}</span>
-        </DropdownMenuItem>
-        {bots.length > 0 && <DropdownMenuSeparator className="bg-gray-200/50" />}
-        {bots.map((b) => (
-          <DropdownMenuItem
-            key={b.botId}
-            onClick={() => setScope(b.botId)}
-            className="rounded-lg text-[12px] focus:bg-violet-50 focus:text-violet-700"
-          >
-            <Check className={`size-3.5 ${scope === b.botId ? "text-violet-500 opacity-100" : "opacity-0"}`} />
-            <span className="flex-1 truncate font-mono text-[11px]">{b.botId}</span>
-          </DropdownMenuItem>
-        ))}
-        {botsError && (
-          <>
-            <DropdownMenuSeparator className="bg-gray-200/50" />
-            <div className="px-2 py-1.5 text-[11px] text-red-500">
-              加载失败：{botsError}
-            </div>
-          </>
-        )}
-        {!botsError && bots.length === 0 && !loadingBots && (
-          <>
-            <DropdownMenuSeparator className="bg-gray-200/50" />
-            <div className="px-2 py-1.5 text-[11px] text-gray-400">
-              暂无在线机器人
-            </div>
-          </>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
 }
 
 function PluginNavIcon({ icon }: { icon?: string }) {
@@ -137,8 +48,6 @@ export function AppSidebar({ active, onNavigate, pluginNavItems = [] }: AppSideb
             </span>
           </div>
         </div>
-
-        <BotScopeSwitcher />
       </SidebarHeader>
 
       <SidebarContent className="px-2 py-1">

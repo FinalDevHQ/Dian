@@ -4,7 +4,7 @@ export type {
   BotEntry,
   BotWsConfig,
   BotHttpConfig,
-  BotsConfig,
+  BotConfig,
   TemplatesConfig,
   AllConfig,
   AuthConfig,
@@ -12,7 +12,7 @@ export type {
 
 export {
   SettingsSchema,
-  BotsSchema,
+  BotConfigSchema,
   TemplatesSchema,
   BotEntrySchema,
   OneBotWsConfigSchema,

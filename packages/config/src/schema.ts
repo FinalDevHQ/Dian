@@ -91,15 +91,15 @@ export const BotEntrySchema = z
     }
   });
 
-/** bot.yaml 顶层是一个 bot 列表 */
-export const BotsSchema = z.object({
-  bots: z.array(BotEntrySchema).min(1, "至少需要配置一个 bot"),
+/** bot.yaml 顶层是单个 bot 配置 */
+export const BotConfigSchema = z.object({
+  bot: BotEntrySchema,
 });
 
 export type BotWsConfig = z.infer<typeof OneBotWsConfigSchema>;
 export type BotHttpConfig = z.infer<typeof OneBotHttpConfigSchema>;
 export type BotEntry = z.infer<typeof BotEntrySchema>;
-export type BotsConfig = z.infer<typeof BotsSchema>;
+export type BotConfig = z.infer<typeof BotConfigSchema>;
 
 // ---------------------------------------------------------------------------
 // templates.yaml
@@ -118,6 +118,6 @@ export type TemplatesConfig = z.infer<typeof TemplatesSchema>;
 
 export interface AllConfig {
   settings: Settings;
-  bots: BotsConfig;
+  bot: BotConfig;
   templates: TemplatesConfig;
 }

@@ -51,7 +51,7 @@ export interface BotInfo {
 }
 
 export interface StatusResponse {
-  bots: BotInfo[]
+  bot: BotInfo
 }
 
 // ─── Bot 管理（添加 / 删除 / 启停） ────────────────────────────────────────
@@ -243,8 +243,6 @@ export interface PluginPublicMeta {
   commandCount: number
   handlers: PluginHandlerMeta[]
   commands: PluginCommandMeta[]
-  /** 当前生效的 bot 白名单（空数组表示任何 bot 都不响应） */
-  bots: string[]
   routes: { method: string; path: string }[]
   hasUI: boolean
   uiUrl: string | null
@@ -287,29 +285,20 @@ export const api = {
   status: () => request<StatusResponse>("/status"),
   system: () => request<SystemInfo>("/system"),
 
-  // Bot 管理
-  getBot: (botId: string) =>
-    request<{ bot: BotEntryInput }>(`/bots/${encodeURIComponent(botId)}`),
-  addBot: (entry: BotEntryInput) =>
-    request<{ ok: boolean; bot: BotEntryInput }>("/bots", {
-      method: "POST",
+  // Bot 管理（单 bot 模式）
+  getBot: () =>
+    request<{ bot: BotEntryInput }>("/bot"),
+  /** 整条替换；body 必须是完整的 BotEntryInput。 */
+  updateBot: (entry: BotEntryInput) =>
+    request<{ ok: boolean; bot: BotEntryInput }>("/bot", {
+      method: "PUT",
       body: JSON.stringify(entry),
     }),
-  /** 整条替换；body 必须是完整的 BotEntryInput。支持改名（body.botId 可与原 botId 不同）。 */
-  updateBot: (botId: string, entry: BotEntryInput) =>
-    request<{ ok: boolean; bot: BotEntryInput }>(
-      `/bots/${encodeURIComponent(botId)}`,
-      { method: "PUT", body: JSON.stringify(entry) }
-    ),
-  deleteBot: (botId: string) =>
-    request<{ ok: boolean }>(`/bots/${encodeURIComponent(botId)}`, {
-      method: "DELETE",
+  setBotEnabled: (enabled: boolean) =>
+    request<{ ok: boolean }>("/bot/enabled", {
+      method: "PUT",
+      body: JSON.stringify({ enabled }),
     }),
-  setBotEnabled: (botId: string, enabled: boolean) =>
-    request<{ ok: boolean }>(
-      `/bots/${encodeURIComponent(botId)}/enabled`,
-      { method: "PUT", body: JSON.stringify({ enabled }) }
-    ),
 
   listConfigFiles: () =>
     request<{ files: ConfigFileMeta[] }>("/config/files"),
@@ -337,11 +326,6 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ enabled }),
     }),
-  setPluginBots: (name: string, bots: string[]) =>
-    request<{ ok: boolean; bots: string[]; rejected: string[] }>(
-      `/plugins/${encodeURIComponent(name)}/bots`,
-      { method: "PUT", body: JSON.stringify({ bots }) }
-    ),
   deletePlugin: (name: string, deleteData = false) =>
     request<{ ok: boolean }>(
       `/plugins/${encodeURIComponent(name)}?deleteData=${deleteData}`,

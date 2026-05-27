@@ -21,7 +21,6 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { useBotScope } from "@/contexts/bot-scope-context"
 import { cn } from "@/lib/utils"
 
 /** 日志页 tab 定义 */
@@ -320,7 +319,6 @@ function eventTypeBadge(e: BotEvent) {
 type ConnState = "connecting" | "open" | "closed" | "error"
 
 export function LogsPage() {
-  const { scope } = useBotScope()
   const [tab, setTab] = useState<TabKey>("all")
   const [events, setEvents] = useState<BotEvent[]>([])
   const [autoScroll, setAutoScroll] = useState(true)
@@ -332,8 +330,6 @@ export function LogsPage() {
   const pausedBuffer = useRef<BotEvent[]>([])
   const listRef = useRef<HTMLDivElement>(null)
   const seenRef = useRef<Set<string>>(new Set())
-
-  const botIdFilter = scope === "all" ? undefined : scope
 
   const pushEvents = useCallback((incoming: BotEvent[]) => {
     if (incoming.length === 0) return
@@ -372,7 +368,7 @@ export function LogsPage() {
 
     ;(async () => {
       try {
-        const r = await api.recentEvents({ limit: 100, botId: botIdFilter })
+        const r = await api.recentEvents({ limit: 100 })
         if (cancelled) return
         pushEvents(r.events)
       } catch (err) {
@@ -383,7 +379,7 @@ export function LogsPage() {
 
       if (cancelled) return
 
-      es = new EventSource(eventStreamUrl({ botId: botIdFilter }))
+      es = new EventSource(eventStreamUrl({}))
       es.onopen = () => setConn("open")
       es.onerror = () => setConn("error")
       es.onmessage = (ev) => {
@@ -412,9 +408,9 @@ export function LogsPage() {
       es?.close()
       setConn("closed")
     }
-    // botIdFilter 改变时重连；paused/pushEvents 不参与依赖以避免重连
+    // paused/pushEvents 不参与依赖以避免重连
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [botIdFilter])
+  }, [])
 
   // 切换暂停状态时，从暂停状态恢复需要把缓冲事件合并
   useEffect(() => {
@@ -538,7 +534,6 @@ export function LogsPage() {
 
       <p className="text-[11px] text-muted-foreground">
         显示最近 {MAX_BUFFER} 条 ·
-        {scope === "all" ? "全部机器人" : ` 仅 ${scope}`} ·
         {paused ? " 已暂停" : " 实时"}
       </p>
     </div>

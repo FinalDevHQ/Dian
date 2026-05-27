@@ -4,14 +4,13 @@ import { configService } from "@myfinal/config";
 import { logService } from "@myfinal/logger";
 import { pluginManager } from "@myfinal/plugin-runtime";
 import { storageService, SqlitePluginStore } from "@myfinal/storage";
-import { BotManager } from "./bot/bot-manager.js";
+import { BotService } from "./bot/bot-service.js";
 import { EventBus } from "./event/event-bus.js";
 import { EventDispatcher } from "./event/event-dispatcher.js";
 import { DatabaseExplorer } from "./db/explorer.js";
 import { AuthService } from "./auth/service.js";
 import { installLogPersistence } from "./log-bridge.js";
 import { installMessagePersistence } from "./message-bridge.js";
-import { createPluginScopeIO } from "./plugin-scope.js";
 import { createServer } from "./server/fastify.js";
 
 // ---------------------------------------------------------------------------
@@ -72,11 +71,7 @@ async function main(): Promise<void> {
   await pluginManager.loadAll(PLUGINS_DIR);
   pluginManager.watch(); // 监听新安装的插件文件，自动热加载
 
-  // ── 3b. 加载插件 bot 白名单（必须在插件 load 之后；scope 与插件按 name 关联） ──
-  const pluginScopeIO = createPluginScopeIO(CONFIG_DIR, logger);
-  await pluginScopeIO.load();
-
-  // ── 4a. 事件总线 + 分发器 & BotManager ────────────────────────────────────
+  // ── 4a. 事件总线 + 分发器 & BotService ────────────────────────────────────
   const eventBus = new EventBus(200);
   const dispatcher = new EventDispatcher(logger);
 
@@ -99,7 +94,7 @@ async function main(): Promise<void> {
     logger.info("Plugin store enabled (SQLite)");
   }
 
-  const botManager = new BotManager(
+  const botService = new BotService(
     configService,
     logger,
     async (event) => {
@@ -108,10 +103,10 @@ async function main(): Promise<void> {
       await dispatcher.dispatch(event);
     }
   );
-  // 将 botManager 注入 dispatcher，用于构建 reply 回调
-  dispatcher.setBotManager(botManager);
-  // 将 botManager 注入 pluginManager，用于插件发送消息
-  pluginManager.setBotManager(botManager);
+  // 将 botService 注入 dispatcher，用于构建 reply 回调
+  dispatcher.setBotService(botService);
+  // 将 botService 注入 pluginManager，用于插件发送消息
+  pluginManager.setBotService(botService);
 
   // ── 5. 初始化认证服务 ─────────────────────────────────────────────────────
   const authService = new AuthService(configService.settings.auth ?? {});
@@ -121,37 +116,37 @@ async function main(): Promise<void> {
     logger.warn("Auth service disabled: no password configured");
   }
 
-  // ── 6. 启动 HTTP 服务器 ───────────────────────────────────────────────────
+  // ── 5. 启动 HTTP 服务器 ───────────────────────────────────────────────────
   const server = await createServer({
     port: Number(process.env.PORT ?? 3000),
     logger,
-    botManager,
+    botService,
     configDir: CONFIG_DIR,
     pluginsDir: PLUGINS_DIR,
     eventBus,
     dbExplorer,
     messageRepo: storageService.hasMessage ? storageService.message : undefined,
     pluginStore,
-    persistPluginScope: () => pluginScopeIO.save(),
+    persistPluginScope: async () => {}, // 占位，单 bot 模式无需持久化
     authService,
   });
   await server.start();
 
-  // ── 6. 启动所有 Bot ───────────────────────────────────────────────────────
-  await botManager.start();
+  // ── 6. 启动 Bot ───────────────────────────────────────────────────────────
+  await botService.start();
 
   // ── 7. 热重载配置变更 ────────────────────────────────────────────────────
   configService.watch();
   configService.on("change", async ({ file }) => {
-    logger.info(`Config changed: ${file}, reloading bots...`);
-    await botManager.reloadConfig();
+    logger.info(`Config changed: ${file}, reloading bot...`);
+    await botService.reloadConfig();
   });
 
   // ── 8. 优雅退出 ──────────────────────────────────────────────────────────
   const shutdown = async (signal: string) => {
     logger.info(`Received ${signal}, shutting down...`);
     configService.unwatch();
-    await botManager.stop();
+    await botService.stop();
     await server.stop();
     dbExplorer.close();
     await storageService.close();

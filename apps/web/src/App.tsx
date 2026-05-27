@@ -3,7 +3,7 @@ import type { ReactNode } from "react"
 import { AppLayout } from "@/components/layout/app-layout"
 import { navGroups } from "@/components/layout/nav-config"
 import { AnalyticsPage } from "@/pages/analytics"
-import { BotManagePage } from "@/pages/bot-manage"
+import { BotSettingsPage } from "@/pages/bot-manage"
 import { ConfigFilesPage } from "@/pages/config-files"
 import { DashboardPage } from "@/pages/dashboard"
 import { DatabasePage } from "@/pages/database"
@@ -117,15 +117,15 @@ function MainApp() {
 
   // ── 页面路由映射 ──────────────────────────────────────────────────────────
   const pages: Record<string, ReactNode> = useMemo(() => ({
-    dashboard: <DashboardPage />,
-    bots:      <BotManagePage />,
-    logs:      <LogsPage />,
-    plugins:   <PluginsPage onPluginsChange={refreshPlugins} />,
-    database:  <DatabasePage />,
-    config:    <ConfigFilesPage />,
-    analytics: <AnalyticsPage />,
-    messages:  <MessagesPage />,
-    market:    <MarketPage onPluginsChange={refreshPlugins} />,
+    dashboard:      <DashboardPage />,
+    "bot-settings": <BotSettingsPage />,
+    logs:           <LogsPage />,
+    plugins:        <PluginsPage onPluginsChange={refreshPlugins} />,
+    database:       <DatabasePage />,
+    config:         <ConfigFilesPage />,
+    analytics:      <AnalyticsPage />,
+    messages:       <MessagesPage />,
+    market:         <MarketPage onPluginsChange={refreshPlugins} />,
   }), [refreshPlugins])
 
   const content = activePlugin

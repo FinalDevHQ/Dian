@@ -13,8 +13,7 @@ import { PluginRegistry } from "./registry/PluginRegistry.js";
 import { CommandRegistry } from "./registry/CommandRegistry.js";
 import { PluginLoader } from "./loader/PluginLoader.js";
 import { HotReloadWatcher } from "./loader/HotReloadWatcher.js";
-import { BotActionSender, type BotManager, type ActionResult } from "./bot-action/BotActionSender.js";
-import { BotScopeManager } from "./scope/BotScopeManager.js";
+import { BotActionSender, type BotService, type ActionResult } from "./bot-action/BotActionSender.js";
 
 // ---------------------------------------------------------------------------
 // PluginManager（facade，对外 API 不变）
@@ -25,7 +24,6 @@ export class PluginManager {
   private readonly _commands = new CommandRegistry();
   private readonly _loader = new PluginLoader();
   private readonly _watcher = new HotReloadWatcher();
-  private readonly _scope = new BotScopeManager();
   private readonly _botAction = new BotActionSender();
   private _maintenanceMode = false;
   private _installLock = false;
@@ -98,8 +96,8 @@ export class PluginManager {
     this._loader.setOnPluginLoaded(fn);
   }
 
-  setBotManager(botManager: BotManager): void {
-    this._botAction.setBotManager(botManager);
+  setBotService(botService: BotService): void {
+    this._botAction.setBotService(botService);
   }
 
   async sendBotAction(action: string, params?: Record<string, unknown>): Promise<ActionResult> {
@@ -216,7 +214,7 @@ export class PluginManager {
     await dispatchEvent(
       this._registry.all(),
       this._registry.blacklist as Set<string>,
-      (name, botId) => this._scope.isEnabledForBot(name, botId),
+      () => true, // 单 bot 模式下所有插件都启用
       (pluginId) => this._commands.getByPlugin(pluginId, { includeHidden: true }),
       event,
       reply,
@@ -237,28 +235,6 @@ export class PluginManager {
 
   setMaintenanceMode(enabled: boolean): void {
     this._maintenanceMode = enabled;
-  }
-
-  // ── Bot 作用域 ────────────────────────────────────────────────────────────
-
-  setPluginBots(name: string, botIds: readonly string[]): void {
-    this._scope.setPluginBots(name, botIds);
-  }
-
-  getPluginBots(name: string): string[] {
-    return this._scope.getPluginBots(name);
-  }
-
-  isPluginEnabledForBot(name: string, botId: string): boolean {
-    return this._scope.isEnabledForBot(name, botId);
-  }
-
-  bulkSetPluginBots(map: Record<string, readonly string[]>): void {
-    this._scope.bulkSet(map);
-  }
-
-  exportPluginBots(): Record<string, string[]> {
-    return this._scope.export();
   }
 
   // ── 只读信息 ──────────────────────────────────────────────────────────────
@@ -306,7 +282,6 @@ export class PluginManager {
           category: c.category,
           children: c.children.map(commandNodeToPublicMeta),
       })),
-      bots: this._scope.getPluginBots(p.meta.name),
       routes: p.routes.map((r) => ({ method: r.method, path: r.path })),
       hasUI: p.ui !== null,
       uiUrl: p.ui?.externalUrl
@@ -317,11 +292,10 @@ export class PluginManager {
     }));
   }
 
-  private _getHelpPluginViews(botId?: string): HelpPluginView[] {
+  private _getHelpPluginViews(): HelpPluginView[] {
     return this._registry
       .all()
       .filter((p) => !this._registry.isBlacklisted(p.meta.name))
-      .filter((p) => !botId || this._scope.isEnabledForBot(p.meta.name, botId))
       .map((p) => ({
         name: p.meta.name,
         description: p.meta.description,

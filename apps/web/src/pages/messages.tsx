@@ -16,7 +16,6 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Pagination } from "@/components/ui/pagination"
-import { useBotScope } from "@/contexts/bot-scope-context"
 import { cn } from "@/lib/utils"
 
 function fmtTime(ts: number): string {
@@ -52,8 +51,6 @@ function Highlight({ text, keyword }: { text: string; keyword: string }) {
 }
 
 export function MessagesPage() {
-  const { scope } = useBotScope()
-
   const [keyword, setKeyword]     = useState("")
   const [groupId, setGroupId]     = useState("")
   const [userId, setUserId]       = useState("")
@@ -71,13 +68,12 @@ export function MessagesPage() {
 
   const fetchRef = useRef(0)
 
-  const load = useCallback(async (pg: number, filters: typeof committed, sc: string) => {
+  const load = useCallback(async (pg: number, filters: typeof committed) => {
     const seq = ++fetchRef.current
     setLoading(true)
     try {
       const [result, names] = await Promise.all([
         messagesApi.query({
-          ...(sc !== "all" ? { botId: sc } : {}),
           ...(filters.groupId  ? { groupId: filters.groupId }   : {}),
           ...(filters.userId   ? { userId:  filters.userId }    : {}),
           ...(filters.subtype  ? { subtype: filters.subtype }   : {}),
@@ -100,12 +96,12 @@ export function MessagesPage() {
 
   useEffect(() => {
     setPage(0)
-    load(0, committed, scope)
+    load(0, committed)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scope, committed, pageSize])
+  }, [committed, pageSize])
 
   useEffect(() => {
-    load(page, committed, scope)
+    load(page, committed)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page])
 
@@ -130,11 +126,10 @@ export function MessagesPage() {
         <div>
           <h1 className="text-xl font-semibold">消息记录</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            {scope === "all" ? "全部机器人" : scope}
-            {total > 0 && <span className="ml-2">共 {total.toLocaleString()} 条</span>}
+            {total > 0 && <span>共 {total.toLocaleString()} 条</span>}
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => load(page, committed, scope)} disabled={loading}>
+        <Button variant="outline" size="sm" onClick={() => load(page, committed)} disabled={loading}>
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
           <span className="ml-1.5">刷新</span>
         </Button>

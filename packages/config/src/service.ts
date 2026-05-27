@@ -57,8 +57,8 @@ export class ConfigService extends EventEmitter<ConfigServiceEvents> {
     return this.config.settings;
   }
 
-  get bots(): BotEntry[] {
-    return this.config.bots.bots;
+  get bot(): BotEntry {
+    return this.config.bot.bot;
   }
 
   get templates(): TemplatesConfig["templates"] {
@@ -126,16 +126,16 @@ export class ConfigService extends EventEmitter<ConfigServiceEvents> {
     return {
       settings: cfg.settings,
       templates: cfg.templates,
-      bots: {
-        bots: cfg.bots.bots.map((bot) => ({
-          ...bot,
-          ws: bot.ws
-            ? { ...bot.ws, accessToken: bot.ws.accessToken ? "***" : undefined }
+      bot: {
+        bot: {
+          ...cfg.bot.bot,
+          ws: cfg.bot.bot.ws
+            ? { ...cfg.bot.bot.ws, accessToken: cfg.bot.bot.ws.accessToken ? "***" : undefined }
             : undefined,
-          http: bot.http
-            ? { ...bot.http, accessToken: bot.http.accessToken ? "***" : undefined }
+          http: cfg.bot.bot.http
+            ? { ...cfg.bot.bot.http, accessToken: cfg.bot.bot.http.accessToken ? "***" : undefined }
             : undefined,
-        })),
+        },
       },
     };
   }

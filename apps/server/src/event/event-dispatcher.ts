@@ -4,19 +4,19 @@ import type { MessageRepository } from "@myfinal/storage";
 import { SqlitePluginStore } from "@myfinal/storage";
 import type { PluginStore } from "@myfinal/plugin-runtime";
 import { pluginManager } from "@myfinal/plugin-runtime";
-import type { BotManager } from "../bot/bot-manager.js";
+import type { BotService } from "../bot/bot-service.js";
 
 /**
  * EventDispatcher — 事件路由
  *
- * 负责将来自各 BotInstance 的事件分发给插件系统
+ * 负责将来自 BotInstance 的事件分发给插件系统
  */
 export class EventDispatcher {
   private readonly log: ReturnType<LogService["child"]>;
   /** 简单去重：记录最近处理过的 eventId */
   private readonly seen = new Set<string>();
   private readonly MAX_SEEN = 2000;
-  private botManager?: BotManager;
+  private botService?: BotService;
   private messageRepo?: MessageRepository;
   private sqliteStore?: SqlitePluginStore;
   /** 已初始化的插件表 */
@@ -26,8 +26,8 @@ export class EventDispatcher {
     this.log = logger.child({ component: "EventDispatcher" });
   }
 
-  setBotManager(botManager: BotManager): void {
-    this.botManager = botManager;
+  setBotService(botService: BotService): void {
+    this.botService = botService;
   }
 
   setMessageRepository(repo: MessageRepository): void {
@@ -67,7 +67,7 @@ export class EventDispatcher {
       { eventId: event.eventId, type: event.type, botId: event.botId }
     );
 
-    const bot = this.botManager?.getBot(event.botId);
+    const bot = this.botService?.getBot();
 
     // 构建 reply 回调：根据事件来源发送群消息或私聊消息
     const reply = async (text: string): Promise<void> => {

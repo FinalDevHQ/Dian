@@ -2,7 +2,7 @@ import Fastify from "fastify";
 import cors from "@fastify/cors";
 import type { LogService } from "@myfinal/logger";
 import type { MessageRepository, SqlitePluginStore } from "@myfinal/storage";
-import type { BotManager } from "../bot/bot-manager.js";
+import type { BotService } from "../bot/bot-service.js";
 import type { EventBus } from "../event/event-bus.js";
 import type { DatabaseExplorer } from "../db/explorer.js";
 import type { AuthService } from "../auth/service.js";
@@ -14,14 +14,14 @@ import { configRoutes } from "../routes/config.js";
 import { eventRoutes } from "../routes/events.js";
 import { dbRoutes } from "../routes/db.js";
 import { pluginRoutes } from "../routes/plugins.js";
-import { botsRoutes } from "../routes/bots.js";
+import { botRoutes } from "../routes/bots.js";
 import { statsRoutes } from "../routes/stats.js";
 
 export interface ServerOptions {
   host?: string;
   port?: number;
   logger: LogService;
-  botManager: BotManager;
+  botService: BotService;
   configDir: string;
   pluginsDir: string;
   eventBus: EventBus;
@@ -45,7 +45,7 @@ export async function createServer(opts: ServerOptions): Promise<{
     host = "0.0.0.0",
     port = 3000,
     logger,
-    botManager,
+    botService,
     configDir,
     pluginsDir,
     eventBus,
@@ -74,7 +74,7 @@ export async function createServer(opts: ServerOptions): Promise<{
   await app.register(authRoutes, { authService });
 
   // 路由
-  await app.register(healthRoutes, { logger, botManager });
+  await app.register(healthRoutes, { logger, botService });
   await app.register(systemRoutes, { logger });
   await app.register(configRoutes, { logger, configDir });
   await app.register(eventRoutes, { logger, bus: eventBus });
@@ -82,14 +82,13 @@ export async function createServer(opts: ServerOptions): Promise<{
   await app.register(pluginRoutes, {
     logger,
     pluginsDir,
-    knownBotIds: () => botManager.getBots().map((b) => b.botId),
     persistPluginScope,
-    botManager,
+    botService,
     pluginStore,
   });
-  await app.register(botsRoutes, { logger, configDir });
+  await app.register(botRoutes, { logger, configDir });
   if (messageRepo) {
-    await app.register(statsRoutes, { messageRepo, botManager });
+    await app.register(statsRoutes, { messageRepo, botService });
   }
 
   return {

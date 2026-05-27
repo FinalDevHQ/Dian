@@ -20,7 +20,7 @@ function formatTs(ts: number): string {
 
 export function DashboardPage() {
   const [health, setHealth] = useState<HealthResponse | null>(null)
-  const [bots, setBots] = useState<BotInfo[] | null>(null)
+  const [bot, setBot] = useState<BotInfo | null>(null)
   const [system, setSystem] = useState<SystemInfo | null>(null)
   const [plugins, setPlugins] = useState<PluginPublicMeta[] | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -38,13 +38,13 @@ export function DashboardPage() {
         api.listPlugins().then((r) => r.plugins).catch(() => null),
       ])
       setHealth(h)
-      setBots(s.bots)
+      setBot(s.bot)
       setSystem(sys)
       setPlugins(pl)
       setLastUpdated(Date.now())
     } catch (err) {
       setHealth(null)
-      setBots(null)
+      setBot(null)
       setSystem(null)
       setPlugins(null)
       setError(err instanceof Error ? err.message : String(err))
@@ -64,8 +64,7 @@ export function DashboardPage() {
 
   const online = health?.status === "ok"
 
-  const botTotal = bots?.length ?? 0
-  const botOnline = bots?.filter((b) => b.status === "connected" || b.status === "no-ws").length ?? 0
+  const botOnline = bot?.status === "connected" || bot?.status === "no-ws" ? 1 : 0
   const pluginTotal = plugins?.length ?? 0
   const pluginEnabled = plugins?.filter((p) => p.enabled).length ?? 0
   const totalCommands = plugins?.reduce((sum, p) => sum + p.commandCount, 0) ?? 0
@@ -128,10 +127,10 @@ export function DashboardPage() {
         <OverviewStat
           icon={<Bot className="size-4" strokeWidth={1.5} />}
           label="Bot"
-          value={`${botOnline} / ${botTotal}`}
-          sub="在线 / 总数"
+          value={bot ? (botOnline > 0 ? "在线" : "离线") : "未配置"}
+          sub={bot ? bot.botId : "单 bot 模式"}
           glowColor={botOnline > 0 ? "purple" : "gray"}
-          loading={loading && !bots}
+          loading={loading && !bot}
         />
         <OverviewStat
           icon={<Blocks className="size-4" strokeWidth={1.5} />}
@@ -208,32 +207,21 @@ export function DashboardPage() {
                 <Bot className="size-3.5 text-sky-500" strokeWidth={1.5} />
               </div>
               <CardTitle className="text-[13px] font-semibold text-gray-700">Bot 概况</CardTitle>
-              {bots && (
+              {bot && (
                 <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500">
-                  {bots.length}
+                  {bot.botId}
                 </span>
               )}
             </div>
-            <CardDescription className="text-[11px]">各 Bot 当前连接状态</CardDescription>
+            <CardDescription className="text-[11px]">Bot 当前连接状态</CardDescription>
           </CardHeader>
           <CardContent>
-            {bots ? (
-              bots.length === 0 ? (
-                <p className="text-[12px] text-gray-400">暂无 Bot，前往「Bot 管理」页面添加。</p>
-              ) : (
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {bots.map((b) => (
-                    <BotMiniCard key={b.botId} bot={b} />
-                  ))}
-                </div>
-              )
+            {bot ? (
+              <BotMiniCard bot={bot} />
             ) : loading ? (
-              <div className="grid gap-2 sm:grid-cols-2">
-                <Skeleton className="h-12 w-full rounded-xl" />
-                <Skeleton className="h-12 w-full rounded-xl" />
-              </div>
+              <Skeleton className="h-12 w-full rounded-xl" />
             ) : (
-              <p className="text-[12px] text-gray-400">暂无数据</p>
+              <p className="text-[12px] text-gray-400">暂无数据，前往「Bot 设置」页面配置。</p>
             )}
           </CardContent>
         </Card>

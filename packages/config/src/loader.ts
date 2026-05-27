@@ -3,11 +3,11 @@ import { resolve, dirname } from "node:path";
 import yaml from "js-yaml";
 import type { ZodSchema } from "zod";
 import {
-  BotsSchema,
+  BotConfigSchema,
   SettingsSchema,
   TemplatesSchema,
   type AllConfig,
-  type BotsConfig,
+  type BotConfig,
   type Settings,
   type TemplatesConfig,
 } from "./schema.js";
@@ -27,25 +27,23 @@ const DEFAULT_SETTINGS: Settings = {
   },
 };
 
-const DEFAULT_BOTS: BotsConfig = {
-  bots: [
-    {
-      botId: "my-bot",
-      enabled: false,
-      mode: "hybrid",
-      ws: {
-        url: "ws://127.0.0.1:6700/",
-        accessToken: "",
-        heartbeatIntervalMs: 30000,
-        reconnectIntervalMs: 5000,
-      },
-      http: {
-        baseUrl: "http://127.0.0.1:5700/",
-        accessToken: "",
-        timeoutMs: 5000,
-      },
+const DEFAULT_BOT: BotConfig = {
+  bot: {
+    botId: "my-bot",
+    enabled: false,
+    mode: "hybrid",
+    ws: {
+      url: "ws://127.0.0.1:6700/",
+      accessToken: "",
+      heartbeatIntervalMs: 30000,
+      reconnectIntervalMs: 5000,
     },
-  ],
+    http: {
+      baseUrl: "http://127.0.0.1:5700/",
+      accessToken: "",
+      timeoutMs: 5000,
+    },
+  },
 };
 
 const DEFAULT_TEMPLATES: TemplatesConfig = {
@@ -136,7 +134,7 @@ export function loadAllConfig(options: LoaderOptions = {}): AllConfig {
 
   // 确保配置文件存在，不存在则创建默认配置
   ensureConfigFile(resolve(dir, "settings.yaml"), DEFAULT_SETTINGS);
-  ensureConfigFile(resolve(dir, "bot.yaml"), DEFAULT_BOTS);
+  ensureConfigFile(resolve(dir, "bot.yaml"), DEFAULT_BOT);
   ensureConfigFile(resolve(dir, "templates.yaml"), DEFAULT_TEMPLATES);
 
   const settings: Settings = loadYaml(
@@ -144,9 +142,9 @@ export function loadAllConfig(options: LoaderOptions = {}): AllConfig {
     SettingsSchema,
   );
 
-  const bots: BotsConfig = loadYaml(
+  const bot: BotConfig = loadYaml(
     resolve(dir, "bot.yaml"),
-    BotsSchema,
+    BotConfigSchema,
   );
 
   const templates: TemplatesConfig = loadYaml(
@@ -154,5 +152,5 @@ export function loadAllConfig(options: LoaderOptions = {}): AllConfig {
     TemplatesSchema,
   );
 
-  return { settings, bots, templates };
+  return { settings, bot, templates };
 }

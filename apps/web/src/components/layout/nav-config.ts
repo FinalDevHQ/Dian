@@ -27,7 +27,7 @@ export const navGroups: NavGroup[] = [
   {
     items: [
       { key: "dashboard", label: "仪表盘", icon: LayoutDashboard },
-      { key: "bots", label: "Bot 管理", icon: Bot },
+      { key: "bot-settings", label: "Bot 设置", icon: Bot },
       { key: "logs", label: "全局日志", icon: FileText },
       { key: "plugins", label: "插件模块", icon: Blocks },
       { key: "database", label: "数据库", icon: Database },

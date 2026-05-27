@@ -32,10 +32,8 @@ const MIME_TYPES: Record<string, string> = {
 interface PluginRoutesOptions {
   logger: LogService;
   pluginsDir: string;
-  /** 已知的 botId 列表，用于校验 PUT /plugins/:name/bots 提交的值 */
-  knownBotIds: () => readonly string[];
   persistPluginScope: () => Promise<void>;
-  botManager: import("../bot/bot-manager.js").BotManager;
+  botService: import("../bot/bot-service.js").BotService;
   pluginStore?: SqlitePluginStore;
 }
 
@@ -43,7 +41,7 @@ export async function pluginRoutes(
   app: FastifyInstance,
   opts: PluginRoutesOptions
 ): Promise<void> {
-  const { logger, pluginsDir, knownBotIds, persistPluginScope, botManager, pluginStore } = opts;
+  const { logger, pluginsDir, persistPluginScope, botService, pluginStore } = opts;
 
   // ── GET /plugins ──────────────────────────────────────────────────────────
   app.get("/plugins", async (_req, reply) => {
@@ -67,38 +65,6 @@ export async function pluginRoutes(
     }
     logger.info(`Plugin ${name} ${enabled ? "enabled" : "disabled"}`);
     return reply.send({ ok: true });
-  });
-
-  // ── PUT /plugins/:name/bots ────────────────────────────────────────────────
-  // body: { bots: string[] }
-  // 设置插件的 bot 白名单（默认空 = 任何 bot 都不响应）
-  app.put<{
-    Params: { name: string };
-    Body: { bots: unknown };
-  }>("/plugins/:name/bots", async (req, reply) => {
-    const { name } = req.params;
-    const { bots } = req.body ?? {};
-
-    if (!Array.isArray(bots) || !bots.every((b) => typeof b === "string")) {
-      return reply.code(400).send({ error: "bots must be string[]" });
-    }
-
-    // 插件需已加载
-    const exists = pluginManager.plugins.some((p) => p.meta.name === name);
-    if (!exists) {
-      return reply.code(404).send({ error: `plugin "${name}" not found` });
-    }
-
-    // 过滤掉未知 botId，避免脏数据
-    const valid = new Set(knownBotIds());
-    const accepted = (bots as string[]).filter((b) => valid.has(b));
-    const rejected = (bots as string[]).filter((b) => !valid.has(b));
-
-    pluginManager.setPluginBots(name, accepted);
-    await persistPluginScope();
-
-    logger.info(`Plugin ${name} bots scope updated`, { accepted, rejected });
-    return reply.send({ ok: true, bots: accepted, rejected });
   });
 
   // ── GET /plugins/:name/tables ─────────────────────────────────────────────
@@ -142,9 +108,6 @@ export async function pluginRoutes(
       pluginManager.unload(name);
       // 同步清掉黑名单状态，避免重装后仍处于禁用
       pluginManager.removeFromBlacklist(name);
-      // 清除 bot 作用域并持久化，避免 plugin-scope.json 残留已删除插件的条目
-      pluginManager.setPluginBots(name, []);
-      await persistPluginScope();
 
       // 删除插件数据（如果用户选择）
       if (deleteData && pluginStore) {
@@ -426,8 +389,8 @@ export async function pluginRoutes(
     if (!route) {
       return reply.code(404).send({ error: `no ${req.method} ${subPath} on plugin "${plugin.meta.name}"` });
     }
-    // 注入 botManager，供插件路由 handler 调用底层 API
-    ;(req as unknown as Record<string, unknown>).botManager = botManager;
+    // 注入 botService，供插件路由 handler 调用底层 API
+    ;(req as unknown as Record<string, unknown>).botService = botService;
     if (pluginStore) {
       const pluginName = plugin.meta.name;
       ;(req as unknown as Record<string, unknown>).pluginStore = {

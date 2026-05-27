@@ -1,8 +1,8 @@
 /**
- * Bot 管理器的接口（plugin-runtime 只依赖这个最小接口，不耦合 server 层的 BotManager）。
+ * Bot 服务的接口（plugin-runtime 只依赖这个最小接口，不耦合 server 层的 BotService）。
  */
-export interface BotManager {
-  getBots(): BotInstance[];
+export interface BotService {
+  getBot(): BotInstance | undefined;
 }
 
 export interface BotInstance {
@@ -22,26 +22,26 @@ export interface ActionResult {
 
 /**
  * Bot Action 发送器。
- * 持有 BotManager 引用，提供 sendBotAction 方法供插件调用。
+ * 持有 BotService 引用，提供 sendBotAction 方法供插件调用。
  */
 export class BotActionSender {
-  private _botManager: BotManager | null = null;
+  private _botService: BotService | null = null;
 
-  setBotManager(botManager: BotManager): void {
-    this._botManager = botManager;
+  setBotService(botService: BotService): void {
+    this._botService = botService;
   }
 
   async sendBotAction(
     action: string,
     params?: Record<string, unknown>,
   ): Promise<ActionResult> {
-    if (!this._botManager) {
-      return { ok: false, status: "failed", message: "BotManager not initialized" };
+    if (!this._botService) {
+      return { ok: false, status: "failed", message: "BotService not initialized" };
     }
-    const bots = this._botManager.getBots();
-    if (bots.length === 0) {
-      return { ok: false, status: "failed", message: "No bots available" };
+    const bot = this._botService.getBot();
+    if (!bot) {
+      return { ok: false, status: "failed", message: "No bot available" };
     }
-    return bots[0].sendAction({ action, params });
+    return bot.sendAction({ action, params });
   }
 }

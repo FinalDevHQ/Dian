@@ -41,7 +41,6 @@ import {
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
-import { useBotScope } from "@/contexts/bot-scope-context"
 import { cn } from "@/lib/utils"
 
 // ─── 时间范围选项 ─────────────────────────────────────────────────────────────
@@ -142,8 +141,6 @@ function TrendTooltip({ active, payload, label }: {
 // ─── 主页面 ──────────────────────────────────────────────────────────────────
 
 export function AnalyticsPage() {
-  const { scope } = useBotScope()
-
   const [rangeDays, setRangeDays]       = useState<number>(7)
   const [loading, setLoading]           = useState(false)
   const [overview, setOverview]         = useState<OverviewStats | null>(null)
@@ -162,10 +159,9 @@ export function AnalyticsPage() {
 
   // 构建 filter
   const filter = useMemo<StatsFilter>(() => ({
-    ...(scope !== "all" ? { botId: scope } : {}),
     ...rangeToFilter(rangeDays),
     ...(drillGroup ? { groupId: drillGroup } : {}),
-  }), [scope, rangeDays, drillGroup])
+  }), [rangeDays, drillGroup])
 
   // 拉取所有 stats + 群名
   const refresh = useCallback(async () => {
@@ -256,8 +252,6 @@ export function AnalyticsPage() {
         <div>
           <h1 className="text-xl font-semibold">消息统计</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            {scope === "all" ? "全部机器人" : scope}
-            {" · "}
             {RANGES.find((r) => r.days === rangeDays)?.label ?? "自定义"}
             {isDrillDown && (
               <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-emerald-100 dark:bg-emerald-900/40 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-300">
@@ -587,54 +581,6 @@ export function AnalyticsPage() {
           </CardContent>
         </Card>
       </div>
-
-      {/* ── 机器人详细分布（仅全局视图下展示） ── */}
-      {scope === "all" && overview && overview.byBot.length > 1 && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-sm font-medium">
-              <Bot className="h-4 w-4 text-amber-500" />
-              机器人消息量对比
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={160}>
-              <BarChart data={overview.byBot} margin={{ top: 4, right: 16, bottom: 4, left: -20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis
-                  dataKey="botId"
-                  tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
-                />
-                <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} allowDecimals={false} />
-                <Tooltip
-                  content={({ active, payload }) => {
-                    if (!active || !payload?.length) return null
-                    const d = payload[0].payload as { botId: string; count: number }
-                    const total = overview.byBot.reduce((s, b) => s + b.count, 0) || 1
-                    return (
-                      <div className="rounded-lg border bg-card px-3 py-2 text-sm shadow-md">
-                        <p className="font-medium">{d.botId}</p>
-                        <p className="text-muted-foreground">
-                          消息数：<span className="font-semibold text-foreground">{d.count.toLocaleString()}</span>
-                          <span className="ml-1 text-xs">({Math.round((d.count / total) * 100)}%)</span>
-                        </p>
-                      </div>
-                    )
-                  }}
-                />
-                <Bar dataKey="count" fill="hsl(38 92% 50%)" radius={[3, 3, 0, 0]} maxBarSize={48}>
-                  <LabelList
-                    dataKey="count"
-                    position="top"
-                    style={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-                    formatter={(v: unknown) => fmtNum(Number(v))}
-                  />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      )}
 
       {/* ── 底部提示 ── */}
       <p className="text-xs text-muted-foreground text-center pb-2">
