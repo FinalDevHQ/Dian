@@ -85,7 +85,8 @@ export class CommandRegistry {
 
     for (const id of ids) {
       const record = this._byId.get(id);
-      if (record) this._byFullName.delete(this._fullNameKey(record.pluginId, record.fullName));
+      // key 在注册时用的是 segment-based path（record.path.join(" ")），不是 displayName-based fullName
+      if (record) this._byFullName.delete(this._fullNameKey(record.pluginId, record.path.join(" ")));
       this._byId.delete(id);
     }
     this._byPlugin.delete(pluginId);
