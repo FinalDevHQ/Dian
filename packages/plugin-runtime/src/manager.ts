@@ -69,6 +69,9 @@ export class PluginManager {
 
   private _registerInstance(instance: PluginInstance): void {
     try {
+      if (this._registry.has(instance.meta.name)) {
+        this.unload(instance.meta.name);
+      }
       this._commands.registerPlugin(instance);
       this._registry.set(instance.meta.name, instance);
     } catch (err) {
@@ -208,7 +211,7 @@ export class PluginManager {
     event: BotEvent,
     reply: (text: string) => Promise<void> = async () => {},
     sendAction: SendActionFn = async () => ({ ok: false, status: "failed", message: "sendAction not implemented" }),
-    store?: PluginStore,
+    store?: PluginStore | ((pluginName: string) => PluginStore | undefined),
   ): Promise<void> {
     if (this._maintenanceMode) return;
     await dispatchEvent(

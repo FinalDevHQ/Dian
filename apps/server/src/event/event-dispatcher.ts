@@ -197,15 +197,21 @@ export class EventDispatcher {
     };
 
     try {
-      // 创建 PluginStore 包装器
-      const pluginStore: PluginStore | undefined = this.sqliteStore ? {
-        createTable: (tableName, columns) => this.sqliteStore!.createTable(tableName, columns),
-        insert: (tableName, data) => this.sqliteStore!.insert(tableName, data),
-        query: (tableName, params, options) => this.sqliteStore!.query(tableName, params, options),
-        delete: (tableName, params) => this.sqliteStore!.delete(tableName, params),
-      } : undefined;
-      
-      await pluginManager.dispatch(event, reply, sendAction, pluginStore);
+      // 创建带插件名作用域的 PluginStore 工厂
+      // 每个插件收到的 store 会自动在 createTable 时注入 pluginName，确保 _plugin_tables 正确注册
+      const storeFactory = this.sqliteStore
+        ? (pluginName: string): PluginStore | undefined => {
+            const raw = this.sqliteStore!;
+            return {
+              createTable: (tableName, columns) => raw.createTable(tableName, columns, pluginName),
+              insert: (tableName, data) => raw.insert(tableName, data),
+              query: (tableName, params, options) => raw.query(tableName, params, options),
+              delete: (tableName, params) => raw.delete(tableName, params),
+            };
+          }
+        : undefined;
+
+      await pluginManager.dispatch(event, reply, sendAction, storeFactory);
     } catch (err) {
       this.log.error("Plugin dispatch error", { err, eventId: event.eventId });
     }

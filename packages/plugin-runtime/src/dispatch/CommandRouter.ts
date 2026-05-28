@@ -1,4 +1,4 @@
-import type { EventContext, PluginInstance } from "../decorators.js";
+import type { EventContext, PluginInstance, PluginStore } from "../decorators.js";
 import type { CommandRecord } from "../registry/CommandRegistry.js";
 import { matchPattern } from "../utils/pattern.js";
 
@@ -13,17 +13,21 @@ export async function routeToHandlers(
   getCommandsForPlugin: (pluginId: string) => CommandRecord[],
   messageText: string,
   ctx: EventContext,
+  getStoreForPlugin?: (pluginName: string) => PluginStore | undefined,
 ): Promise<boolean> {
   let stopped = false;
-  const wrappedCtx: EventContext = {
-    ...ctx,
-    stopPropagation() { stopped = true; },
-  };
 
   for (const plugin of plugins) {
     if (stopped) return true;
     if (blacklist.has(plugin.meta.name)) continue;
     if (!isPluginEnabledForBot(plugin.meta.name, ctx.event.botId)) continue;
+
+    const scopedStore = getStoreForPlugin ? getStoreForPlugin(plugin.meta.name) : ctx.store;
+    const wrappedCtx: EventContext = {
+      ...ctx,
+      stopPropagation() { stopped = true; },
+      store: scopedStore,
+    };
 
     for (const hm of plugin.handlers) {
       if (stopped) break;

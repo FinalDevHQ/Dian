@@ -18,20 +18,23 @@ export async function dispatchEvent(
   event: BotEvent,
   reply: (text: string) => Promise<void>,
   sendAction: SendActionFn,
-  store?: PluginStore,
+  store?: PluginStore | ((pluginName: string) => PluginStore | undefined),
 ): Promise<void> {
   let stopped = false;
+  const baseStore = typeof store === "function" ? undefined : store;
+  const getStoreForPlugin = typeof store === "function" ? store : undefined;
+
   const ctx: EventContext = {
     event,
     stopPropagation() { stopped = true; },
     reply,
     sendAction,
-    store,
+    store: baseStore,
   };
 
   // 1. interceptors
-  if (await runInterceptors(plugins, blacklist, isPluginEnabledForBot, ctx)) return;
+  if (await runInterceptors(plugins, blacklist, isPluginEnabledForBot, ctx, getStoreForPlugin)) return;
 
   const messageText = extractMessageText(event);
-  await routeToHandlers(plugins, blacklist, isPluginEnabledForBot, getCommandsForPlugin, messageText, ctx);
+  await routeToHandlers(plugins, blacklist, isPluginEnabledForBot, getCommandsForPlugin, messageText, ctx, getStoreForPlugin);
 }
