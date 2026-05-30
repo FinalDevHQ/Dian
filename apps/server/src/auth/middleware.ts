@@ -10,7 +10,8 @@ const PUBLIC_PREFIXES = [
 ];
 
 const PUBLIC_PLUGIN_API_PATHS = [
-  /^\/plugins\/puppeteer\/api\/(?:info|status|render|screenshot)$/,
+  /^\/plugins\/[^/]+\/ui(?:\/|$)/,     // 插件静态 UI
+  /^\/plugins\/[^/]+\/api(?:\/|$)/,    // 插件 API（iframe 内无法携带主站 token）
 ];
 
 function isPublicPath(url: string): boolean {
