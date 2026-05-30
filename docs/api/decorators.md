@@ -146,6 +146,38 @@ import {
 } from "@myfinal/plugin-runtime";
 ```
 
+## 推荐模式：onSetup + ctx.command()
+
+虽然 `@Handler` 装饰器仍然可用，但推荐使用 `onSetup` + `ctx.command()` 模式，因为它提供了更多的配置选项：
+
+```typescript
+@Plugin({ name: "my-plugin" })
+export default class MyPlugin {
+  onSetup(ctx: PluginSetupContext): void {
+    ctx.command({
+      name: "hello",
+      segment: "hello",
+      aliases: ["hello", "hi", "你好"],
+      pattern: /^(hello|hi|你好)$/i,
+      description: "回复问候语",
+      usage: "hello",
+      examples: ["hello", "hi"],
+      category: "工具",
+      handler: async (c: EventContext) => {
+        await c.reply("你好！");
+      },
+    });
+  }
+}
+```
+
+**优势：**
+- 支持 `aliases` 别名
+- 支持 `usage` 和 `examples` 帮助信息
+- 支持 `hidden` 隐藏指令
+- 支持 `order` 排序
+- 支持 `children` 子命令
+
 ## 完整示例
 
 ```typescript

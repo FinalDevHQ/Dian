@@ -11,11 +11,11 @@ export default class MyPlugin {
   async onSignIn(ctx: EventContext): Promise<void> {
     if (!ctx.store) return;
 
-    // 第一次使用时创建表（第三个参数传插件名，启用 _plugin_tables 跟踪）
+    // 第一次使用时创建表（框架会自动注入 pluginName）
     await ctx.store.createTable("my_sign_ins", [
       "user_id TEXT NOT NULL",
       "timestamp INTEGER NOT NULL",
-    ], "my-plugin");
+    ]);
 
     // 插入数据
     await ctx.store.insert("my_sign_ins", {
@@ -46,7 +46,7 @@ await ctx.store.createTable("my_users", [
   "name TEXT",
   "points INTEGER DEFAULT 0",
   "created_at INTEGER",
-], "my-plugin");  // ← 第三个参数：插件名，用于 _plugin_tables 跟踪
+]);
 ```
 
 **参数：**
@@ -55,9 +55,10 @@ await ctx.store.createTable("my_users", [
 |------|------|------|------|
 | `tableName` | `string` | ✅ | 表名 |
 | `columns` | `string[]` | ✅ | 列定义数组 |
-| `pluginName` | `string` | ✅ | 插件名（即 `@Plugin` 的 `name`） |
 
-**重要**：务必传入第三个参数 `pluginName`，框架会自动在 `_plugin_tables` 元数据表中注册该表。卸载插件时，管理界面会列出所有关联表供用户选择是否删除。
+::: tip 自动追踪
+框架会自动为每个插件创建带作用域的 `store`，调用 `createTable` 时会自动注入 `pluginName`，无需手动传第三个参数。表会自动在 `_plugin_tables` 元数据表中注册。
+:::
 
 **列定义格式：**
 - `"列名 类型 约束"`
@@ -173,7 +174,7 @@ export default class PointsPlugin {
       "user_id TEXT PRIMARY KEY",
       "points INTEGER DEFAULT 0",
       "last_sign INTEGER",
-    ], "points");
+    ]);
     this.tableReady = true;
   }
 
@@ -247,7 +248,7 @@ onSetup(ctx: PluginSetupContext): void {
       "content TEXT NOT NULL",
       "user_id TEXT NOT NULL",
       "created_at INTEGER NOT NULL",
-    ], "my-plugin");
+    ]);
     const rows = await store.query("my_notes", {}, { limit: 20, orderBy: "id", order: "DESC" });
     reply.send({ ok: true, notes: rows });
   });
@@ -270,13 +271,13 @@ _plugin_tables
 └── created_at (创建时间)
 ```
 
-- `createTable()` 带第三个参数时自动注册
+- 框架自动为每个插件创建带作用域的 `store`，`createTable` 时自动注册
 - 卸载插件时，管理界面列出所有关联表供用户选择是否删除
 - `dropPluginTables()` 一键删除插件所有表
 
 ## 注意事项
 
 1. **表名唯一** — 同一个插件内的表名不能重复
-2. **务必传 pluginName** — 不传则表不会被跟踪，卸载时无法自动清理
+2. **自动追踪** — 框架会自动注入 `pluginName`，无需手动传参
 3. **类型安全** — 查询结果是 `Record<string, unknown>[]`，需要自己转换类型
 4. **性能** — SQLite 适合中小数据量，不要存太多数据

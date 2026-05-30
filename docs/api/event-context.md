@@ -119,12 +119,12 @@ async blockUser(ctx: EventContext): Promise<void> {
 插件专属的 SQLite 存储。所有插件共享同一个数据库文件，通过 `_plugin_tables` 跟踪每个插件的表。
 
 ```typescript
-// 创建表（第三个参数传插件名，启用 _plugin_tables 跟踪）
+// 创建表（框架会自动注入 pluginName）
 await ctx.store?.createTable("my_messages", [
   "id INTEGER PRIMARY KEY AUTOINCREMENT",
   "user_id TEXT",
   "content TEXT",
-], "my-plugin");
+]);
 
 // 插入数据
 await ctx.store?.insert("my_messages", {

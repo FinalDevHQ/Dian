@@ -50,11 +50,17 @@ ctx.command({
 | 参数 | 类型 | 必需 | 说明 |
 |------|------|------|------|
 | `name` | `string` | ✅ | 指令名称 |
-| `pattern` | `Pattern` | ✅ | 匹配规则（和 @Handler 一样） |
+| `pattern` | `Pattern` | ❌ | 匹配规则（和 @Handler 一样） |
 | `description` | `string` | ❌ | 指令描述 |
-| `handler` | `Function` | ✅ | 处理函数 |
+| `handler` | `Function` | ❌ | 处理函数 |
 | `category` | `string` | ❌ | 分类名（帮助菜单分组） |
 | `children` | `CommandEntry[]` | ❌ | 子命令（树状菜单） |
+| `segment` | `string` | ❌ | 稳定路径片段，不填时使用 name |
+| `usage` | `string` | ❌ | 指令用法，如 `"gh 仓库 订阅 <owner/repo> [branch]"` |
+| `examples` | `string[]` | ❌ | 示例输入 |
+| `aliases` | `string[]` | ❌ | 别名，仅用于展示和未来匹配扩展 |
+| `hidden` | `boolean` | ❌ | 隐藏指令：不在 help 中展示，但仍可用于内部注册 |
+| `order` | `number` | ❌ | 同级排序，数字越小越靠前 |
 
 **Pattern 类型：**
 

@@ -211,12 +211,12 @@ ctx.command({
   handler: async (c: EventContext) => {
     if (!c.store) return;
 
-    // 创建表（第三个参数传插件名，启用 _plugin_tables 跟踪）
+    // 创建表（框架会自动注入 pluginName）
     await c.store.createTable("hello_notes", [
       "content TEXT NOT NULL",
       "user_id TEXT NOT NULL",
       "created_at INTEGER NOT NULL",
-    ], "hello-world");
+    ]);
 
     // 保存笔记
     await c.store.insert("hello_notes", {
