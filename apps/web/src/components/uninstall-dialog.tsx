@@ -8,7 +8,6 @@ import { cn } from "@/lib/utils"
 
 interface UninstallDialogProps {
   open: boolean
-  onOpenChange: (open: boolean) => void
   pluginName: string
   tables: string[]
   loading: boolean
@@ -18,7 +17,6 @@ interface UninstallDialogProps {
 
 export function UninstallDialog({
   open,
-  onOpenChange,
   pluginName,
   tables,
   loading,
@@ -26,13 +24,6 @@ export function UninstallDialog({
   onCancel,
 }: UninstallDialogProps) {
   const [deleteData, setDeleteData] = useState(false)
-
-  const handleOpenChange = useCallback((isOpen: boolean) => {
-    if (!isOpen) {
-      setDeleteData(false)
-    }
-    onOpenChange(isOpen)
-  }, [onOpenChange])
 
   const handleCancel = useCallback(() => {
     setDeleteData(false)

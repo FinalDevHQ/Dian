@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import {
   AlertCircle,
   BookOpen,
-  Bot as BotIcon,
   Box,
   CheckCircle2,
   ExternalLink,
@@ -586,7 +585,6 @@ export function PluginsPage({ onPluginsChange }: { onPluginsChange?: () => void 
       {/* 卸载确认弹窗 */}
       <UninstallDialog
         open={!!uninstallPlugin}
-        onOpenChange={(open) => !open && handleUninstallCancel()}
         pluginName={uninstallPlugin ?? ""}
         tables={uninstallTables}
         loading={uninstallLoading || uninstallTablesLoading}
