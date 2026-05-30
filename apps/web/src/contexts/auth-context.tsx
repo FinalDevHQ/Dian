@@ -26,12 +26,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const storedToken = localStorage.getItem(TOKEN_KEY);
 
     fetch("/api/auth/check")
-      .then((res) => res.json())
-      .then(async (data: { needAuth: boolean }) => {
-        setNeedAuth(data.needAuth);
+      .then(async (res) => {
+        // 若 auth/check 本身返回非 200（如旧镜像中间件误拦截返回 401），
+        // 一律视为"需要认证"，避免绕过登录页直接进入仪表盘
+        if (!res.ok) {
+          setNeedAuth(true);
+          return;
+        }
+
+        const data: { needAuth: boolean } = await res.json();
+        const required = data.needAuth ?? false;
+        setNeedAuth(required);
 
         // 如果需要认证且本地有 token，验证其有效性
-        if (data.needAuth && storedToken) {
+        if (required && storedToken) {
           try {
             const validateRes = await fetch("/api/auth/validate", {
               headers: { Authorization: `Bearer ${storedToken}` },
@@ -49,7 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       })
       .catch(() => {
-        // 服务器不可达时保持需要认证（needAuth = true），不允许绕过登录
+        // 服务器不可达时保持需要认证，不允许绕过登录
         setNeedAuth(true);
       })
       .finally(() => {
