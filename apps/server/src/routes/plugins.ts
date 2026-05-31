@@ -6,6 +6,7 @@ import { unzip } from "fflate";
 import { pluginManager } from "@myfinal/plugin-runtime";
 import type { LogService } from "@myfinal/logger";
 import type { SqlitePluginStore } from "@myfinal/storage";
+import { proxyFetch } from "../utils/proxy-fetch.js";
 
 // 静态资源 MIME 类型表（够用即可，无需引入 mime 库）
 const MIME_TYPES: Record<string, string> = {
@@ -282,7 +283,7 @@ export async function pluginRoutes(
 
     let zipData: Uint8Array;
     try {
-      const res = await fetch(url);
+      const res = await proxyFetch(url);
       if (!res.ok) {
         return reply.code(502).send({ error: `upstream responded ${res.status}: ${res.statusText}` });
       }
