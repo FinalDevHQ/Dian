@@ -1,9 +1,6 @@
 services:
   server:
-    build:
-      context: .
-      dockerfile: apps/server/Dockerfile
-
+    image: myfinal12/dian-server:latest
     volumes:
       - ./config:/app/config
       - ./plugins:/app/plugins
