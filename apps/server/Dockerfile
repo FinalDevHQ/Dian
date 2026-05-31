@@ -46,23 +46,7 @@ COPY --from=builder /app/apps/server/package.json ./apps/server/package.json
 # 运行时目录（通过 volume 挂载）
 RUN mkdir -p config plugins data
 
-# 复制默认配置文件
-COPY config/bot.yaml.example /app/config.default/bot.yaml
-COPY config/settings.yaml.example /app/config.default/settings.yaml
-
-# 创建启动脚本
-RUN echo '#!/bin/sh' > /app/start.sh && \
-    echo 'if [ ! -f /app/config/bot.yaml ]; then' >> /app/start.sh && \
-    echo '  cp /app/config.default/bot.yaml /app/config/bot.yaml' >> /app/start.sh && \
-    echo '  echo "Created default bot.yaml"' >> /app/start.sh && \
-    echo 'fi' >> /app/start.sh && \
-    echo 'if [ ! -f /app/config/settings.yaml ]; then' >> /app/start.sh && \
-    echo '  cp /app/config.default/settings.yaml /app/config/settings.yaml' >> /app/start.sh && \
-    echo '  echo "Created default settings.yaml"' >> /app/start.sh && \
-    echo 'fi' >> /app/start.sh && \
-    echo 'exec node apps/server/dist/main.js' >> /app/start.sh && \
-    chmod +x /app/start.sh
-
 EXPOSE 3000
 
-CMD ["/app/start.sh"]
+# 配置文件缺失时由应用程序自动创建默认值（loadYamlOrDefault）
+CMD ["node", "apps/server/dist/main.js"]

@@ -1,4 +1,5 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
+import { randomBytes } from "node:crypto";
 import { resolve, dirname } from "node:path";
 import yaml from "js-yaml";
 import type { ZodSchema } from "zod";
@@ -22,7 +23,10 @@ const DEFAULT_SETTINGS: Settings = {
     sqlite: "data/dian.db",
   },
   auth: {
+    // 默认密码: change_me（请在 WebUI 或 settings.yaml 中修改）
     passwordHash: "$2b$10$swI7YQr18cCg1AzA6v5SleT.J5xfdp.LbvXp0IpmbCPxT7OPquDZO",
+    // 首次启动时自动生成唯一随机密钥并写入 settings.yaml，重启后从文件读取保持稳定
+    jwtSecret: randomBytes(32).toString("hex"),
     tokenExpiresIn: 86400,
   },
 };
@@ -125,31 +129,65 @@ export interface LoaderOptions {
 }
 
 /**
- * 从磁盘加载全量配置（settings + bots + templates）。
- * 任意一项校验失败都会抛出错误，应在启动阶段调用以阻断进程。
- * 如果配置文件不存在，会自动创建默认配置文件。
+ * 尝试加载并校验 YAML 文件；若文件缺失、内容为空或校验失败，
+ * 自动用 defaultValue 覆盖写回文件并返回默认值，而不是抛出错误。
+ * 这样全新克隆 + docker compose up 的用户无需手动建配置文件。
+ */
+function loadYamlOrDefault<T>(
+  filePath: string,
+  schema: ZodSchema<T>,
+  defaultValue: T,
+): T {
+  // 文件不存在 → 写入默认值
+  if (!existsSync(filePath)) {
+    ensureConfigFile(filePath, defaultValue as object);
+    return defaultValue;
+  }
+
+  try {
+    return loadYaml(filePath, schema);
+  } catch (err) {
+    // 校验失败（格式错误 / 旧格式 / 空文件）→ 用默认值覆盖，保留坏文件备份
+    const backup = `${filePath}.bak`;
+    try {
+      writeFileSync(backup, readFileSync(filePath, "utf-8"), "utf-8");
+    } catch {
+      // 备份失败无需中断
+    }
+    const content = yaml.dump(defaultValue as object, { lineWidth: -1 });
+    writeFileSync(filePath, content, "utf-8");
+    console.warn(
+      `[config] 配置文件 "${filePath}" 校验失败，已重置为默认值（原文件备份为 .bak）:\n` +
+        `  原因: ${(err as Error).message}`,
+    );
+    return defaultValue;
+  }
+}
+
+/**
+ * 从磁盘加载全量配置（settings + bot + templates）。
+ * 文件不存在或校验失败时均自动回退到内置默认值并写回磁盘，
+ * 确保全新克隆后直接 docker compose up 也能正常启动。
  */
 export function loadAllConfig(options: LoaderOptions = {}): AllConfig {
   const dir = resolve(options.configDir ?? "config");
 
-  // 确保配置文件存在，不存在则创建默认配置
-  ensureConfigFile(resolve(dir, "settings.yaml"), DEFAULT_SETTINGS);
-  ensureConfigFile(resolve(dir, "bot.yaml"), DEFAULT_BOT);
-  ensureConfigFile(resolve(dir, "templates.yaml"), DEFAULT_TEMPLATES);
-
-  const settings: Settings = loadYaml(
+  const settings: Settings = loadYamlOrDefault(
     resolve(dir, "settings.yaml"),
     SettingsSchema,
+    DEFAULT_SETTINGS,
   );
 
-  const bot: BotConfig = loadYaml(
+  const bot: BotConfig = loadYamlOrDefault(
     resolve(dir, "bot.yaml"),
     BotConfigSchema,
+    DEFAULT_BOT,
   );
 
-  const templates: TemplatesConfig = loadYaml(
+  const templates: TemplatesConfig = loadYamlOrDefault(
     resolve(dir, "templates.yaml"),
     TemplatesSchema,
+    DEFAULT_TEMPLATES,
   );
 
   return { settings, bot, templates };
