@@ -33,6 +33,13 @@ export const SettingsSchema = z.object({
   storage: StorageSchema.default({}),
   /** 认证配置 */
   auth: AuthSchema.default({}),
+  /**
+   * 下载插件时使用的 HTTP/HTTPS 代理地址。
+   * 国内服务器无法直连 GitHub 时填写。
+   * 也可以通过环境变量 HTTPS_PROXY 覆盖此值。
+   * 示例: http://192.168.1.1:7890 或 https://ghproxy.net
+   */
+  httpsProxy: z.string().optional(),
 });
 
 export type Settings = z.infer<typeof SettingsSchema>;

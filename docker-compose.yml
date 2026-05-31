@@ -1,9 +1,6 @@
 services:
   server:
     image: myfinal12/dian-server:latest
-    environment:
-      # 国内服务器无法直连 GitHub 时，设置此代理用于下载插件
-      # HTTPS_PROXY: "http://your-proxy-host:7890"
     volumes:
       - ./config:/app/config
       - ./plugins:/app/plugins
