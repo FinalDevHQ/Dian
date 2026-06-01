@@ -33,6 +33,8 @@ export const SettingsSchema = z.object({
   storage: StorageSchema.default({}),
   /** 认证配置 */
   auth: AuthSchema.default({}),
+  /** HTTPS 代理地址，如 http://192.168.1.1:7890 */
+  httpsProxy: z.string().optional(),
 });
 
 export type Settings = z.infer<typeof SettingsSchema>;
