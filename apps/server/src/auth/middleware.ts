@@ -37,7 +37,11 @@ function isPublicPath(url: string): boolean {
 export function createAuthMiddleware(authService: AuthService) {
   return async (request: FastifyRequest, reply: FastifyReply) => {
     // 白名单路由跳过认证
-    if (isPublicPath(request.url)) return;
+    const pub = isPublicPath(request.url);
+    if (!pub) {
+      console.log(`[AUTH] blocked url="${request.url}" method=${request.method}`);
+    }
+    if (pub) return;
 
     // 未配置密码时跳过认证（首次部署未设置密码）
     if (!authService.isConfigured()) return;
