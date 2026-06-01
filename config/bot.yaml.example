@@ -1,10 +1,9 @@
 # bot.yaml — Bot 配置
 # 复制此文件为 bot.yaml 并填入实际的 accessToken
-# enabled: false 表示禁用此 Bot，配置完成后将其改为 true
 
 bot:
   botId: my-bot
-  enabled: false
+  enabled: true
   mode: hybrid
   ws:
     url: ws://127.0.0.1:6700/

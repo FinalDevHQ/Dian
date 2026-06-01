@@ -19,3 +19,19 @@ Dian-plugins
 
 # test
 test
+
+# Git 和 IDE 配置
+.git
+.gitignore
+.claude
+.vscode
+
+# 文档
+docs
+*.md
+
+# 敏感配置文件（只使用 .example 文件构建）
+config/bot.yaml
+config/settings.yaml
+config/templates.yaml
+config/bot.yaml.backup

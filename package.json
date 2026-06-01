@@ -19,5 +19,8 @@
     "@nolebase/vitepress-plugin-enhanced-readabilities": "^2.18.2",
     "typescript": "^5.6.3",
     "vitepress": "^1.6.4"
+  },
+  "dependencies": {
+    "undici": "^7.26.0"
   }
 }

@@ -27,9 +27,8 @@ RUN npm ci
 COPY packages  ./packages
 COPY apps/server ./apps/server
 
-# ④ 编译
-RUN npm run build -w packages
-RUN npm run build -w apps/server
+# ④ 编译（单层减少镜像层数）
+RUN npm run build -w packages && npm run build -w apps/server
 
 # ---- 运行阶段 ----
 FROM node:22-alpine AS runtime
@@ -39,14 +38,45 @@ WORKDIR /app
 # 直接从 builder 复制已编译的 node_modules（含原生二进制），无需重装编译工具
 COPY --from=builder /app/package.json        ./
 COPY --from=builder /app/node_modules        ./node_modules
-COPY --from=builder /app/packages            ./packages
+# 只复制编译产物和 package.json，不复制源码
+COPY --from=builder /app/packages/package.json                ./packages/package.json
+COPY --from=builder /app/packages/config/package.json         ./packages/config/package.json
+COPY --from=builder /app/packages/config/dist                 ./packages/config/dist
+COPY --from=builder /app/packages/logger/package.json         ./packages/logger/package.json
+COPY --from=builder /app/packages/logger/dist                 ./packages/logger/dist
+COPY --from=builder /app/packages/module-runtime/package.json ./packages/module-runtime/package.json
+COPY --from=builder /app/packages/module-runtime/dist         ./packages/module-runtime/dist
+COPY --from=builder /app/packages/plugin-runtime/package.json ./packages/plugin-runtime/package.json
+COPY --from=builder /app/packages/plugin-runtime/dist         ./packages/plugin-runtime/dist
+COPY --from=builder /app/packages/sdk/package.json            ./packages/sdk/package.json
+COPY --from=builder /app/packages/sdk/dist                    ./packages/sdk/dist
+COPY --from=builder /app/packages/shared/package.json         ./packages/shared/package.json
+COPY --from=builder /app/packages/shared/dist                 ./packages/shared/dist
+COPY --from=builder /app/packages/storage/package.json        ./packages/storage/package.json
+COPY --from=builder /app/packages/storage/dist                ./packages/storage/dist
 COPY --from=builder /app/apps/server/dist    ./apps/server/dist
 COPY --from=builder /app/apps/server/package.json ./apps/server/package.json
 
 # 运行时目录（通过 volume 挂载）
 RUN mkdir -p config plugins data
 
+# 复制默认配置文件
+COPY config/bot.yaml.example /app/config.default/bot.yaml
+COPY config/settings.yaml.example /app/config.default/settings.yaml
+
+# 创建启动脚本
+RUN echo '#!/bin/sh' > /app/start.sh && \
+    echo 'if [ ! -f /app/config/bot.yaml ]; then' >> /app/start.sh && \
+    echo '  cp /app/config.default/bot.yaml /app/config/bot.yaml' >> /app/start.sh && \
+    echo '  echo "Created default bot.yaml"' >> /app/start.sh && \
+    echo 'fi' >> /app/start.sh && \
+    echo 'if [ ! -f /app/config/settings.yaml ]; then' >> /app/start.sh && \
+    echo '  cp /app/config.default/settings.yaml /app/config/settings.yaml' >> /app/start.sh && \
+    echo '  echo "Created default settings.yaml"' >> /app/start.sh && \
+    echo 'fi' >> /app/start.sh && \
+    echo 'exec node apps/server/dist/main.js' >> /app/start.sh && \
+    chmod +x /app/start.sh
+
 EXPOSE 3000
 
-# 配置文件缺失时由应用程序自动创建默认值（loadYamlOrDefault）
-CMD ["node", "apps/server/dist/main.js"]
+CMD ["/app/start.sh"]
