@@ -14,7 +14,7 @@ export class AuthService {
   private jwtSecret: string;
   private tokenExpiresIn: number;
 
-  constructor(config: AuthConfig) {
+  constructor(config: AuthConfig, opts?: { onGenerateJwtSecret?: (secret: string) => void }) {
     // 优先级：DIAN_PASSWORD（明文）> DIAN_PASSWORD_HASH > settings.yaml > 空（禁用认证）
     if (process.env.DIAN_PASSWORD) {
       // 明文密码同步哈希，启动时立即生效，无竞态条件
@@ -25,11 +25,16 @@ export class AuthService {
         process.env.DIAN_PASSWORD_HASH ?? config.passwordHash ?? "";
     }
 
-    // JWT 密钥：优先环境变量，其次配置文件，最后自动生成
-    this.jwtSecret =
-      process.env.DIAN_JWT_SECRET ??
-      config.jwtSecret ??
-      randomBytes(32).toString("hex");
+    // JWT 密钥：优先环境变量，其次配置文件，最后自动生成并持久化
+    if (process.env.DIAN_JWT_SECRET) {
+      this.jwtSecret = process.env.DIAN_JWT_SECRET;
+    } else if (config.jwtSecret) {
+      this.jwtSecret = config.jwtSecret;
+    } else {
+      this.jwtSecret = randomBytes(32).toString("hex");
+      // 持久化到配置文件，避免重启后所有 token 失效
+      opts?.onGenerateJwtSecret?.(this.jwtSecret);
+    }
 
     this.tokenExpiresIn = config.tokenExpiresIn ?? 86400;
   }

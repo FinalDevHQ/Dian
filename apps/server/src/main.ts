@@ -1,4 +1,5 @@
 import { resolve } from "node:path";
+import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { configService } from "@myfinal/config";
 import { logService } from "@myfinal/logger";
@@ -109,7 +110,32 @@ async function main(): Promise<void> {
   pluginManager.setBotService(botService);
 
   // ── 5. 初始化认证服务 ─────────────────────────────────────────────────────
-  const authService = new AuthService(configService.settings.auth ?? {});
+  const settingsPath = resolve(CONFIG_DIR, "settings.yaml");
+  const authService = new AuthService(configService.settings.auth ?? {}, {
+    onGenerateJwtSecret: async (secret) => {
+      // 将自动生成的 jwtSecret 写回 settings.yaml，避免重启后 token 全部失效
+      try {
+        let text = await readFile(settingsPath, "utf8");
+        if (/^\s*#?\s*jwtSecret\s*:/m.test(text)) {
+          // 替换已存在（含被注释）的 jwtSecret 行
+          text = text.replace(
+            /^\s*#?\s*jwtSecret\s*:.*/m,
+            `  jwtSecret: "${secret}"`,
+          );
+        } else {
+          // 在 auth: 块末尾追加
+          text = text.replace(
+            /(auth:\s*\n(?:\s+.*\n)*?)(?=\n\S|\s*$)/,
+            `$1  jwtSecret: "${secret}"\n`,
+          );
+        }
+        await writeFile(settingsPath, text, "utf8");
+        logger.info("Generated jwtSecret persisted to settings.yaml");
+      } catch (err) {
+        logger.warn("Failed to persist jwtSecret, tokens will be invalidated on restart", { err });
+      }
+    },
+  });
   if (authService.isConfigured()) {
     logger.info("Auth service enabled");
   } else {
