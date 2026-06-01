@@ -1,10 +1,10 @@
 # ---- 构建阶段 ----
-FROM node:22-alpine AS builder
+FROM node:22-slim AS builder
 
 WORKDIR /app
 
 # 原生模块编译工具（better-sqlite3）
-RUN apk add --no-cache python3 make g++
+RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ && rm -rf /var/lib/apt/lists/*
 
 # ① 先只复制 package.json / package-lock.json，利用 Docker 层缓存
 #    只要依赖声明没变，npm ci 这一层就会命中缓存，不需要重新安装
@@ -31,9 +31,19 @@ COPY apps/server ./apps/server
 RUN npm run build -w packages && npm run build -w apps/server
 
 # ---- 运行阶段 ----
-FROM node:22-alpine AS runtime
+FROM node:22-slim AS runtime
 
 WORKDIR /app
+
+# Chrome/Puppeteer 运行时依赖
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates fonts-liberation fonts-noto-cjk fonts-wqy-zenhei \
+    libasound2 libatk-bridge2.0-0 libatk1.0-0 libatspi2.0-0 \
+    libc6 libcairo2 libcups2 libdbus-1-3 libdrm2 libexpat1 \
+    libgbm1 libglib2.0-0 libgtk-3-0 libnspr4 libnss3 libpango-1.0-0 \
+    libx11-6 libxcb1 libxcomposite1 libxdamage1 libxext6 libxfixes3 \
+    libxkbcommon0 libxrandr2 wget xdg-utils unzip \
+    && rm -rf /var/lib/apt/lists/*
 
 # 直接从 builder 复制已编译的 node_modules（含原生二进制），无需重装编译工具
 COPY --from=builder /app/package.json        ./
