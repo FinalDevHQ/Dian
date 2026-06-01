@@ -15,8 +15,16 @@ const PUBLIC_PLUGIN_API_PATHS = [
 ];
 
 function isPublicPath(url: string): boolean {
-  // 去掉查询参数，只检查路径部分
-  const path = url.split("?")[0];
+  // 从完整 URL 或路径中提取纯路径部分（去掉 scheme/host/query）
+  let path: string;
+  try {
+    // 如果是完整 URL（含 scheme），解析出 pathname
+    path = url.startsWith("http") ? new URL(url).pathname : url;
+  } catch {
+    path = url;
+  }
+  // 去掉查询参数（兼容 ?token=xxx 的情况）
+  path = path.split("?")[0];
   if (/^\/plugins\/[^/]+\/ui(?:\/|$)/.test(path)) return true;
   if (PUBLIC_PLUGIN_API_PATHS.some((pattern) => pattern.test(path))) return true;
   return PUBLIC_PREFIXES.some((p) => path.startsWith(p));
