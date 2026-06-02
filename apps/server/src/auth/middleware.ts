@@ -38,9 +38,7 @@ export function createAuthMiddleware(authService: AuthService) {
   return async (request: FastifyRequest, reply: FastifyReply) => {
     // 白名单路由跳过认证
     const pub = isPublicPath(request.url);
-    if (!pub) {
-      console.log(`[AUTH] blocked url="${request.url}" method=${request.method}`);
-    }
+    console.log(`[AUTH] url="${request.url}" pub=${pub} configured=${authService.isConfigured()}`);
     if (pub) return;
 
     // 未配置密码时跳过认证（首次部署未设置密码）
