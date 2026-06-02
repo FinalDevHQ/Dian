@@ -42,83 +42,88 @@ data/             # 运行时数据（dian.db / messages.db 等）
 
 - Docker & Docker Compose v2
 
-### 1. 克隆仓库
+### 1. 编写配置
+
+创建配置目录并编辑配置文件：
 
 ```bash
-git clone https://github.com/FinalDevHQ/Dian.git
-cd Dian
+mkdir -p config
 ```
-
-### 2. 编写配置
 
 编辑 `config/settings.yaml`，按需调整日志级别、认证密码和存储选项：
 
 ```yaml
 logLevel: info
 auth:
-  passwordHash: "$2b$10$..."   # 用 bcrypt 生成，默认密码 change_me
+  # 密码留空则自动生成 JWT 密钥（首次启动时自动写回此文件）
+  # 如需自定义密码，用 bcrypt 生成哈希填入：
+  # passwordHash: "$2b$10$..."
   tokenExpiresIn: 86400
 storage:
   sqlite: data/dian.db
+# HTTPS 代理（可选，用于插件下载等网络请求）
+# httpsProxy: "http://192.168.1.1:7890"
 ```
 
 编辑 `config/bot.yaml`，填写你的 OneBot 连接信息：
 
 ```yaml
-bots:
-  - botId: my-bot
-    enabled: true
-    mode: hybrid          # ws + http 双向
-    ws:
-      url: ws://your-onebot-host:3001/
-      accessToken: ""
-    http:
-      baseUrl: http://your-onebot-host:3000/
-      accessToken: ""
+bot:
+  botId: my-bot
+  enabled: true
+  mode: hybrid          # ws / http / hybrid
+  ws:
+    url: ws://127.0.0.1:6700/
+    accessToken: ""
+  http:
+    baseUrl: http://127.0.0.1:5700/
+    accessToken: ""
+```
+
+### 2. 编写 docker-compose.yml
+
+```yaml
+services:
+  dian-server:
+    image: myfinal12/dian-server:latest
+    container_name: dian-server
+    restart: unless-stopped
+    environment:
+      - DIAN_PASSWORD=change_me    # 首次登录密码，可选
+    volumes:
+      - ./config:/app/config
+      - ./plugins:/app/plugins
+      - ./data:/app/data
+    networks:
+      - dian
+
+  dian-web:
+    image: myfinal12/dian-web:latest
+    container_name: dian-web
+    restart: unless-stopped
+    ports:
+      - "18099:80"
+    environment:
+      - UPSTREAM_SERVER=dian-server:3000
+    depends_on:
+      - dian-server
+    networks:
+      - dian
+
+networks:
+  dian:
+    driver: bridge
 ```
 
 ### 3. 启动
 
-#### Docker Compose（推荐）
-
 ```bash
-docker compose up -d --build
+docker compose up -d
 ```
 
 Web 控制台：`http://<服务器IP>:18099`
 
-#### Docker 命令
-
-如果不想用 Docker Compose，也可以分别启动两个容器：
-
-```bash
-# 构建镜像
-docker build -f apps/server/Dockerfile -t dian-server .
-docker build -f apps/web/Dockerfile -t dian-web .
-
-# 创建网络
-docker network create dian
-
-# 启动 server
-docker run -d --name dian-server \
-  --network dian \
-  -v $(pwd)/config:/app/config \
-  -v $(pwd)/plugins:/app/plugins \
-  -v $(pwd)/data:/app/data \
-  --restart unless-stopped \
-  dian-server
-
-# 启动 web
-docker run -d --name dian-web \
-  --network dian \
-  -p 18099:80 \
-  --restart unless-stopped \
-  dian-web
-```
-
-Web 控制台：`http://<服务器IP>:18099`
-
-> 首次构建需要下载镜像和编译原生模块，约 5~10 分钟。后续只要依赖未变，`npm ci` 层会命中缓存，重新构建通常在 1 分钟内完成。
+默认密码：`change_me`（通过 `DIAN_PASSWORD` 环境变量或 `config/settings.yaml` 配置）
 
 ---
 
@@ -274,19 +279,55 @@ npm run pack         # 打包为 <name>.zip
 | 文件 | 说明 |
 |------|------|
 | `config/bot.yaml` | 机器人连接配置（支持多 bot，含心跳/重连/超时参数） |
-| `config/settings.yaml` | 全局设置（日志、存储、认证） |
+| `config/settings.yaml` | 全局设置（日志、存储、认证、代理） |
 | `config/templates.yaml` | 消息模板 |
 | `config/plugin-scope.json` | 插件 bot 白名单（运行时自动维护） |
 | `config/bot.yaml.example` | Bot 配置无密钥模板 |
 | `config/settings.yaml.example` | 全局设置无密钥模板 |
 
+### settings.yaml 完整示例
+
+```yaml
+# 日志级别：debug | info | warn | error
+logLevel: info
+
+# 认证配置
+auth:
+  # 密码的 bcrypt 哈希值（留空则自动生成 JWT 密钥）
+  passwordHash: ""
+  # JWT 密钥（留空则自动生成并持久化到此文件）
+  # jwtSecret: "your-secret-key-here"
+  # Token 有效期（秒），默认 86400 (24小时)
+  tokenExpiresIn: 86400
+
+# 存储连接配置
+storage:
+  sqlite: data/dian.db
+  # mysql: mysql://user:password@localhost:3306/dian
+  # redis: redis://localhost:6379
+
+# HTTPS 代理（可选，用于插件下载等网络请求）
+# httpsProxy: "http://192.168.1.1:7890"
+```
+
 ---
 
 ## 认证
 
-Web 控制台使用 JWT 认证保护。默认密码为 `change_me`，首次部署后请及时修改。
+Web 控制台使用 JWT 认证保护。
 
-生成新密码哈希：
+### 方式一：环境变量（推荐 Docker）
+
+```yaml
+environment:
+  - DIAN_PASSWORD=your-password
+```
+
+### 方式二：配置文件
+
+首次启动时，框架会自动生成 JWT 密钥并写入 `config/settings.yaml`，重启后 token 不会失效。
+
+如需自定义密码：
 
 ```bash
 npm install -g bcrypt
