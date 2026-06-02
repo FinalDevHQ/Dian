@@ -597,4 +597,4 @@ export const OneBotImplementationSchema = z.enum([
 - [OneBot v11 标准](https://github.com/botuniverse/onebot-11)
 - [NapCat 文档](https://napneko.github.io/)
 - [LLOneBot 文档](https://github.com/LLOneBot/LLOneBot)
-- [SnowLuma 文档](待补充)
+- SnowLuma 文档（待补充）
