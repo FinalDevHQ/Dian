@@ -113,7 +113,7 @@ async onHello(ctx: EventContext): Promise<void> {
     "dev:plugin": "tsup --watch"  // 开发模式（自动重新构建）
   },
   "dependencies": {
-    "@myfinal/plugin-runtime": "^0.2.5",  // 插件运行时
+    "@myfinal/plugin-runtime": "^0.3.0",  // 插件运行时
     "@myfinal/shared": "^0.2.3",          // 共享类型
     "reflect-metadata": "^0.2.2"          // 装饰器支持
   }

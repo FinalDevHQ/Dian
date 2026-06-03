@@ -44,7 +44,7 @@ cd plugins/weather-bot
     "dev:plugin": "tsup --watch"
   },
   "dependencies": {
-    "@myfinal/plugin-runtime": "^0.2.7",
+    "@myfinal/plugin-runtime": "^0.3.0",
     "@myfinal/shared": "^0.2.3",
     "reflect-metadata": "^0.2.2"
   },
