@@ -73,8 +73,7 @@ export default defineConfig({
           items: [
             { text: '热重载', link: '/advanced/hot-reload' },
             { text: '开发 CLI', link: '/advanced/dev-cli' },
-            { text: 'Bot Scope', link: '/advanced/bot-scope' },
-            { text: 'OneBot 多实现适配', link: '/advanced/onebot-multi-implementation' }
+            { text: 'Bot Scope', link: '/advanced/bot-scope' }
           ]
         }
       ]
