@@ -227,7 +227,7 @@ export function ConfigFilesPage() {
                     <span className="flex-1 truncate font-mono text-xs">
                       {f.name}
                     </span>
-                    <span className="text-[10px] text-muted-foreground">
+                    <span className="text-xs text-muted-foreground">
                       {formatSize(f.size)}
                     </span>
                   </button>
@@ -315,7 +315,7 @@ export function ConfigFilesPage() {
               选择左侧文件进行编辑
             </div>
           )}
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             保存后，后端会自动热重载。快捷键：Ctrl/Cmd + S
           </p>
         </CardContent>

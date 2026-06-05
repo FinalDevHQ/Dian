@@ -242,7 +242,7 @@ export function DatabasePage() {
                       )}
                       title={s.location}
                     >
-                      <Badge variant="outline" className="text-[10px]">
+                      <Badge variant="outline" className="text-xs">
                         {s.kind}
                       </Badge>
                       <span className="flex-1 truncate font-mono text-xs">
@@ -293,7 +293,7 @@ export function DatabasePage() {
                       <span className="flex-1 truncate font-mono text-xs">
                         {t.name}
                       </span>
-                      <span className="text-[10px] text-muted-foreground tabular-nums">
+                      <span className="text-xs text-muted-foreground tabular-nums">
                         {t.rowCount}
                       </span>
                     </button>
@@ -335,7 +335,7 @@ export function DatabasePage() {
                     <span className="truncate">{c.name}</span>
                     <span className="text-muted-foreground">{c.type}</span>
                     {c.notNull && (
-                      <span className="text-[10px] text-muted-foreground">
+                      <span className="text-xs text-muted-foreground">
                         NOT NULL
                       </span>
                     )}
@@ -360,7 +360,7 @@ export function DatabasePage() {
               className="min-h-24 resize-y rounded-md border bg-muted/40 p-2 font-mono text-xs"
             />
             <div className="flex flex-wrap items-center gap-3">
-              <span className="text-[11px] text-muted-foreground">
+              <span className="text-xs text-muted-foreground">
                 {meta ? (
                   <>
                     {meta.kind} · <code>{meta.location}</code>
@@ -389,7 +389,7 @@ export function DatabasePage() {
                   <Play />
                 )}
                 执行
-                <span className="ml-1 text-[10px] opacity-60">⌘↩</span>
+                <span className="ml-1 text-xs opacity-60">⌘↩</span>
               </Button>
             </div>
           </CardContent>

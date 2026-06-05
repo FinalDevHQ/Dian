@@ -111,12 +111,12 @@ export function BotSettingsPage() {
     <div className="flex flex-col gap-5">
       {/* 顶部工具栏 */}
       <div className="flex items-center justify-between">
-        <p className="text-[12px] text-gray-400">
+        <p className="text-sm text-gray-400">
           配置 OneBot 连接
         </p>
         <div className="flex items-center gap-2">
           {lastUpdated && (
-            <span className="text-[11px] text-gray-400">
+            <span className="text-xs text-gray-400">
               更新于 {new Date(lastUpdated).toLocaleString()}
             </span>
           )}
@@ -124,7 +124,7 @@ export function BotSettingsPage() {
             onClick={refresh}
             disabled={loading}
             className={cn(
-              "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-medium",
+              "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium",
               "border border-gray-200/60 bg-white/60 text-gray-500 backdrop-blur-sm",
               "transition-all duration-200 hover:border-gray-300 hover:bg-white hover:text-gray-700",
             )}
@@ -140,8 +140,8 @@ export function BotSettingsPage() {
           <div className="flex items-start gap-2">
             <XCircle className="mt-0.5 size-4 shrink-0 text-red-400" />
             <div>
-              <p className="text-[13px] font-medium text-red-600">错误</p>
-              <p className="mt-1 text-[12px] text-red-500/80">{error}</p>
+              <p className="text-sm font-medium text-red-600">错误</p>
+              <p className="mt-1 text-xs text-red-500/80">{error}</p>
             </div>
           </div>
         </div>
@@ -149,7 +149,7 @@ export function BotSettingsPage() {
 
       {success && (
         <div className="overflow-hidden rounded-2xl border border-emerald-200/60 bg-emerald-50/60 p-4 backdrop-blur-sm">
-          <p className="text-[13px] font-medium text-emerald-600">{success}</p>
+          <p className="text-sm font-medium text-emerald-600">{success}</p>
         </div>
       )}
 
@@ -181,19 +181,19 @@ export function BotSettingsPage() {
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-[14px] font-bold text-gray-800">{botState?.botId ?? botId}</span>
-                  <span className="flex items-center gap-1 text-[10px] font-medium">
+                  <span className="text-sm font-bold text-gray-800">{botState?.botId ?? botId}</span>
+                  <span className="flex items-center gap-1 text-xs font-medium">
                     <span className={cn("size-1.5 rounded-full shadow-sm", meta.dot)} />
                     <span className={meta.text}>{meta.label}</span>
                   </span>
                 </div>
-                <p className="text-[11px] text-gray-400">
+                <p className="text-xs text-gray-400">
                   {botState?.enabled ? "已启用" : "已禁用"} · {botState?.running ? "运行中" : "未运行"}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-[11px] text-gray-400">启用</span>
+              <span className="text-xs text-gray-400">启用</span>
               <Switch
                 checked={bot?.enabled ?? true}
                 onCheckedChange={(v) => { void handleToggleEnabled(v) }}
@@ -205,24 +205,24 @@ export function BotSettingsPage() {
           <div className="flex flex-col gap-4 p-5">
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="bot-id" className="text-[11px] text-gray-400">botId</Label>
+                <Label htmlFor="bot-id" className="text-xs text-gray-400">botId</Label>
                 <Input
                   id="bot-id"
                   placeholder="例如：点点"
                   value={botId}
                   onChange={(e) => setBotId(e.target.value)}
                   disabled={saving}
-                  className="h-8 rounded-xl border-gray-200/60 bg-white/60 text-[12px] backdrop-blur-sm focus:border-violet-300 focus:ring-violet-200/50"
+                  className="h-8 rounded-xl border-gray-200/60 bg-white/60 text-xs backdrop-blur-sm focus:border-violet-300 focus:ring-violet-200/50"
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="bot-mode" className="text-[11px] text-gray-400">传输模式</Label>
+                <Label htmlFor="bot-mode" className="text-xs text-gray-400">传输模式</Label>
                 <select
                   id="bot-mode"
                   value={mode}
                   onChange={(e) => setMode(e.target.value as BotMode)}
                   disabled={saving}
-                  className="flex h-8 w-full rounded-xl border border-gray-200/60 bg-white/60 px-3 text-[12px] backdrop-blur-sm outline-none focus:border-violet-300 focus:ring-2 focus:ring-violet-200/50"
+                  className="flex h-8 w-full rounded-xl border border-gray-200/60 bg-white/60 px-3 text-xs backdrop-blur-sm outline-none focus:border-violet-300 focus:ring-2 focus:ring-violet-200/50"
                 >
                   <option value="hybrid">hybrid（推荐）</option>
                   <option value="ws">ws（仅事件）</option>
@@ -233,40 +233,40 @@ export function BotSettingsPage() {
 
             {needWs && (
               <div className="flex flex-col gap-2.5 rounded-xl border border-gray-100 bg-gray-50/40 p-3">
-                <Label className="text-[11px] font-medium text-gray-500">WebSocket</Label>
+                <Label className="text-xs font-medium text-gray-500">WebSocket</Label>
                 <Input
                   placeholder="ws://192.168.x.x:13001/"
                   value={wsUrl}
                   onChange={(e) => setWsUrl(e.target.value)}
                   disabled={saving}
-                  className="h-8 rounded-lg border-gray-200/60 bg-white text-[12px] font-mono"
+                  className="h-8 rounded-lg border-gray-200/60 bg-white text-xs font-mono"
                 />
                 <Input
                   placeholder="accessToken（可选）"
                   value={wsToken}
                   onChange={(e) => setWsToken(e.target.value)}
                   disabled={saving}
-                  className="h-8 rounded-lg border-gray-200/60 bg-white text-[12px] font-mono"
+                  className="h-8 rounded-lg border-gray-200/60 bg-white text-xs font-mono"
                 />
               </div>
             )}
 
             {needHttp && (
               <div className="flex flex-col gap-2.5 rounded-xl border border-gray-100 bg-gray-50/40 p-3">
-                <Label className="text-[11px] font-medium text-gray-500">HTTP</Label>
+                <Label className="text-xs font-medium text-gray-500">HTTP</Label>
                 <Input
                   placeholder="http://192.168.x.x:13000/"
                   value={httpUrl}
                   onChange={(e) => setHttpUrl(e.target.value)}
                   disabled={saving}
-                  className="h-8 rounded-lg border-gray-200/60 bg-white text-[12px] font-mono"
+                  className="h-8 rounded-lg border-gray-200/60 bg-white text-xs font-mono"
                 />
                 <Input
                   placeholder="accessToken（可选）"
                   value={httpToken}
                   onChange={(e) => setHttpToken(e.target.value)}
                   disabled={saving}
-                  className="h-8 rounded-lg border-gray-200/60 bg-white text-[12px] font-mono"
+                  className="h-8 rounded-lg border-gray-200/60 bg-white text-xs font-mono"
                 />
               </div>
             )}
@@ -274,14 +274,14 @@ export function BotSettingsPage() {
             <button
               onClick={handleSave}
               disabled={saving}
-              className="flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-violet-500 to-indigo-500 px-3 py-2 text-[12px] font-medium text-white shadow-sm shadow-violet-200/50 transition-all hover:from-violet-600 hover:to-indigo-600 hover:shadow-md"
+              className="flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-violet-500 to-indigo-500 px-3 py-2 text-xs font-medium text-white shadow-sm shadow-violet-200/50 transition-all hover:from-violet-600 hover:to-indigo-600 hover:shadow-md"
             >
               {saving && <Loader2 className="size-3 animate-spin" />}
               <Save className="size-3" />
               {saving ? "保存中…" : "保存配置"}
             </button>
 
-            <p className="text-[10px] text-gray-400">
+            <p className="text-xs text-gray-400">
               保存后写入 <code className="font-mono">config/bot.yaml</code>，框架会自动重载连接。
             </p>
           </div>
