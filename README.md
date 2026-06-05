@@ -1,10 +1,10 @@
 # Dian
 
-基于 OneBot 协议的多机器人管理框架，支持插件热加载、Web 控制台与 Docker 一键部署。
+基于 OneBot 协议的机器人管理框架，支持插件热加载、Web 控制台与 Docker 一键部署。
 
 ## 特性
 
-- **多 Bot 管理** — 同时连接多个 OneBot 实例，独立启停、状态监控、热重载
+- **Bot 管理** — 连接 OneBot 实例，启停、状态监控、热重载
 - **Web 管理控制台** — 仪表盘、Bot 管理、配置编辑、插件管理、数据库浏览器、消息查询、实时日志
 - **JWT 认证** — Web 控制台受密码保护，默认密码 `change_me`
 - **插件系统** — 热加载/热重载，支持上传安装与开发者模式实时推送
@@ -278,7 +278,7 @@ npm run pack         # 打包为 <name>.zip
 
 | 文件 | 说明 |
 |------|------|
-| `config/bot.yaml` | 机器人连接配置（支持多 bot，含心跳/重连/超时参数） |
+| `config/bot.yaml` | 机器人连接配置（含心跳/重连/超时参数） |
 | `config/settings.yaml` | 全局设置（日志、存储、认证、代理） |
 | `config/templates.yaml` | 消息模板 |
 | `config/plugin-scope.json` | 插件 bot 白名单（运行时自动维护） |

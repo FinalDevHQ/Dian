@@ -2,6 +2,14 @@ import Database from "better-sqlite3";
 import { mkdirSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 
+const IDENTIFIER_REGEX = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+
+function validateIdentifier(name: string, label: string): void {
+  if (!IDENTIFIER_REGEX.test(name)) {
+    throw new Error(`Invalid ${label}: "${name}". Only alphanumeric characters and underscores are allowed.`);
+  }
+}
+
 /**
  * SQLite 插件存储实现
  * 为每个插件创建独立的表，表名由插件自行定义（建议格式：插件名_功能名）
@@ -38,8 +46,13 @@ export class SqlitePluginStore {
    * @param pluginName 插件名称（用于元数据跟踪）
    */
   async createTable(tableName: string, columns: string[], pluginName?: string): Promise<void> {
+    validateIdentifier(tableName, "table name");
+    for (const col of columns) {
+      const colName = col.trim().split(/\s+/)[0];
+      validateIdentifier(colName, "column name");
+    }
     const columnsDef = columns.join(", ");
-    this.db.exec(`CREATE TABLE IF NOT EXISTS ${tableName} (
+    this.db.exec(`CREATE TABLE IF NOT EXISTS "${tableName}" (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       ${columnsDef},
       created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%S','now'))
@@ -80,7 +93,8 @@ export class SqlitePluginStore {
   async dropPluginTables(pluginName: string): Promise<void> {
     const tables = await this.getPluginTables(pluginName);
     for (const table of tables) {
-      this.db.exec(`DROP TABLE IF EXISTS ${table}`);
+      validateIdentifier(table, "table name");
+      this.db.exec(`DROP TABLE IF EXISTS "${table}"`);
     }
     // 清理元数据
     this.db.prepare(`DELETE FROM _plugin_tables WHERE plugin_name = ?`).run(pluginName);
@@ -90,12 +104,16 @@ export class SqlitePluginStore {
    * 插入数据
    */
   async insert(tableName: string, data: Record<string, unknown>): Promise<void> {
+    validateIdentifier(tableName, "table name");
     const keys = Object.keys(data);
+    for (const key of keys) {
+      validateIdentifier(key, "column name");
+    }
     const placeholders = keys.map(() => "?").join(", ");
     const values = Object.values(data);
     
     this.db.prepare(
-      `INSERT INTO ${tableName} (${keys.join(", ")}) VALUES (${placeholders})`
+      `INSERT INTO "${tableName}" (${keys.map(k => `"${k}"`).join(", ")}) VALUES (${placeholders})`
     ).run(...values);
   }
 
@@ -107,24 +125,28 @@ export class SqlitePluginStore {
     orderBy?: string;
     order?: "ASC" | "DESC";
   }): Promise<Record<string, unknown>[]> {
-    let sql = `SELECT * FROM ${tableName}`;
+    validateIdentifier(tableName, "table name");
+    let sql = `SELECT * FROM "${tableName}"`;
     const bindings: unknown[] = [];
     
     if (params && Object.keys(params).length > 0) {
       const conditions = Object.entries(params).map(([key, value]) => {
-        if (value === null) return `${key} IS NULL`;
+        validateIdentifier(key, "column name");
+        if (value === null) return `"${key}" IS NULL`;
         bindings.push(value);
-        return `${key} = ?`;
+        return `"${key}" = ?`;
       });
       sql += ` WHERE ${conditions.join(" AND ")}`;
     }
     
     if (options?.orderBy) {
-      sql += ` ORDER BY ${options.orderBy} ${options.order || "DESC"}`;
+      validateIdentifier(options.orderBy, "order by column");
+      const order = options.order === "ASC" ? "ASC" : "DESC";
+      sql += ` ORDER BY "${options.orderBy}" ${order}`;
     }
     
     if (options?.limit) {
-      sql += ` LIMIT ${options.limit}`;
+      sql += ` LIMIT ${Number(options.limit)}`;
     }
     
     return this.db.prepare(sql).all(...bindings) as Record<string, unknown>[];
@@ -134,14 +156,16 @@ export class SqlitePluginStore {
    * 删除数据
    */
   async delete(tableName: string, params?: Record<string, unknown>): Promise<number> {
-    let sql = `DELETE FROM ${tableName}`;
+    validateIdentifier(tableName, "table name");
+    let sql = `DELETE FROM "${tableName}"`;
     const bindings: unknown[] = [];
     
     if (params && Object.keys(params).length > 0) {
       const conditions = Object.entries(params).map(([key, value]) => {
-        if (value === null) return `${key} IS NULL`;
+        validateIdentifier(key, "column name");
+        if (value === null) return `"${key}" IS NULL`;
         bindings.push(value);
-        return `${key} = ?`;
+        return `"${key}" = ?`;
       });
       sql += ` WHERE ${conditions.join(" AND ")}`;
     }
