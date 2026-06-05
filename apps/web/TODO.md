@@ -153,9 +153,9 @@
 | ❶ 深色模式 | ✅ 已完成 | useTheme hook + Header 切换按钮 |
 | ❸ 卡片统一 | ✅ 已完成 | 全页面深色适配, glassmorphic 统一 |
 | ❼ Login 美化 | ✅ 已完成 | 背景装饰 + Logo + 紫渐变按钮 |
-| ❺ Emoji→SVG | ⬜ 未开始 | |
-| ❻ cursor-pointer | ⬜ 未开始 | |
-| ❽ Analytics 细节 | ⬜ 未开始 | |
-| ❾ 响应式布局 | ⬜ 未开始 | |
+| ❺ Emoji→SVG | ✅ 已取消 | 用户决定保留 emoji 效果更好 |
+| ❻ cursor-pointer | ✅ 已完成 | market/analytics/database/config-files/plugins |
+| ❽ Analytics 细节 | ✅ 已完成 | 进度条渐变+chart颜色→CSS变量+icon背景色块 |
+| ❾ 响应式布局 | ✅ 已完成 | plugins/database/config-files 分栏响应式 |
 | ❿ 动画增强 | ⬜ 未开始 | |
 | ⓫ 空状态增强 | ⬜ 未开始 | |

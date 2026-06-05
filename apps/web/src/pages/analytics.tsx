@@ -271,7 +271,7 @@ export function AnalyticsPage() {
                 key={r.days}
                 onClick={() => setRangeDays(r.days)}
                 className={cn(
-                  "px-3 py-1.5 transition-colors",
+                  "cursor-pointer px-3 py-1.5 transition-colors",
                   rangeDays === r.days
                     ? "bg-primary text-primary-foreground font-medium"
                     : "hover:bg-muted text-muted-foreground"
@@ -330,6 +330,7 @@ export function AnalyticsPage() {
               value={fmtNum(overview.total)}
               sub={`${overview.total.toLocaleString()} 条`}
               color="text-blue-500"
+              bgColor="bg-blue-500/10 dark:bg-blue-500/20"
             />
             <OverviewCard
               icon={<Hash className="h-4 w-4" />}
@@ -337,6 +338,7 @@ export function AnalyticsPage() {
               value={fmtNum(overview.groups)}
               sub={`共 ${overview.groups} 个群`}
               color="text-emerald-500"
+              bgColor="bg-emerald-500/10 dark:bg-emerald-500/20"
             />
             <OverviewCard
               icon={<Users className="h-4 w-4" />}
@@ -344,6 +346,7 @@ export function AnalyticsPage() {
               value={fmtNum(overview.users)}
               sub={`共 ${overview.users} 人`}
               color="text-violet-500"
+              bgColor="bg-violet-500/10 dark:bg-violet-500/20"
             />
             {/* 机器人分布卡片 */}
             <Card>
@@ -366,7 +369,7 @@ export function AnalyticsPage() {
                       </div>
                       <div className="h-1 rounded-full bg-muted overflow-hidden">
                         <div
-                          className="h-full rounded-full bg-amber-400"
+                          className="h-full rounded-full bg-gradient-to-r from-amber-400 to-orange-400"
                           style={{ width: `${Math.round((b.count / total) * 100)}%` }}
                         />
                       </div>
@@ -496,8 +499,8 @@ export function AnalyticsPage() {
                           key={d.id}
                           fill={
                             drillGroup === d.id
-                              ? "hsl(142 72% 35%)"
-                              : "hsl(142 72% 45%)"
+                              ? "var(--chart-3)"
+                              : "oklch(0.696 0.17 162.48)"
                           }
                           opacity={drillGroup && drillGroup !== d.id ? 0.5 : 1}
                         />
@@ -567,7 +570,7 @@ export function AnalyticsPage() {
                       )
                     }}
                   />
-                  <Bar dataKey="count" fill="hsl(270 70% 60%)" radius={[0, 3, 3, 0]} maxBarSize={22}>
+                  <Bar dataKey="count" fill="var(--chart-1)" radius={[0, 3, 3, 0]} maxBarSize={22}>
                     <LabelList
                       dataKey="count"
                       position="right"
@@ -598,18 +601,22 @@ function OverviewCard({
   value,
   sub,
   color,
+  bgColor,
 }: {
   icon: React.ReactNode
   label: string
   value: string
   sub: string
   color: string
+  bgColor: string
 }) {
   return (
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className={cn("flex items-center gap-1.5 text-sm font-medium text-muted-foreground", color)}>
-          {icon}
+          <span className={cn("flex size-7 items-center justify-center rounded-lg", bgColor)}>
+            {icon}
+          </span>
           {label}
         </CardTitle>
       </CardHeader>

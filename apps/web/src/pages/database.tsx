@@ -210,7 +210,7 @@ export function DatabasePage() {
   )
 
   return (
-    <div className="grid h-[calc(100vh-8rem)] grid-cols-[18rem_1fr] gap-4">
+    <div className="grid h-auto md:h-[calc(100vh-8rem)] grid-cols-1 md:grid-cols-[18rem_1fr] gap-4">
       {/* ── 左：数据库 / 表 / 表结构 ── */}
       <div className="flex min-h-0 flex-col gap-3">
         <Card className="shrink-0">
@@ -235,7 +235,7 @@ export function DatabasePage() {
                       type="button"
                       onClick={() => setActiveSource(s.name)}
                       className={cn(
-                        "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm",
+                        "flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm",
                         activeSource === s.name
                           ? "bg-sidebar-accent text-sidebar-accent-foreground"
                           : "hover:bg-muted"
@@ -284,7 +284,7 @@ export function DatabasePage() {
                       type="button"
                       onClick={() => pickTable(t.name)}
                       className={cn(
-                        "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left",
+                        "flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left",
                         activeTable === t.name
                           ? "bg-sidebar-accent text-sidebar-accent-foreground"
                           : "hover:bg-muted"

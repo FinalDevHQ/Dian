@@ -182,7 +182,7 @@ export function ConfigFilesPage() {
   }, [dirty, save])
 
   return (
-    <div className="grid h-[calc(100vh-8rem)] grid-cols-[16rem_1fr] gap-6">
+    <div className="grid h-auto md:h-[calc(100vh-8rem)] grid-cols-1 md:grid-cols-[16rem_1fr] gap-6">
       {/* 文件列表 */}
       <Card className="flex flex-col">
         <CardHeader className="flex-row items-center justify-between space-y-0">
@@ -217,7 +217,7 @@ export function ConfigFilesPage() {
                     type="button"
                     onClick={() => setActiveName(f.name)}
                     className={cn(
-                      "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors",
+                      "flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors",
                       activeName === f.name
                         ? "bg-sidebar-accent text-sidebar-accent-foreground"
                         : "hover:bg-muted"

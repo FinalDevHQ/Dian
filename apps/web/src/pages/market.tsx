@@ -470,7 +470,7 @@ export function MarketPage({ onPluginsChange }: MarketPageProps) {
           <button
             onClick={() => void load()}
             title="刷新"
-            className="flex size-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-400 transition-all duration-200 hover:border-gray-300 hover:text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:border-gray-600 dark:hover:text-gray-200 dark:hover:bg-gray-700"
+            className="flex size-9 items-center justify-center cursor-pointer rounded-lg border border-gray-200 bg-white text-gray-400 transition-all duration-200 hover:border-gray-300 hover:text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:border-gray-600 dark:hover:text-gray-200 dark:hover:bg-gray-700"
           >
             <RefreshCw className="size-4" />
           </button>
@@ -484,7 +484,7 @@ export function MarketPage({ onPluginsChange }: MarketPageProps) {
           <button
             onClick={() => setActiveTag(null)}
             className={cn(
-              "rounded-full border px-3 py-1 text-xs font-medium tracking-wide transition-all duration-200",
+              "cursor-pointer rounded-full border px-3 py-1 text-xs font-medium tracking-wide transition-all duration-200",
               activeTag === null
                 ? "border-violet-300/50 bg-violet-100/80 text-violet-700 shadow-sm shadow-violet-200/50"
                 : "border-gray-200/80 bg-white/50 text-gray-500 hover:border-gray-300 hover:text-gray-700",
@@ -497,7 +497,7 @@ export function MarketPage({ onPluginsChange }: MarketPageProps) {
               key={tag}
               onClick={() => setActiveTag(activeTag === tag ? null : tag)}
               className={cn(
-                "rounded-full border px-3 py-1 text-xs font-medium tracking-wide transition-all duration-200",
+                "cursor-pointer rounded-full border px-3 py-1 text-xs font-medium tracking-wide transition-all duration-200",
                 activeTag === tag
                   ? "border-violet-300/50 bg-violet-100/80 text-violet-700 shadow-sm shadow-violet-200/50"
                   : "border-gray-200/80 bg-white/50 text-gray-500 hover:border-gray-300 hover:text-gray-700",

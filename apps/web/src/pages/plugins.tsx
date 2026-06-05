@@ -574,7 +574,7 @@ export function PluginsPage({ onPluginsChange }: { onPluginsChange?: () => void 
   const [uploadOpen, setUploadOpen] = useState(false)
 
   return (
-    <div className="grid h-[calc(100vh-8rem)] min-h-0 grid-cols-[18rem_1fr] gap-5">
+    <div className="grid min-h-0 grid-cols-1 md:grid-cols-[18rem_1fr] md:h-[calc(100vh-8rem)] gap-5">
       {uploadOpen && (
         <UploadDialog
           onClose={() => setUploadOpen(false)}
@@ -647,7 +647,7 @@ export function PluginsPage({ onPluginsChange }: { onPluginsChange?: () => void 
                 type="button"
                 onClick={() => setSelected(p.name)}
                 className={cn(
-                  "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-all",
+                  "group relative flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-all",
                   selected === p.name
                     ? "bg-primary/8 ring-1 ring-primary/20 shadow-sm"
                     : "hover:bg-muted/70"
