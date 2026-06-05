@@ -8,6 +8,14 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // 防止深色模式闪烁：在 React 挂载前立即应用 theme class
+      (function() {
+        var t = localStorage.getItem('dian-theme');
+        var dark = t === 'dark' || (!t && matchMedia('(prefers-color-scheme:dark)').matches);
+        if (dark) document.documentElement.classList.add('dark');
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

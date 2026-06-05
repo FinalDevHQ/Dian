@@ -136,7 +136,7 @@ export function BotSettingsPage() {
       </div>
 
       {error && (
-        <div className="overflow-hidden rounded-2xl border border-red-200/60 bg-red-50/60 p-4 backdrop-blur-sm">
+        <div className="overflow-hidden rounded-2xl border border-red-200/60 bg-red-50/60 p-4 backdrop-blur-sm dark:border-red-900/40 dark:bg-red-950/40">
           <div className="flex items-start gap-2">
             <XCircle className="mt-0.5 size-4 shrink-0 text-red-400" />
             <div>
@@ -148,7 +148,7 @@ export function BotSettingsPage() {
       )}
 
       {success && (
-        <div className="overflow-hidden rounded-2xl border border-emerald-200/60 bg-emerald-50/60 p-4 backdrop-blur-sm">
+        <div className="overflow-hidden rounded-2xl border border-emerald-200/60 bg-emerald-50/60 p-4 backdrop-blur-sm dark:border-emerald-900/40 dark:bg-emerald-950/40">
           <p className="text-sm font-medium text-emerald-600">{success}</p>
         </div>
       )}
@@ -162,7 +162,7 @@ export function BotSettingsPage() {
           </div>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-gray-200/50 bg-white/60 backdrop-blur-sm">
+        <div className="overflow-hidden rounded-2xl border border-gray-200/50 bg-white/60 backdrop-blur-sm dark:border-gray-700/50 dark:bg-gray-900/60">
           {/* 状态栏 */}
           <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
             <div className="flex items-center gap-2.5">
@@ -181,7 +181,7 @@ export function BotSettingsPage() {
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-bold text-gray-800">{botState?.botId ?? botId}</span>
+                  <span className="text-sm font-bold text-gray-800 dark:text-gray-100">{botState?.botId ?? botId}</span>
                   <span className="flex items-center gap-1 text-xs font-medium">
                     <span className={cn("size-1.5 rounded-full shadow-sm", meta.dot)} />
                     <span className={meta.text}>{meta.label}</span>
@@ -212,7 +212,7 @@ export function BotSettingsPage() {
                   value={botId}
                   onChange={(e) => setBotId(e.target.value)}
                   disabled={saving}
-                  className="h-8 rounded-xl border-gray-200/60 bg-white/60 text-xs backdrop-blur-sm focus:border-violet-300 focus:ring-violet-200/50"
+                  className="h-8 rounded-xl border-gray-200/60 bg-white/60 text-xs backdrop-blur-sm dark:border-gray-700/60 dark:bg-gray-800/60 dark:text-gray-200 focus:border-violet-300 focus:ring-violet-200/50"
                 />
               </div>
               <div className="flex flex-col gap-1.5">
@@ -222,7 +222,7 @@ export function BotSettingsPage() {
                   value={mode}
                   onChange={(e) => setMode(e.target.value as BotMode)}
                   disabled={saving}
-                  className="flex h-8 w-full rounded-xl border border-gray-200/60 bg-white/60 px-3 text-xs backdrop-blur-sm outline-none focus:border-violet-300 focus:ring-2 focus:ring-violet-200/50"
+                  className="flex h-8 w-full rounded-xl border border-gray-200/60 bg-white/60 px-3 text-xs backdrop-blur-sm outline-none focus:border-violet-300 focus:ring-2 focus:ring-violet-200/50 dark:border-gray-700/60 dark:bg-gray-800/60 dark:text-gray-200"
                 >
                   <option value="hybrid">hybrid（推荐）</option>
                   <option value="ws">ws（仅事件）</option>
@@ -232,41 +232,41 @@ export function BotSettingsPage() {
             </div>
 
             {needWs && (
-              <div className="flex flex-col gap-2.5 rounded-xl border border-gray-100 bg-gray-50/40 p-3">
+              <div className="flex flex-col gap-2.5 rounded-xl border border-gray-100 bg-gray-50/40 dark:border-gray-800 dark:bg-gray-900/40 p-3">
                 <Label className="text-xs font-medium text-gray-500">WebSocket</Label>
                 <Input
                   placeholder="ws://192.168.x.x:13001/"
                   value={wsUrl}
                   onChange={(e) => setWsUrl(e.target.value)}
                   disabled={saving}
-                  className="h-8 rounded-lg border-gray-200/60 bg-white text-xs font-mono"
+                  className="h-8 rounded-lg border-gray-200/60 bg-white text-xs font-mono dark:bg-gray-900 dark:text-gray-300"
                 />
                 <Input
                   placeholder="accessToken（可选）"
                   value={wsToken}
                   onChange={(e) => setWsToken(e.target.value)}
                   disabled={saving}
-                  className="h-8 rounded-lg border-gray-200/60 bg-white text-xs font-mono"
+                  className="h-8 rounded-lg border-gray-200/60 bg-white text-xs font-mono dark:bg-gray-900 dark:text-gray-300"
                 />
               </div>
             )}
 
             {needHttp && (
-              <div className="flex flex-col gap-2.5 rounded-xl border border-gray-100 bg-gray-50/40 p-3">
+              <div className="flex flex-col gap-2.5 rounded-xl border border-gray-100 bg-gray-50/40 dark:border-gray-800 dark:bg-gray-900/40 p-3">
                 <Label className="text-xs font-medium text-gray-500">HTTP</Label>
                 <Input
                   placeholder="http://192.168.x.x:13000/"
                   value={httpUrl}
                   onChange={(e) => setHttpUrl(e.target.value)}
                   disabled={saving}
-                  className="h-8 rounded-lg border-gray-200/60 bg-white text-xs font-mono"
+                  className="h-8 rounded-lg border-gray-200/60 bg-white text-xs font-mono dark:bg-gray-900 dark:text-gray-300"
                 />
                 <Input
                   placeholder="accessToken（可选）"
                   value={httpToken}
                   onChange={(e) => setHttpToken(e.target.value)}
                   disabled={saving}
-                  className="h-8 rounded-lg border-gray-200/60 bg-white text-xs font-mono"
+                  className="h-8 rounded-lg border-gray-200/60 bg-white text-xs font-mono dark:bg-gray-900 dark:text-gray-300"
                 />
               </div>
             )}

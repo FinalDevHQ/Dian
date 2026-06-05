@@ -7,7 +7,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar"
 import { TooltipProvider } from "@/components/ui/tooltip"
-import { LogOut } from "lucide-react"
+import { LogOut, Moon, Sun, Monitor } from "lucide-react"
 import { AppSidebar } from "./app-sidebar"
 import type { PluginNavItem } from "@/pages/plugin-ui"
 
@@ -24,6 +24,9 @@ interface AppLayoutProps {
   bare?: boolean
   /** 登出回调 */
   onLogout?: () => void
+  /** 主题相关 */
+  theme?: "light" | "dark" | "system"
+  onCycleTheme?: () => void
 }
 
 export function AppLayout({
@@ -35,6 +38,8 @@ export function AppLayout({
   pluginNavItems,
   bare = false,
   onLogout,
+  theme,
+  onCycleTheme,
 }: AppLayoutProps) {
   return (
     <TooltipProvider delayDuration={0}>
@@ -51,6 +56,22 @@ export function AppLayout({
             <h1 className="text-base font-semibold">{title}</h1>
             <div className="ml-auto flex items-center gap-2">
               {actions}
+              {onCycleTheme && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={onCycleTheme}
+                  title={theme === "light" ? "切换到深色" : theme === "dark" ? "跟随系统" : "切换到浅色"}
+                >
+                  {theme === "light" ? (
+                    <Sun className="h-4 w-4" />
+                  ) : theme === "dark" ? (
+                    <Moon className="h-4 w-4" />
+                  ) : (
+                    <Monitor className="h-4 w-4" />
+                  )}
+                </Button>
+              )}
               {onLogout && (
                 <Button
                   variant="ghost"

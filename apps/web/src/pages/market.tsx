@@ -123,6 +123,7 @@ function PluginCard({
         "shadow-sm backdrop-blur-md",
         "transition-all duration-300 ease-out",
         "hover:-translate-y-1 hover:shadow-lg hover:shadow-gray-200/50 hover:border-gray-300/80",
+        "dark:border-gray-700/60 dark:bg-gray-900/80 dark:hover:shadow-gray-900/50 dark:hover:border-gray-600/80",
       )}
     >
       {/* 顶部渐变装饰条 */}
@@ -469,7 +470,7 @@ export function MarketPage({ onPluginsChange }: MarketPageProps) {
           <button
             onClick={() => void load()}
             title="刷新"
-            className="flex size-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-400 transition-all duration-200 hover:border-gray-300 hover:text-gray-600 hover:bg-gray-50"
+            className="flex size-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-400 transition-all duration-200 hover:border-gray-300 hover:text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:border-gray-600 dark:hover:text-gray-200 dark:hover:bg-gray-700"
           >
             <RefreshCw className="size-4" />
           </button>
