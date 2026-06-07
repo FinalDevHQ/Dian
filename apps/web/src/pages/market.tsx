@@ -51,22 +51,6 @@ function tagColor(tag: string): string {
   return FALLBACK_PALETTES[hash % FALLBACK_PALETTES.length]
 }
 
-// ── 顶部装饰色（由插件名哈希决定，每张卡片独特） ─────────────────────────────
-
-const CARD_ACCENTS = [
-  "from-violet-400 via-indigo-300 to-sky-200",
-  "from-sky-400 via-cyan-300 to-teal-200",
-  "from-rose-400 via-pink-300 to-fuchsia-200",
-  "from-amber-400 via-orange-300 to-yellow-200",
-  "from-emerald-400 via-teal-300 to-cyan-200",
-  "from-indigo-400 via-purple-300 to-violet-200",
-]
-
-function cardAccent(name: string): string {
-  const hash = [...name].reduce((acc, c) => acc + c.charCodeAt(0), 0)
-  return CARD_ACCENTS[hash % CARD_ACCENTS.length]
-}
-
 // ── 单张插件卡片 ─────────────────────────────────────────────────────────────
 
 function PluginCard({
@@ -114,66 +98,50 @@ function PluginCard({
 
   const icon        = plugin.icon
   const isEmojiIcon = icon && !/^https?:\/\//.test(icon) && !icon.startsWith("/")
-  const accent      = cardAccent(plugin.name)
 
   return (
     <div
       className={cn(
-        "group relative flex flex-col overflow-hidden rounded-2xl border border-gray-200/60 bg-white/80",
-        "shadow-sm backdrop-blur-md",
-        "transition-all duration-300 ease-out",
-        "hover:-translate-y-1 hover:shadow-lg hover:shadow-gray-200/50 hover:border-gray-300/80",
-        "dark:border-gray-700/60 dark:bg-gray-900/80 dark:hover:shadow-gray-900/50 dark:hover:border-gray-600/80",
+        "group relative flex flex-col rounded-xl border bg-card text-card-foreground",
+        "transition-all duration-200",
+        "hover:border-primary/30 hover:shadow-md",
       )}
     >
-      {/* 顶部渐变装饰条 */}
-      <div className={cn("h-0.5 w-full bg-gradient-to-r opacity-50 group-hover:opacity-80 transition-opacity duration-300", accent)} />
-
       {/* 卡片主体 */}
-      <div className="flex flex-1 flex-col gap-3 p-4">
+      <div className="flex flex-1 flex-col gap-2.5 p-3.5">
 
-        {/* 图标 + 名称 + 徽章行 */}
+        {/* 图标 + 名称 + 版本 + 按钮 */}
         <div className="flex items-start gap-2.5">
           {/* 图标 */}
           <div
             className={cn(
-              "flex size-9 shrink-0 items-center justify-center rounded-lg text-xl",
-              "bg-gradient-to-br from-gray-50 to-gray-100 ring-1 ring-gray-200/60",
+              "flex size-8 shrink-0 items-center justify-center rounded-lg text-base",
+              "bg-muted ring-1 ring-border",
             )}
           >
             {icon ? (
               isEmojiIcon ? (
                 <span role="img" aria-label={plugin.displayName}>{icon}</span>
               ) : (
-                <img src={icon} alt={plugin.displayName} className="size-7 rounded object-contain" />
+                <img src={icon} alt={plugin.displayName} className="size-6 rounded object-contain" />
               )
             ) : (
-              <Store className="size-5 text-muted-foreground" />
+              <Store className="size-4 text-muted-foreground" />
             )}
           </div>
 
           {/* 文字区 */}
-          <div className="min-w-0 flex-1 pt-0.5">
-            {/* 名称 + 版本 */}
-            <div className="flex flex-wrap items-baseline gap-2">
-              <span className="truncate text-sm font-bold leading-tight tracking-tight">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5">
+              <span className="truncate text-sm font-semibold leading-tight">
                 {plugin.displayName}
               </span>
-              {/* 版本号 — 轻盈小字 */}
-              <span className="shrink-0 font-mono text-xs text-muted-foreground/50">
+              <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
                 v{plugin.version}
               </span>
             </div>
-
-            {/* 作者 + 运行时要求 */}
-            <p className="mt-1 flex items-center gap-1 truncate text-xs text-muted-foreground/70">
-              <span>by {plugin.author}</span>
-              {plugin.minRuntimeVersion && (
-                <>
-                  <span className="opacity-30">·</span>
-                  <span className="text-xs opacity-50">需要 Dian ≥ {plugin.minRuntimeVersion}</span>
-                </>
-              )}
+            <p className="mt-0.5 truncate text-xs text-muted-foreground">
+              by {plugin.author}
             </p>
           </div>
         </div>
@@ -182,7 +150,7 @@ function PluginCard({
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <p className="line-clamp-2 text-sm leading-relaxed text-muted-foreground cursor-default">
+              <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground cursor-default">
                 {plugin.description}
               </p>
             </TooltipTrigger>
@@ -194,12 +162,12 @@ function PluginCard({
 
         {/* 标签 */}
         {plugin.tags && plugin.tags.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-1">
             {plugin.tags.map((tag) => (
               <span
                 key={tag}
                 className={cn(
-                  "inline-flex items-center rounded-full border px-2 py-[1px] text-xs font-medium tracking-wide",
+                  "inline-flex items-center rounded-full border px-2 py-px text-[10px] font-medium tracking-wide",
                   tagColor(tag),
                 )}
               >
@@ -211,52 +179,49 @@ function PluginCard({
 
         {/* 错误提示 */}
         {state.kind === "error" && (
-          <div className="flex items-start gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-600">
-            <AlertCircle className="mt-0.5 size-3.5 shrink-0" />
+          <div className="flex items-start gap-1.5 rounded-md border border-destructive/30 bg-destructive/5 px-2.5 py-1.5 text-xs text-destructive">
+            <AlertCircle className="mt-0.5 size-3 shrink-0" />
             <span className="leading-relaxed">{state.msg}</span>
           </div>
         )}
 
         {/* 覆盖安装确认 */}
         {state.kind === "conflict" && (
-          <div className="flex flex-col gap-2 rounded-lg border border-amber-200 bg-amber-50/80 px-3 py-2.5">
-            <p className="text-xs leading-relaxed text-amber-700">
-              该插件已安装{state.currentVersion ? ` (v${state.currentVersion})` : ""}，是否覆盖为 v{plugin.version}？
+          <div className="flex flex-col gap-1.5 rounded-md border border-amber-300/50 bg-amber-50 px-2.5 py-2 dark:border-amber-700/40 dark:bg-amber-950/40">
+            <p className="text-xs text-amber-700 dark:text-amber-300">
+              已安装{state.currentVersion ? ` (v${state.currentVersion})` : ""}，覆盖为 v{plugin.version}？
             </p>
-            <div className="flex gap-2">
+            <div className="flex gap-1.5">
               <Button
                 variant="outline"
                 size="sm"
-                className="h-6 flex-1 rounded-full border-gray-200 text-xs"
+                className="h-5 flex-1 rounded-full text-[10px]"
                 onClick={() => setState({ kind: "idle" })}
               >
                 取消
               </Button>
               <Button
                 size="sm"
-                className="h-6 flex-1 rounded-full bg-amber-400 text-xs text-white hover:bg-amber-500"
+                className="h-5 flex-1 rounded-full bg-amber-500 text-[10px] text-white hover:bg-amber-600"
                 onClick={() => void handleForceInstall()}
               >
-                覆盖安装
+                覆盖
               </Button>
             </div>
           </div>
         )}
 
         {/* 底部操作栏 */}
-        <div className="mt-auto flex items-center justify-between border-t border-gray-100 pt-3.5">
+        <div className="mt-auto flex items-center justify-between border-t border-border pt-2">
           {/* 主页链接 */}
           {plugin.homepage ? (
             <a
               href={plugin.homepage}
               target="_blank"
               rel="noopener noreferrer"
-              className={cn(
-                "flex items-center gap-1.5 text-xs text-gray-400",
-                "transition-colors hover:text-gray-700",
-              )}
+              className="flex items-center gap-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
             >
-              <ExternalLink className="size-3.5" />
+              <ExternalLink className="size-3" />
               主页
             </a>
           ) : (
@@ -265,29 +230,23 @@ function PluginCard({
 
           {/* 安装 / 状态按钮 */}
           {state.kind === "loading" ? (
-            <Button size="sm" disabled className="h-7 gap-1.5 rounded-full bg-gray-100 px-4 text-xs text-gray-400">
-              <Loader2 className="size-3.5 animate-spin" />
-              安装中…
+            <Button size="sm" disabled className="h-6 gap-1 rounded-full px-2.5 text-[11px] text-muted-foreground" variant="outline">
+              <Loader2 className="size-3 animate-spin" />
+              安装中
             </Button>
           ) : showInstalled ? (
-            // 已安装 — 内敛低调
-            <span
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium",
-                "text-emerald-500/60",
-              )}
-            >
-              <CheckCircle2 className="size-3.5" />
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-500/70">
+              <CheckCircle2 className="size-3" />
               已安装
             </span>
           ) : needsUpdate ? (
             <Button
               size="sm"
-              className="h-7 gap-1.5 rounded-full bg-gradient-to-r from-pink-400 to-violet-400 px-4 text-xs text-white hover:from-pink-500 hover:to-violet-500"
+              className="h-6 gap-1 rounded-full px-2.5 text-[11px] text-white bg-primary hover:bg-primary/90"
               onClick={() => void handleInstall()}
             >
-              <ArrowUpCircle className="size-3.5" />
-              更新 → v{plugin.version}
+              <ArrowUpCircle className="size-3" />
+              更新
             </Button>
           ) : state.kind === "conflict" ? (
             <span />
@@ -297,10 +256,8 @@ function PluginCard({
               onClick={() => void handleInstall()}
               variant={state.kind === "error" ? "outline" : "default"}
               className={cn(
-                "h-7 rounded-full px-4 text-xs",
-                state.kind === "error"
-                  ? "border-red-300 text-red-500 hover:bg-red-50"
-                  : "bg-gray-900 text-white hover:bg-gray-800",
+                "h-6 rounded-full px-2.5 text-[11px]",
+                state.kind === "error" && "border-destructive/50 text-destructive hover:bg-destructive/5",
               )}
             >
               {state.kind === "error" ? "重试" : "安装"}
@@ -436,7 +393,7 @@ export function MarketPage({ onPluginsChange }: MarketPageProps) {
       <div className="flex items-center gap-3">
         {/* 搜索框 */}
         <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
           <input
             ref={searchRef}
             type="text"
@@ -444,17 +401,17 @@ export function MarketPage({ onPluginsChange }: MarketPageProps) {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className={cn(
-              "h-9 w-full rounded-lg border border-gray-200 bg-white pr-16 pl-9",
-              "text-sm outline-none placeholder:text-gray-400",
-              "focus:border-violet-300 focus:ring-2 focus:ring-violet-200/50 transition-all duration-200",
+              "h-9 w-full rounded-lg border bg-background pr-16 pl-9",
+              "text-sm outline-none placeholder:text-muted-foreground",
+              "focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200",
             )}
           />
           {/* Ctrl+K 提示 */}
           <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-0.5">
-            <kbd className="inline-flex h-5 items-center rounded border border-gray-200 bg-gray-50 px-1 font-mono text-xs text-gray-400">
+            <kbd className="inline-flex h-5 items-center rounded border border-border bg-muted px-1 font-mono text-xs text-muted-foreground">
               Ctrl
             </kbd>
-            <kbd className="inline-flex h-5 items-center rounded border border-gray-200 bg-gray-50 px-1 font-mono text-xs text-gray-400">
+            <kbd className="inline-flex h-5 items-center rounded border border-border bg-muted px-1 font-mono text-xs text-muted-foreground">
               K
             </kbd>
           </div>
@@ -470,7 +427,7 @@ export function MarketPage({ onPluginsChange }: MarketPageProps) {
           <button
             onClick={() => void load()}
             title="刷新"
-            className="flex size-9 items-center justify-center cursor-pointer rounded-lg border border-gray-200 bg-white text-gray-400 transition-all duration-200 hover:border-gray-300 hover:text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:border-gray-600 dark:hover:text-gray-200 dark:hover:bg-gray-700"
+            className="flex size-9 items-center justify-center cursor-pointer rounded-lg border border-border bg-background text-muted-foreground transition-all duration-200 hover:bg-accent hover:text-foreground"
           >
             <RefreshCw className="size-4" />
           </button>
@@ -486,8 +443,8 @@ export function MarketPage({ onPluginsChange }: MarketPageProps) {
             className={cn(
               "cursor-pointer rounded-full border px-3 py-1 text-xs font-medium tracking-wide transition-all duration-200",
               activeTag === null
-                ? "border-violet-300/50 bg-violet-100/80 text-violet-700 shadow-sm shadow-violet-200/50"
-                : "border-gray-200/80 bg-white/50 text-gray-500 hover:border-gray-300 hover:text-gray-700",
+                ? "border-primary/50 bg-primary/10 text-primary shadow-sm"
+                : "border-border bg-background text-muted-foreground hover:text-foreground",
             )}
           >
             全部
@@ -499,8 +456,8 @@ export function MarketPage({ onPluginsChange }: MarketPageProps) {
               className={cn(
                 "cursor-pointer rounded-full border px-3 py-1 text-xs font-medium tracking-wide transition-all duration-200",
                 activeTag === tag
-                  ? "border-violet-300/50 bg-violet-100/80 text-violet-700 shadow-sm shadow-violet-200/50"
-                  : "border-gray-200/80 bg-white/50 text-gray-500 hover:border-gray-300 hover:text-gray-700",
+                  ? "border-primary/50 bg-primary/10 text-primary shadow-sm"
+                  : "border-border bg-background text-muted-foreground hover:text-foreground",
               )}
             >
               {tag}
