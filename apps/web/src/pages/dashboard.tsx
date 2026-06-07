@@ -72,13 +72,13 @@ export function DashboardPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <p className="text-[12px] text-gray-400">
+        <p className="text-sm text-gray-400">
           连接到 <code className="font-mono text-gray-500">/api</code>（dev 代理 →
           <span className="ml-1 font-mono text-gray-500">localhost:3000</span>）
         </p>
         <div className="flex items-center gap-3">
           {lastUpdated && (
-            <span className="text-[11px] text-gray-400">
+            <span className="text-xs text-gray-400">
               更新于 {formatTs(lastUpdated)}
             </span>
           )}
@@ -87,7 +87,7 @@ export function DashboardPage() {
             size="sm"
             onClick={refresh}
             disabled={loading}
-            className="h-7 rounded-full border-gray-200 bg-white/60 px-3 text-[11px] text-gray-500 backdrop-blur-sm hover:bg-white hover:text-gray-700"
+            className="h-7 rounded-full border-gray-200 bg-white/60 px-3 text-xs text-gray-500 backdrop-blur-sm hover:bg-white hover:text-gray-700 dark:border-gray-700 dark:bg-gray-800/60 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200"
           >
             <RefreshCw
               className={cn("size-3", loading && "animate-spin")}
@@ -99,14 +99,14 @@ export function DashboardPage() {
       </div>
 
       {error && (
-        <Card className="overflow-hidden border-red-200/60 bg-red-50/60 backdrop-blur-sm">
+        <Card className="overflow-hidden border-red-200/60 bg-red-50/60 backdrop-blur-sm dark:border-red-900/40 dark:bg-red-950/40">
           <CardHeader className="flex-row items-center gap-2 space-y-0 pb-2">
             <XCircle className="size-4 text-red-400" aria-hidden />
-            <CardTitle className="text-[13px] text-red-600">无法连接到服务器</CardTitle>
+            <CardTitle className="text-sm text-red-600">无法连接到服务器</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-[12px] text-red-500/80">{error}</p>
-            <p className="mt-1.5 text-[11px] text-red-400/70">
+            <p className="text-xs text-red-500/80">{error}</p>
+            <p className="mt-1.5 text-xs text-red-400/70">
               请确认 <code className="font-mono">apps/server</code> 已启动
               （默认监听 <code className="font-mono">:3000</code>）。
             </p>
@@ -148,23 +148,23 @@ export function DashboardPage() {
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="flex size-7 items-center justify-center rounded-lg bg-violet-50">
-                  <Blocks className="size-3.5 text-violet-500" strokeWidth={1.5} />
+                <div className="flex size-7 items-center justify-center rounded-lg bg-violet-50 dark:bg-violet-900/30">
+              <Blocks className="size-3.5 text-violet-500 dark:text-violet-400" strokeWidth={1.5} />
                 </div>
-                <CardTitle className="text-[13px] font-semibold text-gray-700">插件概览</CardTitle>
+                <CardTitle className="text-sm font-semibold text-gray-700 dark:text-gray-200">插件概览</CardTitle>
               </div>
               {plugins && (
-                <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500">
+                <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500">
                   {pluginEnabled}/{pluginTotal}
                 </span>
               )}
             </div>
-            <CardDescription className="text-[11px]">已启用插件 · 共 {totalCommands} 条命令</CardDescription>
+            <CardDescription className="text-xs">已启用插件 · 共 {totalCommands} 条命令</CardDescription>
           </CardHeader>
           <CardContent>
             {plugins ? (
               plugins.length === 0 ? (
-                <p className="text-[12px] text-gray-400">暂无插件</p>
+                <p className="text-sm text-gray-400">暂无插件</p>
               ) : (
                 <ul className="space-y-1">
                   {plugins
@@ -173,16 +173,16 @@ export function DashboardPage() {
                     .map((p) => (
                       <li
                         key={p.name}
-                        className="flex items-center justify-between rounded-xl border border-gray-100 bg-white/50 px-3 py-2 text-[12px] transition-colors hover:bg-white/80"
+                        className="flex items-center justify-between rounded-xl border border-gray-100 bg-white/50 px-3 py-2 text-xs transition-colors hover:bg-white/80 dark:border-gray-800 dark:bg-gray-900/50 dark:hover:bg-gray-800/80"
                       >
                         <span className="truncate font-medium text-gray-700">{p.name}</span>
-                        <span className="shrink-0 text-[10px] text-gray-400">
+                        <span className="shrink-0 text-xs text-gray-400">
                           {p.commandCount} 命令
                         </span>
                       </li>
                     ))}
                   {plugins.filter((p) => p.enabled).length > 6 && (
-                    <li className="pt-1 text-center text-[10px] text-gray-400">
+                    <li className="pt-1 text-center text-xs text-gray-400">
                       …等共 {plugins.filter((p) => p.enabled).length} 个插件
                     </li>
                   )}
@@ -195,7 +195,7 @@ export function DashboardPage() {
                 <Skeleton className="h-9 w-full rounded-xl" />
               </div>
             ) : (
-              <p className="text-[12px] text-gray-400">暂无数据</p>
+              <p className="text-sm text-gray-400">暂无数据</p>
             )}
           </CardContent>
         </Card>
@@ -203,17 +203,17 @@ export function DashboardPage() {
         <Card className="overflow-hidden rounded-2xl border-gray-200/50 bg-white/60 backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-gray-200/40 lg:col-span-2">
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
-              <div className="flex size-7 items-center justify-center rounded-lg bg-sky-50">
-                <Bot className="size-3.5 text-sky-500" strokeWidth={1.5} />
+              <div className="flex size-7 items-center justify-center rounded-lg bg-sky-50 dark:bg-sky-900/30">
+                <Bot className="size-3.5 text-sky-500 dark:text-sky-400" strokeWidth={1.5} />
               </div>
-              <CardTitle className="text-[13px] font-semibold text-gray-700">Bot 概况</CardTitle>
+              <CardTitle className="text-sm font-semibold text-gray-700 dark:text-gray-200">Bot 概况</CardTitle>
               {bot && (
-                <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500">
+                <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500">
                   {bot.botId}
                 </span>
               )}
             </div>
-            <CardDescription className="text-[11px]">Bot 当前连接状态</CardDescription>
+            <CardDescription className="text-xs">Bot 当前连接状态</CardDescription>
           </CardHeader>
           <CardContent>
             {bot ? (
@@ -221,7 +221,7 @@ export function DashboardPage() {
             ) : loading ? (
               <Skeleton className="h-12 w-full rounded-xl" />
             ) : (
-              <p className="text-[12px] text-gray-400">暂无数据，前往「Bot 设置」页面配置。</p>
+              <p className="text-sm text-gray-400">暂无数据，前往「Bot 设置」页面配置。</p>
             )}
           </CardContent>
         </Card>
@@ -234,7 +234,7 @@ export function DashboardPage() {
         <MemoryCard system={system} loading={loading} />
       </div>
 
-      <p className="text-center text-[10px] text-gray-400">
+      <p className="text-center text-xs text-gray-400">
         每 {POLL_INTERVAL / 1000}s 自动刷新
       </p>
     </div>
@@ -247,38 +247,38 @@ export function DashboardPage() {
 
 const GLOW_MAP: Record<string, { bg: string; ring: string; shadow: string }> = {
   green: {
-    bg: "bg-emerald-50",
-    ring: "ring-emerald-100",
-    shadow: "shadow-emerald-100/50",
+    bg: "bg-emerald-50 dark:bg-emerald-900/30",
+    ring: "ring-emerald-100 dark:ring-emerald-800/40",
+    shadow: "shadow-emerald-100/50 dark:shadow-emerald-900/30",
   },
   purple: {
-    bg: "bg-violet-50",
-    ring: "ring-violet-100",
-    shadow: "shadow-violet-100/50",
+    bg: "bg-violet-50 dark:bg-violet-900/30",
+    ring: "ring-violet-100 dark:ring-violet-800/40",
+    shadow: "shadow-violet-100/50 dark:shadow-violet-900/30",
   },
   blue: {
-    bg: "bg-sky-50",
-    ring: "ring-sky-100",
-    shadow: "shadow-sky-100/50",
+    bg: "bg-sky-50 dark:bg-sky-900/30",
+    ring: "ring-sky-100 dark:ring-sky-800/40",
+    shadow: "shadow-sky-100/50 dark:shadow-sky-900/30",
   },
   red: {
-    bg: "bg-red-50",
-    ring: "ring-red-100",
-    shadow: "shadow-red-100/50",
+    bg: "bg-red-50 dark:bg-red-900/30",
+    ring: "ring-red-100 dark:ring-red-800/40",
+    shadow: "shadow-red-100/50 dark:shadow-red-900/30",
   },
   gray: {
-    bg: "bg-gray-50",
-    ring: "ring-gray-100",
-    shadow: "shadow-gray-100/50",
+    bg: "bg-gray-50 dark:bg-gray-800/50",
+    ring: "ring-gray-100 dark:ring-gray-700/50",
+    shadow: "shadow-gray-100/50 dark:shadow-gray-900/30",
   },
 }
 
 const VALUE_COLOR: Record<string, string> = {
-  green: "text-emerald-600",
-  purple: "text-violet-600",
-  blue: "text-sky-600",
-  red: "text-red-500",
-  gray: "text-gray-400",
+  green: "text-emerald-600 dark:text-emerald-400",
+  purple: "text-violet-600 dark:text-violet-400",
+  blue: "text-sky-600 dark:text-sky-400",
+  red: "text-red-500 dark:text-red-400",
+  gray: "text-gray-400 dark:text-gray-500",
 }
 
 function OverviewStat({
@@ -298,7 +298,7 @@ function OverviewStat({
 }) {
   const glow = GLOW_MAP[glowColor] ?? GLOW_MAP.gray
   return (
-    <Card className="overflow-hidden rounded-2xl border-gray-200/50 bg-white/60 backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-gray-200/40">
+    <Card className="overflow-hidden rounded-2xl border-gray-200/50 bg-white/60 backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-gray-200/40 dark:border-gray-700/50 dark:bg-gray-900/60 dark:hover:shadow-gray-900/40">
       <CardContent className="flex items-center gap-3.5 p-4">
         <div
           className={cn(
@@ -311,15 +311,15 @@ function OverviewStat({
           {icon}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-medium tracking-wide text-gray-400">{label}</p>
+          <p className="text-xs font-medium tracking-wide text-gray-400">{label}</p>
           {isLoading ? (
             <Skeleton className="mt-1 h-5 w-16 rounded-lg" />
           ) : (
-            <p className={cn("text-[18px] font-bold tabular-nums tracking-tight", VALUE_COLOR[glowColor] ?? "text-gray-700")}>
+            <p className={cn("text-xl font-bold tabular-nums tracking-tight", VALUE_COLOR[glowColor] ?? "text-gray-700")}>
               {value}
             </p>
           )}
-          {sub && <p className="truncate text-[10px] text-gray-400/80">{sub}</p>}
+          {sub && <p className="truncate text-xs text-gray-400/80">{sub}</p>}
         </div>
       </CardContent>
     </Card>
@@ -374,12 +374,12 @@ const BOT_STATUS_META: Record<
 function BotMiniCard({ bot }: { bot: BotInfo }) {
   const meta = BOT_STATUS_META[bot.status] ?? BOT_STATUS_META.idle
   return (
-    <div className="flex items-center gap-2.5 rounded-xl border border-gray-100 bg-white/50 px-3 py-2.5 transition-colors hover:bg-white/80">
-      <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-gray-50">
+    <div className="flex items-center gap-2.5 rounded-xl border border-gray-100 bg-white/50 px-3 py-2.5 transition-colors hover:bg-white/80 dark:border-gray-800 dark:bg-gray-900/50 dark:hover:bg-gray-800/80">
+      <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-gray-50 dark:bg-gray-800">
         <Bot className="size-3.5 text-gray-400" strokeWidth={1.5} />
       </div>
-      <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-gray-600">{bot.botId}</span>
-      <span className={cn("flex items-center gap-1.5 text-[10px] font-medium", meta.text)}>
+      <span className="min-w-0 flex-1 truncate font-mono text-xs text-gray-600 dark:text-gray-300">{bot.botId}</span>
+      <span className={cn("flex items-center gap-1.5 text-xs font-medium", meta.text)}>
         <span className={cn("size-1.5 rounded-full shadow-sm", meta.dot)} />
         {meta.label}
       </span>
@@ -393,28 +393,28 @@ function BotMiniCard({ bot }: { bot: BotInfo }) {
 
 function SystemCard({ system, loading }: { system: SystemInfo | null; loading: boolean }) {
   return (
-    <Card className="overflow-hidden rounded-2xl border-gray-200/50 bg-white/60 backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-gray-200/40">
+    <Card className="overflow-hidden rounded-2xl border-gray-200/50 bg-white/60 backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-gray-200/40 dark:border-gray-700/50 dark:bg-gray-900/60 dark:hover:shadow-gray-900/40">
       <CardHeader className="pb-3">
         <div className="flex items-center gap-2">
-          <div className="flex size-7 items-center justify-center rounded-lg bg-indigo-50">
-            <Server className="size-3.5 text-indigo-500" strokeWidth={1.5} />
+          <div className="flex size-7 items-center justify-center rounded-lg bg-indigo-50 dark:bg-indigo-900/30">
+            <Server className="size-3.5 text-indigo-500 dark:text-indigo-400" strokeWidth={1.5} />
           </div>
-          <CardTitle className="text-[13px] font-semibold text-gray-700">系统信息</CardTitle>
+          <CardTitle className="text-sm font-semibold text-gray-700 dark:text-gray-200">系统信息</CardTitle>
         </div>
-        <CardDescription className="text-[11px]">操作系统与 Node 进程</CardDescription>
+        <CardDescription className="text-xs">操作系统与 Node 进程</CardDescription>
       </CardHeader>
       <CardContent>
         {system ? (
-          <dl className="flex flex-col gap-2.5 text-[12px]">
+          <dl className="flex flex-col gap-2.5 text-xs">
             <SystemRow label="主机" value={system.os.hostname} mono />
             <SystemRow label="平台" value={`${system.os.platform} (${system.os.arch}) · ${system.os.release}`} mono />
             <SystemRow label="系统运行" value={formatDuration(system.os.uptimeSec)} />
             <SystemRow label="Node" value={`${system.node.version} · pid ${system.node.pid}`} mono />
             <SystemRow label="进程运行" value={formatDuration(system.node.uptimeSec)} />
             <div className="flex items-start gap-3">
-              <dt className="shrink-0 pt-0.5 text-[11px] text-gray-400">cwd</dt>
+              <dt className="shrink-0 pt-0.5 text-xs text-gray-400">cwd</dt>
               <dd
-                className="min-w-0 flex-1 truncate rounded-lg bg-gray-50/80 px-2 py-1 font-mono text-[11px] text-gray-500 ring-1 ring-gray-100"
+                className="min-w-0 flex-1 truncate rounded-lg bg-gray-50/80 px-2 py-1 font-mono text-xs text-gray-500 ring-1 ring-gray-100 dark:bg-gray-800/60 dark:text-gray-400 dark:ring-gray-700/50"
                 title={system.node.cwd}
               >
                 {system.node.cwd}
@@ -424,7 +424,7 @@ function SystemCard({ system, loading }: { system: SystemInfo | null; loading: b
         ) : loading ? (
           <CardSkeleton lines={5} />
         ) : (
-          <p className="text-[12px] text-gray-400">暂无数据</p>
+          <p className="text-sm text-gray-400">暂无数据</p>
         )}
       </CardContent>
     </Card>
@@ -433,22 +433,22 @@ function SystemCard({ system, loading }: { system: SystemInfo | null; loading: b
 
 function CpuCard({ system, loading }: { system: SystemInfo | null; loading: boolean }) {
   return (
-    <Card className="overflow-hidden rounded-2xl border-gray-200/50 bg-white/60 backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-gray-200/40">
+    <Card className="overflow-hidden rounded-2xl border-gray-200/50 bg-white/60 backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-gray-200/40 dark:border-gray-700/50 dark:bg-gray-900/60 dark:hover:shadow-gray-900/40">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="flex size-7 items-center justify-center rounded-lg bg-violet-50">
-              <Cpu className="size-3.5 text-violet-500" strokeWidth={1.5} />
+            <div className="flex size-7 items-center justify-center rounded-lg bg-violet-50 dark:bg-violet-900/30">
+              <Cpu className="size-3.5 text-violet-500 dark:text-violet-400" strokeWidth={1.5} />
             </div>
-            <CardTitle className="text-[13px] font-semibold text-gray-700">CPU</CardTitle>
+            <CardTitle className="text-sm font-semibold text-gray-700 dark:text-gray-200">CPU</CardTitle>
           </div>
           {system && (
-            <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500">
+            <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500">
               {system.cpu.cores} 核
             </span>
           )}
         </div>
-        <CardDescription className="truncate text-[11px]" title={system?.cpu.model}>
+        <CardDescription className="truncate text-xs" title={system?.cpu.model}>
           {system?.cpu.model ?? "—"}
         </CardDescription>
       </CardHeader>
@@ -456,15 +456,15 @@ function CpuCard({ system, loading }: { system: SystemInfo | null; loading: bool
         {system ? (
           <div className="flex flex-col gap-3">
             <UsageBar label="使用率" value={system.cpu.usagePercent} />
-            <dl className="flex flex-col gap-2 text-[12px]">
+            <dl className="flex flex-col gap-2 text-xs">
               <SystemRow label="主频" value={`${(system.cpu.speedMHz / 1000).toFixed(2)} GHz`} />
               <div className="flex items-start gap-3">
-                <dt className="shrink-0 text-[11px] text-gray-400">负载</dt>
+                <dt className="shrink-0 text-xs text-gray-400">负载</dt>
                 <dd className="min-w-0 flex-1">
-                  <span className="font-mono text-[12px] font-medium text-gray-700">
+                  <span className="font-mono text-xs font-medium text-gray-700">
                     {system.cpu.loadAvg.map((n) => n.toFixed(2)).join(" / ")}
                   </span>
-                  <span className="ml-1.5 text-[10px] text-gray-400">1m / 5m / 15m</span>
+                  <span className="ml-1.5 text-xs text-gray-400">1m / 5m / 15m</span>
                 </dd>
               </div>
             </dl>
@@ -472,7 +472,7 @@ function CpuCard({ system, loading }: { system: SystemInfo | null; loading: bool
         ) : loading ? (
           <CardSkeleton lines={3} />
         ) : (
-          <p className="text-[12px] text-gray-400">暂无数据</p>
+          <p className="text-sm text-gray-400">暂无数据</p>
         )}
       </CardContent>
     </Card>
@@ -481,15 +481,15 @@ function CpuCard({ system, loading }: { system: SystemInfo | null; loading: bool
 
 function MemoryCard({ system, loading }: { system: SystemInfo | null; loading: boolean }) {
   return (
-    <Card className="overflow-hidden rounded-2xl border-gray-200/50 bg-white/60 backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-gray-200/40">
+    <Card className="overflow-hidden rounded-2xl border-gray-200/50 bg-white/60 backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-gray-200/40 dark:border-gray-700/50 dark:bg-gray-900/60 dark:hover:shadow-gray-900/40">
       <CardHeader className="pb-3">
         <div className="flex items-center gap-2">
-          <div className="flex size-7 items-center justify-center rounded-lg bg-sky-50">
-            <MemoryStick className="size-3.5 text-sky-500" strokeWidth={1.5} />
+          <div className="flex size-7 items-center justify-center rounded-lg bg-sky-50 dark:bg-sky-900/30">
+            <MemoryStick className="size-3.5 text-sky-500 dark:text-sky-400" strokeWidth={1.5} />
           </div>
-          <CardTitle className="text-[13px] font-semibold text-gray-700">内存</CardTitle>
+          <CardTitle className="text-sm font-semibold text-gray-700 dark:text-gray-200">内存</CardTitle>
         </div>
-        <CardDescription className="text-[11px]">系统总内存与 Node 进程占用</CardDescription>
+        <CardDescription className="text-xs">系统总内存与 Node 进程占用</CardDescription>
       </CardHeader>
       <CardContent>
         {system ? (
@@ -508,7 +508,7 @@ function MemoryCard({ system, loading }: { system: SystemInfo | null; loading: b
               }
               caption={`${formatBytes(system.memory.process.heapUsedBytes)} / ${formatBytes(system.memory.process.heapTotalBytes)}`}
             />
-            <dl className="flex flex-col gap-2 text-[12px]">
+            <dl className="flex flex-col gap-2 text-xs">
               <SystemRow label="RSS" value={formatBytes(system.memory.process.rssBytes)} />
               <SystemRow label="External" value={formatBytes(system.memory.process.externalBytes)} />
             </dl>
@@ -516,7 +516,7 @@ function MemoryCard({ system, loading }: { system: SystemInfo | null; loading: b
         ) : loading ? (
           <CardSkeleton lines={4} />
         ) : (
-          <p className="text-[12px] text-gray-400">暂无数据</p>
+          <p className="text-sm text-gray-400">暂无数据</p>
         )}
       </CardContent>
     </Card>
@@ -530,8 +530,8 @@ function MemoryCard({ system, loading }: { system: SystemInfo | null; loading: b
 function SystemRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
     <div className="flex items-baseline gap-3">
-      <dt className="shrink-0 text-[11px] text-gray-400">{label}</dt>
-      <dd className={cn("min-w-0 flex-1 truncate text-[12px] font-medium text-gray-700", mono && "font-mono")}>
+      <dt className="shrink-0 text-xs text-gray-400">{label}</dt>
+      <dd className={cn("min-w-0 flex-1 truncate text-xs font-medium text-gray-700 dark:text-gray-200", mono && "font-mono")}>
         {value}
       </dd>
     </div>
@@ -548,14 +548,14 @@ function UsageBar({ label, value, caption }: { label: string; value: number; cap
         : "from-emerald-400 to-teal-400"
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="flex items-baseline justify-between text-[11px]">
+      <div className="flex items-baseline justify-between text-xs">
         <span className="text-gray-400">{label}</span>
-        <span className="font-mono tabular-nums font-medium text-gray-600">
+        <span className="font-mono tabular-nums font-medium text-gray-600 dark:text-gray-300">
           {v.toFixed(1)}%
-          {caption && <span className="ml-1.5 text-[10px] font-normal text-gray-400">{caption}</span>}
+          {caption && <span className="ml-1.5 text-xs font-normal text-gray-400">{caption}</span>}
         </span>
       </div>
-      <div className="h-1.5 overflow-hidden rounded-full bg-gray-100">
+      <div className="h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
         <div
           className={cn("h-full rounded-full bg-gradient-to-r transition-[width] duration-500 ease-out", gradient)}
           style={{ width: `${v}%` }}

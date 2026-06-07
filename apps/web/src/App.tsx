@@ -16,6 +16,7 @@ import { MessagesPage } from "@/pages/messages"
 import { LoginPage } from "@/pages/login"
 import { AuthProvider, useAuth } from "@/contexts/auth-context"
 import { api } from "@/lib/api"
+import { useTheme } from "@/hooks/use-theme"
 
 /** 从 URL hash 读取初始页，fallback 到 dashboard */
 function getHashPage(): string {
@@ -45,6 +46,7 @@ function AppContent() {
 
 function MainApp() {
   const { logout } = useAuth()
+  const { theme, cycleTheme } = useTheme()
   const [active, setActive] = useState(getHashPage)
 
   // 当 active 变化时同步到 hash
@@ -140,6 +142,8 @@ function MainApp() {
       pluginNavItems={pluginNavItems}
       bare={activePlugin !== null}
       onLogout={logout}
+      theme={theme}
+      onCycleTheme={cycleTheme}
     >
       {content}
     </AppLayout>

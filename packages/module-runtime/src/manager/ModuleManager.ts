@@ -26,8 +26,8 @@ export class ModuleManager {
    * @param modulesDir 模块目录绝对路径
    */
   async discoverAndStart(modulesDir: string): Promise<void> {
-    const { readdir } = await import("node:fs/promises");
-    const { resolve, extname } = await import("node:path");
+    const { readdir, stat } = await import("node:fs/promises");
+    const { resolve, extname, join } = await import("node:path");
 
     let entries: string[];
     try {
@@ -44,9 +44,23 @@ export class ModuleManager {
       // 只处理 .js 文件和无扩展名目录（目录化模块）
       if (ext !== ".js" && ext !== "") continue;
 
+      let importPath = fullPath;
+      if (ext === "") {
+        // 目录型模块：检查 index.js 是否存在
+        try {
+          const dirStat = await stat(fullPath);
+          if (!dirStat.isDirectory()) continue;
+          const indexJs = join(fullPath, "index.js");
+          await stat(indexJs);
+          importPath = indexJs;
+        } catch {
+          continue;
+        }
+      }
+
       let mod: unknown;
       try {
-        const imported = (await import(fullPath)) as Record<string, unknown>;
+        const imported = (await import(importPath)) as Record<string, unknown>;
         mod = imported.default;
       } catch (err) {
         console.error(`[module-runtime] 加载模块失败 "${entry}":`, err);

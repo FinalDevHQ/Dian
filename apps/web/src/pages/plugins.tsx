@@ -206,7 +206,7 @@ function UploadDialog({
             </div>
           )}
 
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             ZIP 会解压到 <code className="font-mono">plugins/&lt;name&gt;/</code> 目录并自动加载。
           </p>
         </div>
@@ -244,7 +244,7 @@ function MethodBadge({ method }: { method: string }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded border px-1 py-0.5 font-mono text-[10px] font-semibold",
+        "inline-flex items-center rounded border px-1 py-0.5 font-mono text-xs font-semibold",
         cls[method] ?? "bg-muted text-muted-foreground"
       )}
     >
@@ -289,12 +289,12 @@ function PluginDetail({
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-lg font-bold leading-none tracking-tight">{plugin.name}</h2>
             {plugin.version && (
-              <Badge variant="secondary" className="font-mono text-[10px]">v{plugin.version}</Badge>
+              <Badge variant="secondary" className="font-mono text-xs">v{plugin.version}</Badge>
             )}
             <Badge
               variant="outline"
               className={cn(
-                "text-[10px] uppercase tracking-wider",
+                "text-xs uppercase tracking-wider",
                 plugin.enabled
                   ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-600"
                   : "border-muted-foreground/30 text-muted-foreground"
@@ -390,12 +390,12 @@ function PluginDetail({
           </CardHeader>
           <CardContent className="space-y-2 px-4 pb-4 text-xs">
             <div className="flex items-center gap-2">
-              <span className="shrink-0 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">连接时间</span>
+              <span className="shrink-0 text-xs font-medium uppercase tracking-wider text-muted-foreground">连接时间</span>
               <span className="font-mono tabular-nums">{new Date(devSession.connectedAt).toLocaleString("zh-CN")}</span>
             </div>
             {devSession.lastSyncAt && (
               <div className="flex items-center gap-2">
-                <span className="shrink-0 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">最近同步</span>
+                <span className="shrink-0 text-xs font-medium uppercase tracking-wider text-muted-foreground">最近同步</span>
                 <span className="font-mono tabular-nums">{new Date(devSession.lastSyncAt).toLocaleString("zh-CN")}</span>
               </div>
             )}
@@ -412,7 +412,7 @@ function PluginDetail({
               <CardTitle className="text-sm">API 路由</CardTitle>
             </div>
             <CardDescription className="text-xs">
-              前缀：<code className="rounded bg-muted px-1 py-0.5 font-mono text-[10px]">/plugins/{plugin.name}/api</code>
+              前缀：<code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">/plugins/{plugin.name}/api</code>
             </CardDescription>
           </CardHeader>
           <CardContent className="px-4 pb-3">
@@ -574,7 +574,7 @@ export function PluginsPage({ onPluginsChange }: { onPluginsChange?: () => void 
   const [uploadOpen, setUploadOpen] = useState(false)
 
   return (
-    <div className="grid h-[calc(100vh-8rem)] min-h-0 grid-cols-[18rem_1fr] gap-5">
+    <div className="grid min-h-0 grid-cols-1 md:grid-cols-[18rem_1fr] md:h-[calc(100vh-8rem)] gap-5">
       {uploadOpen && (
         <UploadDialog
           onClose={() => setUploadOpen(false)}
@@ -647,7 +647,7 @@ export function PluginsPage({ onPluginsChange }: { onPluginsChange?: () => void 
                 type="button"
                 onClick={() => setSelected(p.name)}
                 className={cn(
-                  "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-all",
+                  "group relative flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-all",
                   selected === p.name
                     ? "bg-primary/8 ring-1 ring-primary/20 shadow-sm"
                     : "hover:bg-muted/70"
@@ -671,7 +671,7 @@ export function PluginsPage({ onPluginsChange }: { onPluginsChange?: () => void 
                       {p.description}
                     </p>
                   )}
-                  <div className="mt-1 flex items-center gap-2 text-[10px] text-muted-foreground">
+                  <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
                     {p.version && <span className="font-mono">v{p.version}</span>}
                     {p.routes.length > 0 && (
                       <span className="flex items-center gap-0.5">

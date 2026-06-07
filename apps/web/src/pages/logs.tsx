@@ -90,7 +90,7 @@ function SegmentView({ seg }: { seg: OneBotSegment }) {
       return (
         <span
           title={`QQ 表情 id=${data.id}`}
-          className="mx-0.5 inline-flex items-center gap-0.5 rounded bg-amber-500/15 px-1 py-0.5 text-[10px] text-amber-700"
+          className="mx-0.5 inline-flex items-center gap-0.5 rounded bg-amber-500/15 px-1 py-0.5 text-xs text-amber-700"
         >
           😀 {data.id}
         </span>
@@ -99,7 +99,7 @@ function SegmentView({ seg }: { seg: OneBotSegment }) {
       const src = data.url || data.file
       if (!src || !/^https?:\/\//.test(src)) {
         return (
-          <span className="mx-0.5 inline-flex items-center gap-1 rounded bg-blue-500/15 px-1 py-0.5 text-[10px] text-blue-700">
+          <span className="mx-0.5 inline-flex items-center gap-1 rounded bg-blue-500/15 px-1 py-0.5 text-xs text-blue-700">
             🖼 image
           </span>
         )
@@ -124,7 +124,7 @@ function SegmentView({ seg }: { seg: OneBotSegment }) {
     }
     case "at":
       return (
-        <span className="mx-0.5 inline-flex items-center rounded bg-violet-500/15 px-1 py-0.5 text-[10px] text-violet-700">
+        <span className="mx-0.5 inline-flex items-center rounded bg-violet-500/15 px-1 py-0.5 text-xs text-violet-700">
           @{data.qq === "all" ? "全体成员" : data.qq}
         </span>
       )
@@ -132,38 +132,38 @@ function SegmentView({ seg }: { seg: OneBotSegment }) {
       return (
         <span
           title={`引用消息 id=${data.id}`}
-          className="mx-0.5 inline-flex items-center rounded bg-slate-500/15 px-1 py-0.5 text-[10px] text-slate-600"
+          className="mx-0.5 inline-flex items-center rounded bg-slate-500/15 px-1 py-0.5 text-xs text-slate-600"
         >
           ↳ {data.id}
         </span>
       )
     case "record":
       return (
-        <span className="mx-0.5 inline-flex items-center rounded bg-emerald-500/15 px-1 py-0.5 text-[10px] text-emerald-700">
+        <span className="mx-0.5 inline-flex items-center rounded bg-emerald-500/15 px-1 py-0.5 text-xs text-emerald-700">
           🎤 语音
         </span>
       )
     case "video":
       return (
-        <span className="mx-0.5 inline-flex items-center rounded bg-rose-500/15 px-1 py-0.5 text-[10px] text-rose-700">
+        <span className="mx-0.5 inline-flex items-center rounded bg-rose-500/15 px-1 py-0.5 text-xs text-rose-700">
           🎬 视频
         </span>
       )
     case "file":
       return (
-        <span className="mx-0.5 inline-flex items-center rounded bg-sky-500/15 px-1 py-0.5 text-[10px] text-sky-700">
+        <span className="mx-0.5 inline-flex items-center rounded bg-sky-500/15 px-1 py-0.5 text-xs text-sky-700">
           📎 {data.name ?? "文件"}
         </span>
       )
     case "rps":
-      return <span className="mx-0.5 text-[10px] text-muted-foreground">[猜拳]</span>
+      return <span className="mx-0.5 text-xs text-muted-foreground">[猜拳]</span>
     case "dice":
-      return <span className="mx-0.5 text-[10px] text-muted-foreground">[骰子 {data.value ?? ""}]</span>
+      return <span className="mx-0.5 text-xs text-muted-foreground">[骰子 {data.value ?? ""}]</span>
     case "share":
       return (
         <span
           title={data.url}
-          className="mx-0.5 inline-flex items-center rounded bg-teal-500/15 px-1 py-0.5 text-[10px] text-teal-700"
+          className="mx-0.5 inline-flex items-center rounded bg-teal-500/15 px-1 py-0.5 text-xs text-teal-700"
         >
           🔗 {data.title ?? "分享"}
         </span>
@@ -171,13 +171,13 @@ function SegmentView({ seg }: { seg: OneBotSegment }) {
     case "json":
     case "xml":
       return (
-        <span className="mx-0.5 inline-flex items-center rounded bg-zinc-500/15 px-1 py-0.5 text-[10px] text-zinc-600">
+        <span className="mx-0.5 inline-flex items-center rounded bg-zinc-500/15 px-1 py-0.5 text-xs text-zinc-600">
           [{type}]
         </span>
       )
     default:
       return (
-        <span className="mx-0.5 inline-flex items-center rounded bg-muted px-1 py-0.5 text-[10px] text-muted-foreground">
+        <span className="mx-0.5 inline-flex items-center rounded bg-muted px-1 py-0.5 text-xs text-muted-foreground">
           [{type}]
         </span>
       )
@@ -291,7 +291,7 @@ function describeEvent(e: BotEvent): ReactNode {
   return e.subtype
 }
 
-const BADGE_BASE = "h-5 px-1.5 py-0 text-[10px] leading-5"
+const BADGE_BASE = "h-5 px-1.5 py-0 text-xs leading-5"
 
 function eventTypeBadge(e: BotEvent) {
   switch (e.type) {
@@ -532,7 +532,7 @@ export function LogsPage() {
         )}
       </div>
 
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-xs text-muted-foreground">
         显示最近 {MAX_BUFFER} 条 ·
         {paused ? " 已暂停" : " 实时"}
       </p>

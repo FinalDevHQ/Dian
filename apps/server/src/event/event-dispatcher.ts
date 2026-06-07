@@ -19,8 +19,6 @@ export class EventDispatcher {
   private botService?: BotService;
   private messageRepo?: MessageRepository;
   private sqliteStore?: SqlitePluginStore;
-  /** 已初始化的插件表 */
-  private initializedTables = new Set<string>();
 
   constructor(logger: LogService) {
     this.log = logger.child({ component: "EventDispatcher" });
@@ -36,17 +34,6 @@ export class EventDispatcher {
 
   setStore(store: SqlitePluginStore): void {
     this.sqliteStore = store;
-  }
-
-  /**
-   * 确保插件表存在
-   */
-  private async ensureTable(tableName: string, columns: string[]): Promise<void> {
-    if (this.initializedTables.has(tableName)) return;
-    if (!this.sqliteStore) return;
-    
-    await this.sqliteStore.createTable(tableName, columns);
-    this.initializedTables.add(tableName);
   }
 
   async dispatch(event: BotEvent): Promise<void> {
@@ -117,27 +104,6 @@ export class EventDispatcher {
             }).catch((err) => {
               this.log.error("Failed to persist reply message", { err });
             });
-            
-            // 同时写入插件表
-            if (this.sqliteStore && groupId) {
-              this.ensureTable("qq_group_admin_bot_messages", [
-                "bot_id TEXT NOT NULL",
-                "group_id TEXT NOT NULL",
-                "message_id TEXT NOT NULL",
-                "text TEXT",
-                "timestamp INTEGER NOT NULL",
-              ]).then(() => {
-                return this.sqliteStore!.insert("qq_group_admin_bot_messages", {
-                  bot_id: event.botId,
-                  group_id: groupId,
-                  message_id: String(replyMsgId),
-                  text: text,
-                  timestamp: Math.floor(Date.now() / 1000),
-                });
-              }).catch((err) => {
-                this.log.error("Failed to persist reply to plugin table", { err });
-              });
-            }
           }
         }
       }
@@ -169,27 +135,6 @@ export class EventDispatcher {
           }).catch((err) => {
             this.log.error("Failed to persist sendAction message", { err });
           });
-          
-          // 同时写入插件表
-          if (this.sqliteStore && groupId) {
-            this.ensureTable("qq_group_admin_bot_messages", [
-              "bot_id TEXT NOT NULL",
-              "group_id TEXT NOT NULL",
-              "message_id TEXT NOT NULL",
-              "text TEXT",
-              "timestamp INTEGER NOT NULL",
-            ]).then(() => {
-              return this.sqliteStore!.insert("qq_group_admin_bot_messages", {
-                bot_id: event.botId,
-                group_id: String(groupId),
-                message_id: String(replyMsgId),
-                text: typeof params?.message === "string" ? params.message : null,
-                timestamp: Math.floor(Date.now() / 1000),
-              });
-            }).catch((err) => {
-              this.log.error("Failed to persist sendAction to plugin table", { err });
-            });
-          }
         }
       }
       
